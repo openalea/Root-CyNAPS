@@ -21,7 +21,7 @@ import pandas as pd
 from openalea.mtg import turtle as turt
 from openalea.mtg.plantframe import color
 import openalea.plantgl.all as pgl
-import rhizodep2111.src.rhizodep.parameters as param
+import src.parameters as param
 
 
 # FUNCTIONS FOR DATA PREPROCESSING :
