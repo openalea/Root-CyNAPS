@@ -16,9 +16,9 @@ import pandas as pd
 import os
 
 import openalea.plantgl.all as pgl
-import rhizodep2111.src.rhizodep.model as model
-import rhizodep2111.src.rhizodep.tools as tools
-import rhizodep2111.src.rhizodep.parameters as param
+import src.model_rhizodep as model
+import src.tools as tools
+import src.parameters as param
 
 import pickle
 
