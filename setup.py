@@ -11,19 +11,19 @@ from os.path import join as pj
 from setuptools import setup, find_packages
 
 short_descr = "RhizoDeposition"
-readme = open('README.rst').read()
-history = open('HISTORY.rst').read()
+readme = open('README.md').read()
+#history = open('HISTORY.rst').read()
 
 # find packages
-pkgs = find_packages('src')
+pkgs = find_packages('.')
 
 pkg_data = {}
 
-nb = len(normpath(abspath("src/rhizodep"))) + 1
+nb = len(normpath(abspath("rhizodep"))) + 1
 data_rel_pth = lambda pth: normpath(abspath(pth))[nb:]
 
 data_files = []
-for root, dnames, fnames in walk("src/rhizodep"):
+for root, dnames, fnames in walk("rhizodep"):
     for name in fnames:
         if splitext(name)[-1] in [u'.json', u'.ini']:
             data_files.append(data_rel_pth(pj(root, name)))
@@ -34,7 +34,7 @@ setup_kwds = dict(
     name='rhizodep',
     version="0.0.1",
     description=short_descr,
-    long_description=readme + '\n\n' + history,
+    long_description=readme + '\n\n', # + history,
     author="Frederic Rees",
     author_email="frederic.rees@inra.fr",
     url='',
@@ -43,7 +43,7 @@ setup_kwds = dict(
 
     packages=pkgs,
     #namespace_packages=['openalea'],
-    package_dir={'': 'src'},
+    package_dir={'': '.'},
 
     package_data=pkg_data,
     setup_requires=[

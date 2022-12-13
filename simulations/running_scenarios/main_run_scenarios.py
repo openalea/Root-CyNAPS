@@ -16,10 +16,10 @@ import multiprocessing as mp
 import shutil
 import time
 
-import rhizodep2111.src.rhizodep.tools as tools
-import rhizodep2111.src.rhizodep.simulation as simulation
-import rhizodep2111.src.rhizodep.parameters as param
-import rhizodep2111.src.rhizodep.model as model
+import rhizodep.tools as tools
+import rhizodep.simulation as simulation
+import rhizodep.parameters as param
+import rhizodep.model as model
 
 
 def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='outputs'):
