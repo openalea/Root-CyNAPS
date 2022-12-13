@@ -1,3 +1,6 @@
+# Images output
+*.png
+
 # Packages
 *.egg
 *.egg-info
