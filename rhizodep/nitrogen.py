@@ -13,11 +13,12 @@ def init_N(g,
            loading_N: float = 0):
     """
     Description
+    Initialization of nitrogen-related variables
 
     Parameters
     :param g: MTG (dict)
-    :param N: Local nitrogen pools (mol)
-    :param xylem_N: Global xylem vessel concentration (mol.m-3)
+    :param N: Local nitrogen content (mol)
+    :param xylem_N: Global xylem nitrogen content (mol)
     :param xylem_volume: Global xylem vessel volume (m3)
     :param influx_N: Local nitrogen influx from soil
     :param loading_N: Local nitrogen loading to xylem
@@ -85,9 +86,26 @@ def transport_N(g,
                 vmax_N_root : float = 0.5,
                 affinity_N_xylem : float = 10,
                 vmax_N_xylem : float = 0.1,
-                xylem_to_root : float = 0.2,
-                time_step : int = 3600
+                xylem_to_root : float = 0.2
                 ):
+    '''
+    Description
+    Nitrogen transport between local soil, local root segment and global vessels (xylem and phloem).
+
+    :param g: MTG (dict)
+    :param affinity_N_root: Active transport from soil Km parameter (mol.m-3)
+    :param vmax_N_root: Surfacic maximal active transport rate to root (mol.m-2.s-1)
+    :param affinity_N_xylem: Active transport from root Km parameter (mol.g-1)
+    :param vmax_N_xylem: Surfacic maximal active transport rate to xylem (mol.m-2.s-1)
+    :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
+
+    Hypothesis
+    H1: We summarize radial active transport controls (transporter density, affinity regulated with genetics
+    or environnemental control, etc) as one mean transporter following Michaelis Menten's model.
+
+    H2: We can summarize apoplastic and symplastic radial transport through one radial transport.
+    Differentiation with epidermis conductance loss, root hair density, aerenchyma, etc, is supposed to impact Vmax.
+    '''
     # We define "root" as the starting point of the loop below:
     root_gen = g.component_roots_at_scale_iter(g.root, scale=1)
     root = next(root_gen)
@@ -96,6 +114,7 @@ def transport_N(g,
     for vid in post_order(g, root):
         # We define the current root element as n:
         n = g.node(vid)
+
         if n.struct_mass > 0:
             # We define nitrogen active uptake from soil
             n.influx_N = (n.soil_N * vmax_N_root / (
@@ -119,18 +138,20 @@ def update_N(g,
              xylem_to_root = 0.2,
              time_step = 3600):
 
-    g.node(0).xylem_N = g.node(0).xylem_N * g.node(0).xylem_volume
     # Volume reinitialisation for update
     g.node(0).xylem_volume = 0
+
     # No order in update propagation
     max_scale = g.max_scale()
     for vid in g.vertices(scale=max_scale):
+        # We define current root element as vid
         n = g.node(vid)
+
         # Local nitrogen pool update
         n.N += time_step * (n.influx_N - n.loading_N)
+
         # Global vessel's nitrogen pool update
         g.node(0).xylem_N += n.loading_N
         g.node(0).xylem_volume += np.pi * n.length * (n.radius*xylem_to_root)**2
-    g.node(0).xylem_N = g.node(0).xylem_N / g.node(0).xylem_volume
 
     return g

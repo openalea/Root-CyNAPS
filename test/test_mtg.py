@@ -34,4 +34,4 @@ def test_nitrogen(n=10):
     return g
 
 
-#test_nitrogen()
+g = test_nitrogen()
