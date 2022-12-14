@@ -160,7 +160,7 @@ def update_N(g,
     for vid in g.vertices(scale=max_scale):
         
         # Local nitrogen pool update
-        N[vid] += time_step * (influx_N[vid] - n.loading_N[vid])
+        N[vid] += time_step * (influx_N[vid] - loading_N[vid])
 
         # Global vessel's nitrogen pool update
         xylem_N += loading_N[vid]
