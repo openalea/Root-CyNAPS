@@ -16,9 +16,18 @@ def test_mtg():
 def plot_N(g,
            p: str = 'influx_N'
            ):
+    props = g.property(p)
+    max_scale = g.max_scale()
+    plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
+
     scene = plot_mtg(g,
-                     prop_cmap=p)
+                     prop_cmap=p,
+                     lognorm=False,  # to avoid issues with negative values
+                     vmin=min(plot_range),
+                     vmax=max(plot_range)
+                     )
     pgl.Viewer.display(scene)
+
 
 def print_g(g,
             select
@@ -36,6 +45,7 @@ def print_g(g,
             print(f"{extract[k][vid]:4.10f}", end=' ')
         print('')
 
+
 def test_nitrogen(n=10):
     g = test_mtg()
 
@@ -46,8 +56,8 @@ def test_nitrogen(n=10):
         g = transport_N(g)
         g = update_N(g)
 
-    plot_N(g, p = 'z1')
-    select = ['influx_N', 'z1']
+    plot_N(g, p='C_hexose_root')
+    select = ['influx_N', 'z1', 'C_hexose_root']
     print_g(g, select)
 
     return g
