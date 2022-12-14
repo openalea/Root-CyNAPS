@@ -44,8 +44,12 @@ def init_N(g,
             props[name][vid] = value
 
     # global vessel's property initialisation in first node
-    g.node(0).xylem_N = xylem_N
-    g.node(0).xylem_volume = xylem_volume
+    
+    #props['xylem_N']={0:xylem_N}
+    #props['xylem_volume']={0:xylem_volume}
+    plant = g.node(0)
+    plant.xylem_N = xylem_N
+    plant.xylem_volume = xylem_volume
 
     return g
 
@@ -140,19 +144,29 @@ def update_N(g,
              time_step = 3600):
 
     # Volume reinitialisation for update
-    g.node(0).xylem_volume = 0
-
+    plant = g.node(0)
+    xylem_volume = plant.xylem_volume = 0
+    xylem_N = plant.xylem_N 
     # No order in update propagation
     max_scale = g.max_scale()
-    for vid in g.vertices(scale=max_scale):
-        # We define current root element as vid
-        n = g.node(vid)
+    
+    # Extract the properties once
+    props = g.properties()
+    N = props['N']
+    influx_N = props['influx_N']
+    loading_N = props['loading_N']
+    length = props['length']
+    radius = props['radius']
 
+    for vid in g.vertices(scale=max_scale):
+        
         # Local nitrogen pool update
-        n.N += time_step * (n.influx_N - n.loading_N)
+        N[vid] += time_step * (influx_N[vid] - loading_N[vid])
 
         # Global vessel's nitrogen pool update
-        g.node(0).xylem_N += n.loading_N
-        g.node(0).xylem_volume += np.pi * n.length * (n.radius*xylem_to_root)**2
+        xylem_N += loading_N[vid]
+        xylem_volume += np.pi * length[vid] * (radius[vid] * xylem_to_root) ** 2
 
+    plant.xylem_N = xylem_N
+    plant.xylem_volume = xylem_volume
     return g
