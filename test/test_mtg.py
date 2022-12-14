@@ -13,10 +13,12 @@ def test_mtg():
     return g
 
 
-def plot_N(g):
-    #print(g.display())
+def plot_N(g,
+           p : str = 'influx_N'
+           ):
+
     scene = plot_mtg(g,
-             prop_cmap='N_influx')
+             prop_cmap=p)
     pgl.Viewer.display(scene)
 
 
@@ -34,4 +36,11 @@ def test_nitrogen(n=10):
     return g
 
 
+# Test execution
+prop = 'influx_N'
 g = test_nitrogen()
+
+while prop != 'n':
+    plot_N(g, p=prop)
+    print(g.property(prop).values)
+    prop = input('next property? : ')
