@@ -437,7 +437,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     # We initialize the scene with the MTG g:
     scene = turt.TurtleFrame(g, visitor=visitor, turtle=turtle, gc=False)
     # We update the scene with the specified position of the center of the graph and the camera:
-    prepareScene(scene, x_center=x_center, y_center=y_center, z_center=z_center, x_cam=x_cam, y_cam=y_cam, z_cam=z_cam)
+    prepareScene(scene, x_center=x_center, y_center=y_center, z_center=z_center, x_cam=x_cam, y_cam=y_cam, z_cam=z_cam, scale=7.36)
     # We compute the colors of the graph:
     my_colormap(g, prop_cmap, cmap=cmap, vmin=vmin, vmax=vmax, lognorm=lognorm)
     # We get a list of all shapes in the scene:
