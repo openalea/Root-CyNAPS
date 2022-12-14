@@ -8,19 +8,29 @@ def init_N(g,
            soil_N: float = 0.1,
            N: float = 0.1,
            xylem_N: float = 0.1,
+           xylem_volume: float = 0,
            influx_N: float = 0,
            loading_N: float = 0):
     """
+    Description
 
-    :param g:
-    :param kwds:
-    :return:
+    Parameters
+    :param g: MTG (dict)
+    :param N: Local nitrogen pools (mol)
+    :param xylem_N: Global xylem vessel concentration (mol.m-3)
+    :param xylem_volume: Global xylem vessel volume (m3)
+    :param influx_N: Local nitrogen influx from soil
+    :param loading_N: Local nitrogen loading to xylem
+
+    Hypothesis
+    H1 :
+    H2 :
+
+
     """
-    # Variable initialisation
-    # We define "root" as the starting point of the loop below
+    # Variable initialisation in MTG
     keywords = dict(soil_N=soil_N,
                     N=N,
-                    xylem_N=xylem_N,
                     influx_N=influx_N,
                     loading_N=loading_N)
     props = g.properties()
@@ -31,6 +41,10 @@ def init_N(g,
     for vid in g.vertices(scale=max_scale):
         for name, value in keywords.items():
             props[name][vid] = value
+
+    # global vessel's property initialisation in first node
+    g.node(0).xylem_N = xylem_N
+    g.node(0).xylem_volume = xylem_volume
 
     return g
 
@@ -93,11 +107,30 @@ def transport_N(g,
             n.loading_N = (N_concentration * vmax_N_xylem / (
                     N_concentration + affinity_N_xylem)) * (2 * np.pi * n.radius * xylem_to_root * n.length)
 
-            n.N += time_step * (n.influx_N - n.loading_N)
-            #print(n.influx_N, n.loading_N, n.N)
+            #print(n.influx_N, n.loading_N)
 
 
     return g
 
 def metabolism_N(g, **kwds):
+    return g
+
+def update_N(g,
+             xylem_to_root = 0.2,
+             time_step = 3600):
+
+    g.node(0).xylem_N = g.node(0).xylem_N * g.node(0).xylem_volume
+    # Volume reinitialisation for update
+    g.node(0).xylem_volume = 0
+    # No order in update propagation
+    max_scale = g.max_scale()
+    for vid in g.vertices(scale=max_scale):
+        n = g.node(vid)
+        # Local nitrogen pool update
+        n.N += time_step * (n.influx_N - n.loading_N)
+        # Global vessel's nitrogen pool update
+        g.node(0).xylem_N += n.loading_N
+        g.node(0).xylem_volume += np.pi * n.length * (n.radius*xylem_to_root)**2
+    g.node(0).xylem_N = g.node(0).xylem_N / g.node(0).xylem_volume
+
     return g
