@@ -14,33 +14,47 @@ def test_mtg():
 
 
 def plot_N(g,
-           p : str = 'influx_N'
+           p: str = 'influx_N'
            ):
-
     scene = plot_mtg(g,
-             prop_cmap=p)
+                     prop_cmap=p)
     pgl.Viewer.display(scene)
 
+def print_g(g,
+            select
+            ):
+    # extract MTG properties only once
+    props = g.properties()
+    extract = [props[k] for k in select]
+
+    max_scale = g.max_scale()
+    for vid in g.vertices(scale=max_scale):
+        # print for each segment selected properties in select
+        print(vid, end=' ')
+        for k in range(len(extract)):
+            print(select[k] + ' : ', end=' ')
+            print(f"{extract[k][vid]:4.10f}", end=' ')
+        print('')
 
 def test_nitrogen(n=10):
     g = test_mtg()
 
-    # Initiatisation of state variable
+    # Initialization of state variable
     g = init_N(g)
 
     for i in range(n):
         g = transport_N(g)
         g = update_N(g)
 
-    plot_N(g)
+    plot_N(g, p = 'z1')
+    select = ['influx_N', 'z1']
+    print_g(g, select)
+
     return g
 
 
 # Test execution
-prop = 'influx_N'
-g = test_nitrogen()
+# TODO : use timeit to compare calculation times between mtg access sequences
 
-while prop != 'n':
-    plot_N(g, p=prop)
-    print(g.property(prop).values)
-    prop = input('next property? : ')
+test_nitrogen()
+input('end? ')
