@@ -14,7 +14,7 @@ def test_mtg():
 
 
 def plot_N(g,
-           p: str = 'influx_N'
+           p: str = 'influx_Nm'
            ):
     props = g.property(p)
     max_scale = g.max_scale()
@@ -56,8 +56,8 @@ def test_nitrogen(n=10):
         g = transport_N(g)
         g = update_N(g)
 
-    plot_N(g, p='C_hexose_root')
-    select = ['influx_N', 'z1', 'C_hexose_root']
+    plot_N(g, p='influx_Nm')
+    select = ['influx_Nm', 'thermal_time_since_emergence', 'C_hexose_root']
     print_g(g, select)
 
     return g
