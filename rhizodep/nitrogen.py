@@ -163,7 +163,7 @@ def update_N(g,
         N[vid] += time_step * (influx_N[vid] - n.loading_N[vid])
 
         # Global vessel's nitrogen pool update
-        xylem_N += n.loading_N
+        xylem_N += loading_N[vid]
         xylem_volume += np.pi * length[vid] * (radius[vid] * xylem_to_root) ** 2
 
     plant.xylem_N = xylem_N
