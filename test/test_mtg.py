@@ -56,8 +56,8 @@ def test_nitrogen(n=10):
         g = transport_N(g)
         g = update_N(g)
 
-    plot_N(g, p='soil_Nm')
-    select = ['influx_Nm', 'soil_Nm', 'z1', 'thermal_time_since_emergence', 'C_hexose_root']
+    plot_N(g, p='influx_Nm')
+    select = ['influx_Nm', 'soil_Nm', 'z1', 'C_hexose_root', 'thermal_time_since_emergence']
     print_g(g, select)
 
     return g
