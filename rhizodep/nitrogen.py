@@ -23,12 +23,12 @@ def init_N(g,
 
     Parameters
     :param g: MTG (dict)
-    :param soil_N: Local soil nitrogen concentration (mol.m-3)
-    :param N: Local nitrogen content (mol)
-    :param xylem_N: Global xylem nitrogen content (mol)
+    :param soil_N: Local soil nitrogen volumic concentration (mol.m-3)
+    :param N: Local nitrogen massic concentration (mol.g-1)
+    :param xylem_N: Global xylem nitrogen volumic concentration (mol.m-3)
     :param xylem_volume: Global xylem vessel volume (m3)
-    :param influx_N: Local nitrogen influx from soil
-    :param loading_N: Local nitrogen loading to xylem
+    :param influx_N: Local nitrogen influx from soil (mol.s-1)
+    :param loading_N: Local nitrogen loading to xylem (mol.s-1)
 
     Hypothesis
     H1 :
@@ -115,11 +115,9 @@ def transport_N(g,
             influx_N[vid] = (soil_N[vid] * vmax_N_root / (
                     soil_N[vid] + affinity_N_root)) * (2 * np.pi * radius[vid] * length[vid])
 
-            # We define mass root N concentration
-            N_concentration = N[vid] / struct_mass[vid]
             # We define active xylem loading from root segment
-            loading_N[vid] = (N_concentration * vmax_N_xylem / (
-                    N_concentration + affinity_N_xylem)) * (2 * np.pi * radius[vid] * xylem_to_root * length[vid])
+            loading_N[vid] = (N[vid] * vmax_N_xylem / (
+                    N[vid] + affinity_N_xylem)) * (2 * np.pi * radius[vid] * xylem_to_root * length[vid])
 
             # print(influx_N[vid], loading_N[vid])
 
@@ -133,10 +131,14 @@ def metabolism_N(g):
 def update_N(g,
              xylem_to_root=0.2,
              time_step=3600):
+
     # Extract plant-level properties once
     plant = g.node(0)
-    xylem_volume = plant.xylem_volume = 0  # Recomputed
-    xylem_N = plant.xylem_N
+    xylem_volume = plant.xylem_volume
+    # We define xylem nitrogen content (mol) from previous volume and concentrations.
+    xylem_N_content = plant.xylem_N * xylem_volume
+    # Computing actualised volume
+    xylem_volume = 0
 
     # Extract local properties once, pointing to g
     props = g.properties()
@@ -147,19 +149,21 @@ def update_N(g,
     # main model related
     length = props['length']
     radius = props['radius']
+    struct_mass = props['struct_mass']
+
 
     # No order in update propagation
     max_scale = g.max_scale()
     for vid in g.vertices(scale=max_scale):
         # Local nitrogen pool update
-        N[vid] += time_step * (influx_N[vid] - loading_N[vid])
+        N[vid] += (time_step / struct_mass[vid])  * (influx_N[vid] - loading_N[vid])
 
         # Global vessel's nitrogen pool update
-        xylem_N += loading_N[vid]
+        xylem_N_content += time_step * loading_N[vid]
         xylem_volume += np.pi * length[vid] * (radius[vid] * xylem_to_root) ** 2
 
     # Update plant-level properties
-    plant.xylem_N = xylem_N
+    plant.xylem_N = xylem_N_content / xylem_volume
     plant.xylem_volume = xylem_volume
 
     return g
