@@ -67,14 +67,14 @@ def init_N(g,
 def transport_N(g,
                 # kinetic parameters
                 affinity_Nm_root: float = 0.01,
-                vmax_Nm_emergence: float = 0.5,
+                vmax_Nm_emergence: float = 1,
                 affinity_Nm_xylem: float = 10,
                 # metabolism-related parameters
                 transport_C_regulation: float = 1,
                 # architecture parameters
                 xylem_to_root: float = 0.2,
-                epiderm_differentiation: float = 0.1,
-                endoderm_differentiation: float = 0.1
+                epiderm_differentiation: float = 1e-5,
+                endoderm_differentiation: float = 1e-5
                 ):
     """
     Description
@@ -115,10 +115,17 @@ def transport_N(g,
     struct_mass = props['struct_mass']
     C_hexose_root = props['C_hexose_root']
     thermal_time_since_emergence = props['thermal_time_since_emergence']
+    z1 = props['z1']
 
     # No order in update propagation
     max_scale = g.max_scale()
     for vid in g.vertices(scale=max_scale):
+
+        # Soil concentration heterogeneity as border conditions
+        zmax_soil_Nm = -0.02
+        Nm_patch_variance = 0.0001
+        soil_Nm[vid] = 0.01 * np.exp(-((z1[vid]-zmax_soil_Nm)**2)/Nm_patch_variance)
+
         # if root segment emerged
         if struct_mass[vid] > 0:
             # We define nitrogen active uptake from soil
