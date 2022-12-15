@@ -5,7 +5,7 @@
 import pickle
 import numpy as np
 from openalea.mtg import *
-from rhizodep.nitrogen import init_N, transport_N, update_N
+from rhizodep.nitrogen import continuous_vessels
 from output_display import plot_N, print_g
 
 
@@ -22,12 +22,13 @@ def test_nitrogen(n=10):
     g = test_mtg()
 
     # Initialization of state variable
-    g = init_N(g)
+    rs = continuous_vessels(g)
 
     for i in range(n):
-        g = transport_N(g)
-        g = update_N(g)
+        rs.transport_N()
+        rs.update_N()
         #print_g(g, select, vertice=19)
+
     plot_N(g, p='influx_Nm')
 
     print_g(g)

@@ -1,6 +1,6 @@
 import numpy as np
-from rhizodep.nitrogen import init_N, transport_N, update_N
-from test_mtg import test_mtg, init_N, test_nitrogen
+from rhizodep.nitrogen import continuous_vessels
+from test_mtg import test_mtg, test_nitrogen
 from output_display import plot_N, print_g
 
 def init_soil(g,
@@ -30,13 +30,14 @@ def test_nitrogen_homogeneous(n=10):
     g = test_mtg()
 
     # Initialization of state variable
-    g = init_N(g)
+    rs = continuous_vessels(g)
     g = init_soil(g, scenario=0, soil_Nm_slope=0)
 
     for i in range(n):
-        g = transport_N(g)
-        g = update_N(g)
+        rs.transport_N()
+        rs.update_N()
         # print_g(g, select, vertice=19)
+
     plot_N(g, p='influx_Nm')
 
     print_g(g)
@@ -49,13 +50,14 @@ def test_nitrogen_linear(n=10):
     g = test_mtg()
 
     # Initialization of state variable
-    g = init_N(g)
-    g = init_soil(g, scenario=0)
+    rs = continuous_vessels(g)
+    g = init_soil(g, scenario=0, soil_Nm_slope=0)
 
     for i in range(n):
-        g = transport_N(g)
-        g = update_N(g)
+        rs.transport_N()
+        rs.update_N()
         # print_g(g, select, vertice=19)
+
     plot_N(g, p='influx_Nm')
 
     print_g(g)
@@ -68,13 +70,14 @@ def test_nitrogen_patch(n=10):
     g = test_mtg()
 
     # Initialization of state variable
-    g = init_N(g)
-    g = init_soil(g, scenario=1)
+    rs = continuous_vessels(g)
+    g = init_soil(g, scenario=0, soil_Nm_slope=0)
 
     for i in range(n):
-        g = transport_N(g)
-        g = update_N(g)
+        rs.transport_N()
+        g = rs.update_N()
         # print_g(g, select, vertice=19)
+
     plot_N(g, p='influx_Nm')
 
     print_g(g)
@@ -84,7 +87,7 @@ def test_nitrogen_patch(n=10):
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_homogeneous()
+    test_nitrogen_patch()
     # test_nitrogen_linear()
     # test_nitrogen_patch()
     input('end? ')
