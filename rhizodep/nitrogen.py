@@ -17,6 +17,7 @@ import numpy as np
 from openalea.mtg import *
 from openalea.mtg.traversal import post_order
 
+Class continuous_vessels
 
 def init_N(g,
            soil_Nm: float = 1,
@@ -49,6 +50,7 @@ def init_N(g,
                     Nm=Nm,
                     influx_Nm=influx_Nm,
                     loading_Nm=loading_Nm)
+
     props = g.properties()
     for name in keywords:
         props.setdefault(name, {})
@@ -83,11 +85,7 @@ def transport_N(g,
                 # architecture parameters
                 xylem_to_root: float = 0.2,
                 epiderm_differentiation: float = 1e-6,
-                endoderm_differentiation: float = 1e-6,
-                # external conditions parameters
-                zmax_soil_Nm = -0.02,
-                soil_Nm_variance = 0.0001,
-                soil_Nm_slope:float = 25
+                endoderm_differentiation: float = 1e-6
                 ):
     """
     Description
@@ -128,10 +126,11 @@ def transport_N(g,
     # struct_mass
     # C_hexose_root
     # thermal_time_since_emergence
+    # z1
     # """.split()
     # for name in states:
-    #     locals()[name] = props[name]
-
+    #     exec('%s=props["%s"]'%(name, name), locals())
+    #
     # N related
     soil_Nm = props['soil_Nm']
     Nm = props['Nm']
@@ -143,17 +142,10 @@ def transport_N(g,
     struct_mass = props['struct_mass']
     C_hexose_root = props['C_hexose_root']
     thermal_time_since_emergence = props['thermal_time_since_emergence']
-    z1 = props['z1']
 
     # No order in update propagation
     max_scale = g.max_scale()
     for vid in g.vertices(scale=max_scale):
-
-        # Soil concentration heterogeneity as border conditions
-
-        # soil_Nm[vid] = 0.01 * np.exp(-((z1[vid]-zmax_soil_Nm)**2)/soil_Nm_variance)
-        soil_Nm[vid] = 1 + soil_Nm_slope * z1[vid]
-
 
         # if root segment emerged
         if struct_mass[vid] > 0:
