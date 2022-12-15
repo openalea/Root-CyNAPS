@@ -2,19 +2,27 @@
 rhizodep.nitrogen
 _________________
 Root nitrogen cycle model
+
+TODO
+    Short/general introduction
+    Detailled doc
+    What are the main features
+    What are the main functions
+    Examples
+
 """
 
-from openalea.mtg import *
-from openalea.mtg.traversal import post_order
 import pickle
 import numpy as np
+from openalea.mtg import *
+from openalea.mtg.traversal import post_order
 
 
 def init_N(g,
-           soil_Nm: float = 0.1,
-           Nm: float = 0.1,
+           soil_Nm: float = 1,
+           Nm: float = 1e-5,
            xylem_Nm: float = 0.1,
-           xylem_volume: float = 0,
+           xylem_volume: float = 5e-10,
            influx_Nm: float = 0,
            loading_Nm: float = 0):
     """
@@ -22,7 +30,7 @@ def init_N(g,
     Initialization of nitrogen-related variables
 
     Parameters
-    :param g: MTG (dict)
+    :param g: MTG
     :param soil_Nm: Local soil nitrogen volumic concentration (mol.m-3)
     :param Nm: Local nitrogen massic concentration (mol.g-1)
     :param xylem_Nm: Global xylem nitrogen volumic concentration (mol.m-3)
@@ -66,15 +74,20 @@ def init_N(g,
 
 def transport_N(g,
                 # kinetic parameters
-                affinity_Nm_root: float = 0.01,
-                vmax_Nm_emergence: float = 1,
-                affinity_Nm_xylem: float = 10,
+                affinity_Nm_root: float = 1,
+                vmax_Nm_emergence: float = 0.1,
+                affinity_Nm_xylem: float = 0.1,
                 # metabolism-related parameters
-                transport_C_regulation: float = 1,
+                transport_C_regulation: float = 1e-2,
+                transport_N_regulation:float = 0.01,
                 # architecture parameters
                 xylem_to_root: float = 0.2,
-                epiderm_differentiation: float = 1e-5,
-                endoderm_differentiation: float = 1e-5
+                epiderm_differentiation: float = 1e-6,
+                endoderm_differentiation: float = 1e-6,
+                # external conditions parameters
+                zmax_soil_Nm = -0.02,
+                soil_Nm_variance = 0.0001,
+                soil_Nm_slope:float = 25
                 ):
     """
     Description
@@ -83,13 +96,14 @@ def transport_N(g,
 
     Parameters
     __________
-    :param g: MTG (dict)
+    :param g: MTG
     :param affinity_Nm_root: Active transport from soil Km parameter (mol.m-3)
-    :param vmax_Nm_root: Surfacic maximal active transport rate to root (mol.m-2.s-1)
+    :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
     :param affinity_Nm_xylem: Active transport from root Km parameter (mol.g-1)
-    :param vmax_Nm_xylem: Surfacic maximal active transport rate to xylem (mol.m-2.s-1)
-    :param transport_C_regulation:
+    :param transport_C_regulation: Affinity coefficient for the nitrogen active transport regulation function by root C (mol.g-1) (?)
     :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
+    :param epiderm_differentiation: Epiderm differentiation rate (°C-1.d-1)
+    :param endoderm_differentiation: Endoderm differentiation rate (°C-1.d-1)
 
     Hypothesis
     __________
@@ -104,6 +118,20 @@ def transport_N(g,
 
     # Extract local properties once pointing to g
     props = g.properties()
+    # states = """
+    # soil_Nm
+    # Nm
+    # influx_Nm
+    # loading_Nm
+    # length
+    # radius
+    # struct_mass
+    # C_hexose_root
+    # thermal_time_since_emergence
+    # """.split()
+    # for name in states:
+    #     locals()[name] = props[name]
+
     # N related
     soil_Nm = props['soil_Nm']
     Nm = props['Nm']
@@ -122,27 +150,31 @@ def transport_N(g,
     for vid in g.vertices(scale=max_scale):
 
         # Soil concentration heterogeneity as border conditions
-        zmax_soil_Nm = -0.02
-        Nm_patch_variance = 0.0001
-        soil_Nm[vid] = 0.01 * np.exp(-((z1[vid]-zmax_soil_Nm)**2)/Nm_patch_variance)
+
+        # soil_Nm[vid] = 0.01 * np.exp(-((z1[vid]-zmax_soil_Nm)**2)/soil_Nm_variance)
+        soil_Nm[vid] = 1 + soil_Nm_slope * z1[vid]
+
 
         # if root segment emerged
         if struct_mass[vid] > 0:
             # We define nitrogen active uptake from soil
             # Vmax supposed affected by root aging
             vmax_Nm_root = vmax_Nm_emergence * np.exp(- epiderm_differentiation * thermal_time_since_emergence[vid])
+            # Km is supposed affected by different processes regulated by destination nitrogen availability
+            # (HATS/LATS composition and availability, phosphorylation, etc)
+            km_Nm_root = affinity_Nm_root * np.exp(transport_N_regulation * Nm[vid])
             # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-            influx_Nm[vid] = (soil_Nm[vid] * vmax_Nm_root / (soil_Nm[vid] + affinity_Nm_root)) \
-                             * (2 * np.pi * radius[vid] * length[vid]) \
-                             * (C_hexose_root[vid] / (C_hexose_root[vid] + transport_C_regulation))
+            influx_Nm[vid] = ((soil_Nm[vid] * vmax_Nm_root / (soil_Nm[vid] + km_Nm_root))
+                             * (2 * np.pi * radius[vid] * length[vid])
+                             * (C_hexose_root[vid] / (C_hexose_root[vid] + transport_C_regulation)))
 
             # We define active xylem loading from root segment
             # Vmax supposed affected by root aging
             vmax_Nm_xylem = vmax_Nm_emergence * np.exp(- endoderm_differentiation * thermal_time_since_emergence[vid])
             # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-            loading_Nm[vid] = (Nm[vid] * vmax_Nm_xylem / (Nm[vid] + affinity_Nm_xylem)) \
-                              * (2 * np.pi * radius[vid] * xylem_to_root * length[vid]) \
-                              * (C_hexose_root[vid] / (C_hexose_root[vid] + transport_C_regulation))
+            loading_Nm[vid] = ((Nm[vid] * vmax_Nm_xylem / (Nm[vid] + affinity_Nm_xylem))
+                              * (2 * np.pi * radius[vid] * xylem_to_root * length[vid])
+                              * (C_hexose_root[vid] / (C_hexose_root[vid] + transport_C_regulation)))
 
             # print(influx_N[vid], loading_N[vid])
 
