@@ -17,7 +17,7 @@ import numpy as np
 from openalea.mtg import *
 from openalea.mtg.traversal import post_order
 
-Class continuous_vessels
+#Class continuous_vessels
 
 def init_N(g,
            soil_Nm: float = 1,
