@@ -1,6 +1,7 @@
 import openalea.plantgl.all as pgl
 from rhizodep.tools import plot_mtg
 
+
 def plot_N(g,
            p: str = 'influx_Nm'
            ):
@@ -18,16 +19,16 @@ def plot_N(g,
 
 
 def print_g(g,
-            select =
+            select=
             ['influx_Nm',
-              'loading_Nm',
-              'soil_Nm',
-              'Nm',
-              'z1',
-              'struct_mass'
-              # 'C_hexose_root'
-              # 'thermal_time_since_emergence'
-              ],
+             'loading_Nm',
+             'soil_Nm',
+             'Nm',
+             'z1',
+             'struct_mass'
+             # 'C_hexose_root'
+             # 'thermal_time_since_emergence'
+             ],
             vertice: int = 0
             ):
     # extract MTG properties only once

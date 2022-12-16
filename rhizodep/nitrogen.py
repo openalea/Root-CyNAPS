@@ -24,7 +24,6 @@ With carbon model :
 
 """
 
-import pickle
 import numpy as np
 
 
@@ -60,8 +59,7 @@ class continuous_vessels:
         """
         self.g = g
         # New properties' creation in MTG
-        keywords = dict(soil_Nm=soil_Nm,
-                    Nm=Nm,
+        keywords = dict(Nm=Nm,
                     influx_Nm=influx_Nm,
                     loading_Nm=loading_Nm)
 
@@ -194,5 +192,6 @@ class continuous_vessels:
 
         # Update plant-level properties
         self.xylem_Nm = xylem_Nm_content / self.xylem_volume
+        #print(self.g.properties())
 
         return self.g

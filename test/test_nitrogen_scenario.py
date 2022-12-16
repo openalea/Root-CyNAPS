@@ -11,6 +11,7 @@ def init_soil(g,
                     scenario:int = 0
                     ):
     props = g.properties()
+    props.setdefault('soil_Nm', {})
     soil_Nm = props['soil_Nm']
     z1 = props['z1']
 
@@ -20,18 +21,18 @@ def init_soil(g,
         # Soil concentration heterogeneity as border conditions
 
         soil_Nm[vid] = (
-                ( 0.01 * np.exp(-((z1[vid]-zmax_soil_Nm)**2)/soil_Nm_variance) )**(scenario)
+                (0.01 * np.exp(-((z1[vid]-zmax_soil_Nm)**2)/soil_Nm_variance) )**(scenario)
                 * (1 + soil_Nm_slope * z1[vid])**(1 - scenario)
                         )
-
+        print('soil', soil_Nm[vid])
     return g
 
 def test_nitrogen_homogeneous(n=10):
     g = test_mtg()
-
-    # Initialization of state variable
-    rs = continuous_vessels(g)
     g = init_soil(g, scenario=0, soil_Nm_slope=0)
+
+    # Initialization of state variables
+    rs = continuous_vessels(g)
 
     for i in range(n):
         rs.transport_N()
@@ -48,10 +49,10 @@ def test_nitrogen_homogeneous(n=10):
 
 def test_nitrogen_linear(n=10):
     g = test_mtg()
+    g = init_soil(g, scenario=0)
 
-    # Initialization of state variable
+    # Initialization of state variables
     rs = continuous_vessels(g)
-    g = init_soil(g, scenario=0, soil_Nm_slope=0)
 
     for i in range(n):
         rs.transport_N()
@@ -68,15 +69,15 @@ def test_nitrogen_linear(n=10):
 
 def test_nitrogen_patch(n=10):
     g = test_mtg()
+    g = init_soil(g, scenario=1)
 
-    # Initialization of state variable
+    # Initialization of state variables
     rs = continuous_vessels(g)
-    g = init_soil(g, scenario=0, soil_Nm_slope=0)
 
     for i in range(n):
         rs.transport_N()
-        g = rs.update_N()
-        # print_g(g, select, vertice=19)
+        rs.update_N()
+        print_g(g, vertice=19)
 
     plot_N(g, p='influx_Nm')
 
