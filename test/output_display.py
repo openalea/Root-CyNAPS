@@ -31,6 +31,7 @@ def print_g(g,
              ],
             vertice: int = 0
             ):
+
     # extract MTG properties only once
     props = g.properties()
     extract = [props[k] for k in select]
@@ -52,3 +53,4 @@ def print_g(g,
                 print(select[k] + ' : ', end=' ')
                 print(f"{extract[k][vid]:4.15f}", end=' ')
             print('')
+        print(props['xylem_Nm'][1], props['xylem_volume'][1])

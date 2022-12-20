@@ -27,17 +27,15 @@ With carbon model :
 import numpy as np
 
 
-
-class continuous_vessels:
+class ContinuousVessels:
 
     def __init__(self,
                  g,
-                 soil_Nm: float = 1,
                  Nm: float = 1e-5,
-                 xylem_Nm: float = 0.1,
-                 xylem_volume: float = 5e-10,
                  influx_Nm: float = 0,
-                 loading_Nm: float = 0):
+                 loading_Nm: float = 0,
+                 xylem_Nm: float = 0.1,
+                 xylem_volume: float = 5e-10):
 
         """
         Description
@@ -61,7 +59,10 @@ class continuous_vessels:
         # New properties' creation in MTG
         keywords = dict(Nm=Nm,
                     influx_Nm=influx_Nm,
-                    loading_Nm=loading_Nm)
+                    loading_Nm=loading_Nm,
+                    xylem_Nm=xylem_Nm,
+                    xylem_volume=xylem_volume
+                        )
 
         props = self.g.properties()
         for name in keywords:
@@ -72,12 +73,14 @@ class continuous_vessels:
             for name, value in keywords.items():
                 props[name][vid] = value
 
-        # Accessing properties once, pointing to g
+        # Accessing properties once, pointing to g for further modifications
         # N related
         # main model related
         states = """
                 soil_Nm
                 Nm
+                xylem_Nm
+                xylem_volume
                 influx_Nm
                 loading_Nm
                 length
@@ -89,13 +92,7 @@ class continuous_vessels:
         for name in states:
             setattr(self, name, props[name])
 
-        # global vessel's property creation in first node
-        props['xylem_Nm'] = {0: xylem_Nm}
-        props['xylem_volume'] = {0: xylem_volume}
-
-        # Accessing global pools once
-        self.xylem_Nm = props['xylem_Nm'][0]
-        self.xylem_volume = props['xylem_volume'][0]
+        # Global properties are declared as local ones, but only vertice 0 will be updated
 
 
 
@@ -163,8 +160,6 @@ class continuous_vessels:
                                   * (2 * np.pi * self.radius[vid] * xylem_to_root * self.length[vid])
                                   * (self.C_hexose_root[vid] / (self.C_hexose_root[vid] + transport_C_regulation)))
 
-                # print(influx_N[vid], loading_N[vid])
-
 
     def metabolism_N(self):
         return 1
@@ -175,9 +170,10 @@ class continuous_vessels:
                  time_step=3600):
 
         # We define xylem nitrogen content (mol) from previous volume and concentrations.
-        xylem_Nm_content = self.xylem_Nm * self.xylem_volume
+        xylem_Nm_content = self.xylem_Nm[1] * self.xylem_volume[1]
+
         # Computing actualised volume
-        self.xylem_volume = 0
+        self.xylem_volume[1] = 0
 
         # No order in update propagation
         for vid in self.vertices:
@@ -188,10 +184,9 @@ class continuous_vessels:
 
                 # Global vessel's nitrogen pool update
                 xylem_Nm_content += time_step * self.loading_Nm[vid]
-                self.xylem_volume += np.pi * self.length[vid] * (self.radius[vid] * xylem_to_root) ** 2
+                self.xylem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * xylem_to_root) ** 2
 
         # Update plant-level properties
-        self.xylem_Nm = xylem_Nm_content / self.xylem_volume
-        #print(self.g.properties())
+        self.xylem_Nm[1] = xylem_Nm_content / self.xylem_volume[1]
 
         return self.g
