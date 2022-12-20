@@ -25,17 +25,12 @@ With carbon model :
 """
 
 import numpy as np
+import rhizodep.parameters_nitrogen as Nparam
 
 
 class ContinuousVessels:
 
-    def __init__(self,
-                 g,
-                 Nm: float = 1e-5,
-                 influx_Nm: float = 0,
-                 loading_Nm: float = 0,
-                 xylem_Nm: float = 0.1,
-                 xylem_volume: float = 5e-10):
+    def __init__(self, g, Nm, influx_Nm, loading_Nm, xylem_Nm, xylem_volume):
 
         """
         Description
@@ -53,15 +48,15 @@ class ContinuousVessels:
         Hypothesis
         H1 :
         H2 :
-
         """
+
         self.g = g
         # New properties' creation in MTG
         keywords = dict(Nm=Nm,
-                    influx_Nm=influx_Nm,
-                    loading_Nm=loading_Nm,
-                    xylem_Nm=xylem_Nm,
-                    xylem_volume=xylem_volume
+                        influx_Nm=influx_Nm,
+                        loading_Nm=loading_Nm,
+                        xylem_Nm=xylem_Nm,
+                        xylem_volume=xylem_volume
                         )
 
         props = self.g.properties()
@@ -92,23 +87,11 @@ class ContinuousVessels:
         for name in states:
             setattr(self, name, props[name])
 
-        # Global properties are declared as local ones, but only vertice 0 will be updated
+        # Global properties are declared as local ones, but only vertice 1 will be updated
 
+    def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, transport_C_regulation,
+                    transport_N_regulation, xylem_to_root, epiderm_differentiation, endoderm_differentiation):
 
-
-    def transport_N(self,
-                    # kinetic parameters
-                    affinity_Nm_root: float = 1,
-                    vmax_Nm_emergence: float = 0.1,
-                    affinity_Nm_xylem: float = 0.1,
-                    # metabolism-related parameters
-                    transport_C_regulation: float = 1e-2,
-                    transport_N_regulation:float = 0.01,
-                    # architecture parameters
-                    xylem_to_root: float = 0.2,
-                    epiderm_differentiation: float = 1e-6,
-                    endoderm_differentiation: float = 1e-6
-                    ):
         """
         Description
         ___________
@@ -143,31 +126,30 @@ class ContinuousVessels:
             if self.struct_mass[vid] > 0:
                 # We define nitrogen active uptake from soil
                 # Vmax supposed affected by root aging
-                vmax_Nm_root = vmax_Nm_emergence * np.exp(- epiderm_differentiation * self.thermal_time_since_emergence[vid])
+                vmax_Nm_root = vmax_Nm_emergence * np.exp(
+                    - epiderm_differentiation * self.thermal_time_since_emergence[vid])
                 # Km is supposed affected by different processes regulated by destination nitrogen availability
                 # (HATS/LATS composition and availability, phosphorylation, etc)
                 km_Nm_root = affinity_Nm_root * np.exp(transport_N_regulation * self.Nm[vid])
                 # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
                 self.influx_Nm[vid] = ((self.soil_Nm[vid] * vmax_Nm_root / (self.soil_Nm[vid] + km_Nm_root))
-                                 * (2 * np.pi * self.radius[vid] * self.length[vid])
-                                 * (self.C_hexose_root[vid] / (self.C_hexose_root[vid] + transport_C_regulation)))
+                                       * (2 * np.pi * self.radius[vid] * self.length[vid])
+                                       * (self.C_hexose_root[vid] / (self.C_hexose_root[vid] + transport_C_regulation)))
 
                 # We define active xylem loading from root segment
                 # Vmax supposed affected by root aging
-                vmax_Nm_xylem = vmax_Nm_emergence * np.exp(- endoderm_differentiation * self.thermal_time_since_emergence[vid])
+                vmax_Nm_xylem = vmax_Nm_emergence * np.exp(
+                    - endoderm_differentiation * self.thermal_time_since_emergence[vid])
                 # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
                 self.loading_Nm[vid] = ((self.Nm[vid] * vmax_Nm_xylem / (self.Nm[vid] + affinity_Nm_xylem))
-                                  * (2 * np.pi * self.radius[vid] * xylem_to_root * self.length[vid])
-                                  * (self.C_hexose_root[vid] / (self.C_hexose_root[vid] + transport_C_regulation)))
-
+                                        * (2 * np.pi * self.radius[vid] * xylem_to_root * self.length[vid])
+                                        * (self.C_hexose_root[vid] / (
+                                    self.C_hexose_root[vid] + transport_C_regulation)))
 
     def metabolism_N(self):
         return 1
 
-
-    def update_N(self,
-                 xylem_to_root=0.2,
-                 time_step=3600):
+    def update_N(self, xylem_to_root, time_step):
 
         # We define xylem nitrogen content (mol) from previous volume and concentrations.
         xylem_Nm_content = self.xylem_Nm[1] * self.xylem_volume[1]
