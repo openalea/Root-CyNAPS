@@ -1,218 +1,192 @@
 """
 rhizodep.nitrogen
 _________________
-Root nitrogen cycle model
+This is the main nitrogen cycle module for roots
 
-TODO
-    Short/general introduction
-    Detailled doc
-    What are the main features
-    What are the main functions
-    Examples
+Documentation and features
+__________________________
+
+Main functions
+______________
+Classes' names reprensent accounted hypothesis in the progressive development of the model.
+Methods' names are systematic through all class for ease of use :
+
+TODO : report functions descriptions
+init_N()
+transport_N()
+metabolism_N()
+update_N()
+
+Use examples
+____________
+
+With carbon model :
 
 """
 
-import pickle
 import numpy as np
-from openalea.mtg import *
-from openalea.mtg.traversal import post_order
-
-#Class continuous_vessels
-
-def init_N(g,
-           soil_Nm: float = 1,
-           Nm: float = 1e-5,
-           xylem_Nm: float = 0.1,
-           xylem_volume: float = 5e-10,
-           influx_Nm: float = 0,
-           loading_Nm: float = 0):
-    """
-    Description
-    Initialization of nitrogen-related variables
-
-    Parameters
-    :param g: MTG
-    :param soil_Nm: Local soil nitrogen volumic concentration (mol.m-3)
-    :param Nm: Local nitrogen massic concentration (mol.g-1)
-    :param xylem_Nm: Global xylem nitrogen volumic concentration (mol.m-3)
-    :param xylem_volume: Global xylem vessel volume (m3)
-    :param influx_Nm: Local nitrogen influx from soil (mol.s-1)
-    :param loading_Nm: Local nitrogen loading to xylem (mol.s-1)
-
-    Hypothesis
-    H1 :
-    H2 :
 
 
-    """
-    # Variable initialisation in MTG
-    keywords = dict(soil_Nm=soil_Nm,
-                    Nm=Nm,
+class ContinuousVessels:
+
+    def __init__(self,
+                 g,
+                 Nm: float = 1e-5,
+                 influx_Nm: float = 0,
+                 loading_Nm: float = 0,
+                 xylem_Nm: float = 0.1,
+                 xylem_volume: float = 5e-10):
+
+        """
+        Description
+        Initialization of nitrogen-related variables
+
+        Parameters
+        :param g: MTG
+        :param soil_Nm: Local soil nitrogen volumic concentration (mol.m-3)
+        :param Nm: Local nitrogen massic concentration (mol.g-1)
+        :param xylem_Nm: Global xylem nitrogen volumic concentration (mol.m-3)
+        :param xylem_volume: Global xylem vessel volume (m3)
+        :param influx_Nm: Local nitrogen influx from soil (mol.s-1)
+        :param loading_Nm: Local nitrogen loading to xylem (mol.s-1)
+
+        Hypothesis
+        H1 :
+        H2 :
+
+        """
+        self.g = g
+        # New properties' creation in MTG
+        keywords = dict(Nm=Nm,
                     influx_Nm=influx_Nm,
-                    loading_Nm=loading_Nm)
+                    loading_Nm=loading_Nm,
+                    xylem_Nm=xylem_Nm,
+                    xylem_volume=xylem_volume
+                        )
 
-    props = g.properties()
-    for name in keywords:
-        props.setdefault(name, {})
+        props = self.g.properties()
+        for name in keywords:
+            props.setdefault(name, {})
 
-    max_scale = g.max_scale()
-    for vid in g.vertices(scale=max_scale):
-        for name, value in keywords.items():
-            props[name][vid] = value
+        self.vertices = self.g.vertices(scale=g.max_scale())
+        for vid in self.vertices:
+            for name, value in keywords.items():
+                props[name][vid] = value
 
-    # global vessel's property initialisation in first node
+        # Accessing properties once, pointing to g for further modifications
+        # N related
+        # main model related
+        states = """
+                soil_Nm
+                Nm
+                xylem_Nm
+                xylem_volume
+                influx_Nm
+                loading_Nm
+                length
+                radius
+                struct_mass
+                C_hexose_root
+                thermal_time_since_emergence
+                """.split()
+        for name in states:
+            setattr(self, name, props[name])
 
-    # props['xylem_N']={0:xylem_N}
-    # props['xylem_volume']={0:xylem_volume}
-    plant = g.node(0)
-    plant.xylem_Nm = xylem_Nm
-    plant.xylem_volume = xylem_volume
-
-    return g
-
-
-# Example of long calculation time related to repeating calls
-
-
-def transport_N(g,
-                # kinetic parameters
-                affinity_Nm_root: float = 1,
-                vmax_Nm_emergence: float = 0.1,
-                affinity_Nm_xylem: float = 0.1,
-                # metabolism-related parameters
-                transport_C_regulation: float = 1e-2,
-                transport_N_regulation:float = 0.01,
-                # architecture parameters
-                xylem_to_root: float = 0.2,
-                epiderm_differentiation: float = 1e-6,
-                endoderm_differentiation: float = 1e-6
-                ):
-    """
-    Description
-    ___________
-    Nitrogen transport between local soil, local root segment and global vessels (xylem and phloem).
-
-    Parameters
-    __________
-    :param g: MTG
-    :param affinity_Nm_root: Active transport from soil Km parameter (mol.m-3)
-    :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
-    :param affinity_Nm_xylem: Active transport from root Km parameter (mol.g-1)
-    :param transport_C_regulation: Affinity coefficient for the nitrogen active transport regulation function by root C (mol.g-1) (?)
-    :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
-    :param epiderm_differentiation: Epiderm differentiation rate (°C-1.d-1)
-    :param endoderm_differentiation: Endoderm differentiation rate (°C-1.d-1)
-
-    Hypothesis
-    __________
-    H1: We summarize radial active transport controls (transporter density, affinity regulated with genetics
-    or environnemental control, etc) as one mean transporter following Michaelis Menten's model.
-
-    H2: We can summarize apoplastic and symplastic radial transport through one radial transport.
-    Differentiation with epidermis conductance loss, root hair density, aerenchyma, etc, is supposed to impact Vmax.
-
-    H3: We declare similar kinetic parameters for soil-root and root-xylem active transport (exept for concentration conflict)
-    """
-
-    # Extract local properties once pointing to g
-    props = g.properties()
-    # states = """
-    # soil_Nm
-    # Nm
-    # influx_Nm
-    # loading_Nm
-    # length
-    # radius
-    # struct_mass
-    # C_hexose_root
-    # thermal_time_since_emergence
-    # z1
-    # """.split()
-    # for name in states:
-    #     exec('%s=props["%s"]'%(name, name), locals())
-    #
-    # N related
-    soil_Nm = props['soil_Nm']
-    Nm = props['Nm']
-    influx_Nm = props['influx_Nm']
-    loading_Nm = props['loading_Nm']
-    # main model related
-    length = props['length']
-    radius = props['radius']
-    struct_mass = props['struct_mass']
-    C_hexose_root = props['C_hexose_root']
-    thermal_time_since_emergence = props['thermal_time_since_emergence']
-
-    # No order in update propagation
-    max_scale = g.max_scale()
-    for vid in g.vertices(scale=max_scale):
-
-        # if root segment emerged
-        if struct_mass[vid] > 0:
-            # We define nitrogen active uptake from soil
-            # Vmax supposed affected by root aging
-            vmax_Nm_root = vmax_Nm_emergence * np.exp(- epiderm_differentiation * thermal_time_since_emergence[vid])
-            # Km is supposed affected by different processes regulated by destination nitrogen availability
-            # (HATS/LATS composition and availability, phosphorylation, etc)
-            km_Nm_root = affinity_Nm_root * np.exp(transport_N_regulation * Nm[vid])
-            # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-            influx_Nm[vid] = ((soil_Nm[vid] * vmax_Nm_root / (soil_Nm[vid] + km_Nm_root))
-                             * (2 * np.pi * radius[vid] * length[vid])
-                             * (C_hexose_root[vid] / (C_hexose_root[vid] + transport_C_regulation)))
-
-            # We define active xylem loading from root segment
-            # Vmax supposed affected by root aging
-            vmax_Nm_xylem = vmax_Nm_emergence * np.exp(- endoderm_differentiation * thermal_time_since_emergence[vid])
-            # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-            loading_Nm[vid] = ((Nm[vid] * vmax_Nm_xylem / (Nm[vid] + affinity_Nm_xylem))
-                              * (2 * np.pi * radius[vid] * xylem_to_root * length[vid])
-                              * (C_hexose_root[vid] / (C_hexose_root[vid] + transport_C_regulation)))
-
-            # print(influx_N[vid], loading_N[vid])
-
-    return g
+        # Global properties are declared as local ones, but only vertice 0 will be updated
 
 
-def metabolism_N(g):
-    return g
+
+    def transport_N(self,
+                    # kinetic parameters
+                    affinity_Nm_root: float = 1,
+                    vmax_Nm_emergence: float = 0.1,
+                    affinity_Nm_xylem: float = 0.1,
+                    # metabolism-related parameters
+                    transport_C_regulation: float = 1e-2,
+                    transport_N_regulation:float = 0.01,
+                    # architecture parameters
+                    xylem_to_root: float = 0.2,
+                    epiderm_differentiation: float = 1e-6,
+                    endoderm_differentiation: float = 1e-6
+                    ):
+        """
+        Description
+        ___________
+        Nitrogen transport between local soil, local root segment and global vessels (xylem and phloem).
+
+        Parameters
+        __________
+        :param g: MTG
+        :param affinity_Nm_root: Active transport from soil Km parameter (mol.m-3)
+        :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
+        :param affinity_Nm_xylem: Active transport from root Km parameter (mol.g-1)
+        :param transport_C_regulation: Affinity coefficient for the nitrogen active transport regulation function by root C (mol.g-1) (?)
+        :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
+        :param epiderm_differentiation: Epiderm differentiation rate (°C-1.d-1)
+        :param endoderm_differentiation: Endoderm differentiation rate (°C-1.d-1)
+
+        Hypothesis
+        __________
+        H1: We summarize radial active transport controls (transporter density, affinity regulated with genetics
+        or environnemental control, etc) as one mean transporter following Michaelis Menten's model.
+
+        H2: We can summarize apoplastic and symplastic radial transport through one radial transport.
+        Differentiation with epidermis conductance loss, root hair density, aerenchyma, etc, is supposed to impact Vmax.
+
+        H3: We declare similar kinetic parameters for soil-root and root-xylem active transport (exept for concentration conflict)
+        """
+
+        # No order in update propagation
+        for vid in self.vertices:
+
+            # if root segment emerged
+            if self.struct_mass[vid] > 0:
+                # We define nitrogen active uptake from soil
+                # Vmax supposed affected by root aging
+                vmax_Nm_root = vmax_Nm_emergence * np.exp(- epiderm_differentiation * self.thermal_time_since_emergence[vid])
+                # Km is supposed affected by different processes regulated by destination nitrogen availability
+                # (HATS/LATS composition and availability, phosphorylation, etc)
+                km_Nm_root = affinity_Nm_root * np.exp(transport_N_regulation * self.Nm[vid])
+                # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+                self.influx_Nm[vid] = ((self.soil_Nm[vid] * vmax_Nm_root / (self.soil_Nm[vid] + km_Nm_root))
+                                 * (2 * np.pi * self.radius[vid] * self.length[vid])
+                                 * (self.C_hexose_root[vid] / (self.C_hexose_root[vid] + transport_C_regulation)))
+
+                # We define active xylem loading from root segment
+                # Vmax supposed affected by root aging
+                vmax_Nm_xylem = vmax_Nm_emergence * np.exp(- endoderm_differentiation * self.thermal_time_since_emergence[vid])
+                # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+                self.loading_Nm[vid] = ((self.Nm[vid] * vmax_Nm_xylem / (self.Nm[vid] + affinity_Nm_xylem))
+                                  * (2 * np.pi * self.radius[vid] * xylem_to_root * self.length[vid])
+                                  * (self.C_hexose_root[vid] / (self.C_hexose_root[vid] + transport_C_regulation)))
 
 
-def update_N(g,
-             xylem_to_root=0.2,
-             time_step=3600):
-    # Extract plant-level properties once
-    plant = g.node(0)
-    xylem_volume = plant.xylem_volume
-    # We define xylem nitrogen content (mol) from previous volume and concentrations.
-    xylem_Nm_content = plant.xylem_Nm * xylem_volume
-    # Computing actualised volume
-    xylem_volume = 0
+    def metabolism_N(self):
+        return 1
 
-    # Extract local properties once, pointing to g
-    props = g.properties()
-    # N related
-    Nm = props['Nm']
-    influx_Nm = props['influx_Nm']
-    loading_Nm = props['loading_Nm']
-    # main model related
-    length = props['length']
-    radius = props['radius']
-    struct_mass = props['struct_mass']
 
-    # No order in update propagation
-    max_scale = g.max_scale()
-    for vid in g.vertices(scale=max_scale):
-        # if root segment emerged
-        if struct_mass[vid] > 0:
-            # Local nitrogen pool update
-            Nm[vid] += (time_step / struct_mass[vid]) * (influx_Nm[vid] - loading_Nm[vid])
+    def update_N(self,
+                 xylem_to_root=0.2,
+                 time_step=3600):
 
-            # Global vessel's nitrogen pool update
-            xylem_Nm_content += time_step * loading_Nm[vid]
-            xylem_volume += np.pi * length[vid] * (radius[vid] * xylem_to_root) ** 2
+        # We define xylem nitrogen content (mol) from previous volume and concentrations.
+        xylem_Nm_content = self.xylem_Nm[1] * self.xylem_volume[1]
 
-    # Update plant-level properties
-    plant.xylem_Nm = xylem_Nm_content / xylem_volume
-    plant.xylem_volume = xylem_volume
+        # Computing actualised volume
+        self.xylem_volume[1] = 0
 
-    return g
+        # No order in update propagation
+        for vid in self.vertices:
+            # if root segment emerged
+            if self.struct_mass[vid] > 0:
+                # Local nitrogen pool update
+                self.Nm[vid] += (time_step / self.struct_mass[vid]) * (self.influx_Nm[vid] - self.loading_Nm[vid])
+
+                # Global vessel's nitrogen pool update
+                xylem_Nm_content += time_step * self.loading_Nm[vid]
+                self.xylem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * xylem_to_root) ** 2
+
+        # Update plant-level properties
+        self.xylem_Nm[1] = xylem_Nm_content / self.xylem_volume[1]
+
+        return self.g
