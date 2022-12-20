@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# {# pkglts, pysetup.kwds
-# format setup arguments
 
 from os import walk
 from os.path import abspath, normpath, splitext
@@ -32,39 +30,25 @@ pkg_data['rhizodep'] = data_files
 
 setup_kwds = dict(
     name='rhizodep',
-    version="0.0.1",
+    version="0.0.2",
     description=short_descr,
     long_description=readme + '\n\n', # + history,
     author="Frederic Rees",
-    author_email="frederic.rees@inra.fr",
+    author_email="frederic.rees@inrae.fr",
     url='',
     license='cecill-c',
     zip_safe=False,
 
     packages=pkgs,
     #namespace_packages=['openalea'],
-    package_dir={'': '.'},
+    #package_dir={'': '.'},
 
     package_data=pkg_data,
-    setup_requires=[
-        "pytest-runner",
-    ],
-    install_requires=[
-    ],
-    tests_require=[
-        "pytest",
-        "pytest-mock",
-    ],
+    install_requires=[],
+
     entry_points={},
     keywords='',
 )
-# #}
-# change setup_kwds below before the next pkglts tag
-
-# do not change things below
-# {# pkglts, pysetup.call
-setup_kwds['setup_requires'] = []
-setup_kwds['tests_requires'] = []
 
 setup(**setup_kwds)
-# #}
+

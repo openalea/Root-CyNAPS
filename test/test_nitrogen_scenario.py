@@ -85,4 +85,4 @@ if __name__ == '__main__':
     test_nitrogen_patch()
     # test_nitrogen_linear()
     # test_nitrogen_patch()
-    input('end? ')
+    #input('end? ')
