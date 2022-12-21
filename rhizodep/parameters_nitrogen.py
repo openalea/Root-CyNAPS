@@ -67,7 +67,7 @@ update_N = {
 ### Output parameters
 
 plot_N = {
-            "p": str(                           "Nm")
+            "p": str(                           "influx_Nm")
         }
 
 print_g_all = {

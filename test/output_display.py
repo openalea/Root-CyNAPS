@@ -1,6 +1,7 @@
 import openalea.plantgl.all as pgl
 from rhizodep.tools import plot_mtg
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_N(g, range_min, range_max, p):
 
@@ -10,9 +11,17 @@ def plot_N(g, range_min, range_max, p):
         plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
         range_min, range_max = min(plot_range), max(plot_range)
 
+        plt.ion()
+        x = np.array([range_min, range_max])
+        plt.pcolormesh([x, x], cmap='jet', vmin=range_min, vmax=range_max)
+        plt.colorbar(location = 'top')
+        plt.cla()
+        plt.axis('off')
+
+
     scene = plot_mtg(g,
                      prop_cmap=p,
-                     lognorm=True,  # to avoid issues with negative values
+                     lognorm=False,  # to avoid issues with negative values
                      vmin=range_min,
                      vmax=range_max
                      )
