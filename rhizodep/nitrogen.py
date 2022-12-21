@@ -170,5 +170,3 @@ class ContinuousVessels:
 
         # Update plant-level properties
         self.xylem_Nm[1] = xylem_Nm_content / self.xylem_volume[1]
-
-        return self.g

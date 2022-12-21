@@ -2,19 +2,23 @@ import openalea.plantgl.all as pgl
 from rhizodep.tools import plot_mtg
 
 
-def plot_N(g, p):
+def plot_N(g, range_min, range_max, p):
 
-    props = g.property(p)
-    max_scale = g.max_scale()
-    plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
+    if range_min == 0 and range_max == 0:
+        props = g.property(p)
+        max_scale = g.max_scale()
+        plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
+        range_min, range_max = min(plot_range), max(plot_range)
 
     scene = plot_mtg(g,
                      prop_cmap=p,
-                     lognorm=False,  # to avoid issues with negative values
-                     vmin=min(plot_range),
-                     vmax=max(plot_range)
+                     lognorm=True,  # to avoid issues with negative values
+                     vmin=range_min,
+                     vmax=range_max
                      )
     pgl.Viewer.display(scene)
+
+    return range_min, range_max
 
 
 def print_g(g, select, vertice):

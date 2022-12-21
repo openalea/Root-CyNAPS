@@ -8,21 +8,21 @@
 ### External conditions parameters
 
 init_soil_homogeneous = {
-            "zmax_soil_Nm": float(        -0.02),
+            "zmax_soil_Nm": float(              -0.02),
             "soil_Nm_variance": float(          0.0001),
             "soil_Nm_slope": float(             0),
             "scenario": int(                    0)
             }
 
 init_soil_linear = {
-            "zmax_soil_Nm": float(        -0.02),
+            "zmax_soil_Nm": float(              -0.02),
             "soil_Nm_variance": float(          0.0001),
             "soil_Nm_slope": float(             25),
             "scenario": int(                    0)
             }
 
 init_soil_patch = {
-            "zmax_soil_Nm": float(        -0.02),
+            "zmax_soil_Nm": float(              -0.02),
             "soil_Nm_variance": float(          0.0001),
             "soil_Nm_slope": float(             25),
             "scenario": int(                    1)
@@ -67,7 +67,7 @@ update_N = {
 ### Output parameters
 
 plot_N = {
-            "p": str(                           "influx_Nm")
+            "p": str(                           "Nm")
         }
 
 print_g_all = {
