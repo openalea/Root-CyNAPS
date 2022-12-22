@@ -5,26 +5,34 @@ import numpy as np
 
 def plot_N(g, range_min, range_max, p):
 
-    if range_min == 0 and range_max == 0:
-        props = g.property(p)
-        max_scale = g.max_scale()
-        plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
-        range_min, range_max = min(plot_range), max(plot_range)
-
+    if range_min[0] == 0 and range_max[0] == 0:
         plt.ion()
-        x = np.array([range_min, range_max])
-        plt.pcolormesh([x, x], cmap='jet', vmin=range_min, vmax=range_max)
-        plt.colorbar(location = 'top')
-        plt.cla()
-        plt.axis('off')
+        fig, axs = plt.subplots(len(p), 1)
+        for k in range(len(p)):
+            # Computing once plot range for the selected property
+            props = g.property(p[k])
+            max_scale = g.max_scale()
+            plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
+            range_min[k], range_max[k] = min(plot_range), max(plot_range)
+            # Creating a color mesh in a separate window for colormap's interpretation
+            x = np.array([range_min[k], range_max[k]])
+            ax = axs[k]
+            local_plot = ax.pcolormesh([x, x], cmap='jet', vmin=range_min[k], vmax=range_max[k])
+            fig.colorbar(local_plot, ax=ax, location='top')
+            ax.cla()
+            ax.text(0, 1.4, p[k])
+            ax.axis('off')
 
+    scene = pgl.Scene()
+    for k in range(len(p)):
 
-    scene = plot_mtg(g,
-                     prop_cmap=p,
-                     lognorm=False,  # to avoid issues with negative values
-                     vmin=range_min,
-                     vmax=range_max
-                     )
+        scene += plot_mtg(g,
+                         prop_cmap=p[k],
+                         lognorm=False,  # to avoid issues with negative values
+                         vmin=range_min[k],
+                         vmax=range_max[k],
+                         k=k
+                         )
     pgl.Viewer.display(scene)
 
     return range_min, range_max

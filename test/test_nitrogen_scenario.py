@@ -36,7 +36,8 @@ def test_nitrogen_scenario(n, scenario):
         rs.transport_N(**Nparam.transport_N)
         rs.update_N(**Nparam.update_N)
         if i == 0:
-            rng_min, rng_max = plot_N(g, 0, 0, **Nparam.plot_N)
+            rng_min, rng_max = [0 for k in Nparam.plot_N['p']], [0 for k in Nparam.plot_N['p']]
+            rng_min, rng_max = plot_N(g, rng_min, rng_max, **Nparam.plot_N)
         else:
             plot_N(g, rng_min, rng_max, **Nparam.plot_N)
         print_g(g, **Nparam.print_g_one)

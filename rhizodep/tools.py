@@ -411,7 +411,7 @@ def circle_coordinates(x_center=0., y_center=0., z_center=0., radius=1., n_point
 
 def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-12, vmax=3e-7,
              x_center=0., y_center=0., z_center=0.,
-             x_cam=1., y_cam=0., z_cam=0., viewer=True):
+             x_cam=1., y_cam=0., z_cam=0., viewer=True, k=1):
     """
     This function creates a graph on PlantGL that displays a MTG and color it according to a specified property.
     :param g: the investigated MTG
@@ -448,6 +448,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     # We cover each node of the MTG:
     for vid in colors:
         if vid in shapes:
+            print(shapes[vid].geometry.geometry)
             n = g.node(vid)
             # If the element is not dead:
             if n.type != "Dead":
@@ -482,6 +483,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     # We return the new updated scene:
     new_scene = pgl.Scene()
     for vid in shapes:
+        shapes[vid].geometry = pgl.Translated(0, k*0.1, 0, shapes[vid].geometry)
         new_scene += shapes[vid]
 
     # Consider: https://learnopengl.com/In-Practice/Text-Rendering

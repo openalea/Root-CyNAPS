@@ -67,7 +67,10 @@ update_N = {
 ### Output parameters
 
 plot_N = {
-            "p": str(                           "influx_Nm")
+            "p": list([                           'loading_Nm',
+                                                  'influx_Nm',
+                                                  'Nm'
+                        ])
         }
 
 print_g_all = {
@@ -79,7 +82,7 @@ print_g_all = {
                                                 'struct_mass'
                                                 # 'C_hexose_root'
                                                 # 'thermal_time_since_emergence'
-            ]),
+                            ]),
             "vertice": int(                     0)
             }
 
