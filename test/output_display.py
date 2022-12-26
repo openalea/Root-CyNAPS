@@ -48,9 +48,10 @@ def print_g(g, select, vertice):
         # print only selected segment
         print(vertice, end=' ')
         for k in range(len(extract)):
-            print(select[k] + ' : ', end=' ')
-            print(f"{extract[k][vertice]:4.15f}", end=' ')
+            print(' / ' + select[k] + ' :', end=' ')
+            print("{:1.3e}".format(extract[k][vertice]), end=' ')
         print('')
+        print(props['xylem_Nm'][1], props['phloem_Nm'][1])
 
     else:
         max_scale = g.max_scale()
@@ -58,7 +59,7 @@ def print_g(g, select, vertice):
             # print for each segment selected properties in select
             print(vid, end=' ')
             for k in range(len(extract)):
-                print(select[k] + ' : ', end=' ')
-                print(f"{extract[k][vid]:4.15f}", end=' ')
+                print(' / ' + select[k] + ' :', end=' ')
+                print("{:e}".format(extract[k][vertice]), end=' ')
             print('')
-        print(props['xylem_Nm'][1], props['xylem_volume'][1])
+        print(props['xylem_Nm'][1], props['phloem_Nm'][1])

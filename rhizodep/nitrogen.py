@@ -30,7 +30,7 @@ import rhizodep.parameters_nitrogen as Nparam
 
 class ContinuousVessels:
 
-    def __init__(self, g, Nm, influx_Nm, loading_Nm, xylem_Nm, xylem_volume):
+    def __init__(self, g, Nm, influx_Nm, loading_Nm, diffusion_Nm_phloem, xylem_Nm, xylem_volume, phloem_Nm, phloem_volume):
 
         """
         Description
@@ -55,8 +55,11 @@ class ContinuousVessels:
         keywords = dict(Nm=Nm,
                         influx_Nm=influx_Nm,
                         loading_Nm=loading_Nm,
+                        diffusion_Nm_phloem=diffusion_Nm_phloem,
                         xylem_Nm=xylem_Nm,
-                        xylem_volume=xylem_volume
+                        xylem_volume=xylem_volume,
+                        phloem_Nm=phloem_Nm,
+                        phloem_volume=phloem_volume
                         )
 
         props = self.g.properties()
@@ -74,10 +77,14 @@ class ContinuousVessels:
         states = """
                 soil_Nm
                 Nm
-                xylem_Nm
-                xylem_volume
+                volume
                 influx_Nm
                 loading_Nm
+                diffusion_Nm_phloem
+                xylem_Nm
+                xylem_volume
+                phloem_Nm
+                phloem_volume
                 length
                 radius
                 struct_mass
@@ -89,8 +96,8 @@ class ContinuousVessels:
 
         # Global properties are declared as local ones, but only vertice 1 will be updated
 
-    def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, transport_C_regulation,
-                    transport_N_regulation, xylem_to_root, epiderm_differentiation, endoderm_differentiation):
+    def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, diffusion_phloem, transport_C_regulation,
+                    transport_N_regulation, xylem_to_root, phloem_to_root, epiderm_differentiation, endoderm_differentiation):
 
         """
         Description
@@ -146,27 +153,45 @@ class ContinuousVessels:
                                         * (self.C_hexose_root[vid] / (
                                     self.C_hexose_root[vid] + transport_C_regulation)))
 
+                # Passive radial diffusion between phloem and cortex through plasmodesmata
+                self.diffusion_Nm_phloem[vid] = (diffusion_phloem * (self.phloem_Nm[1] - self.Nm[vid])
+                                                * (2 * np.pi * self.radius[vid] * phloem_to_root * self.length[vid]))
+
     def metabolism_N(self):
         return 1
 
-    def update_N(self, xylem_to_root, time_step):
+    def update_N(self, xylem_to_root, phloem_to_root, time_step):
 
-        # We define xylem nitrogen content (mol) from previous volume and concentrations.
+        # We define xylem and phloem nitrogen content (mol) from previous volume and concentrations.
         xylem_Nm_content = self.xylem_Nm[1] * self.xylem_volume[1]
+        phloem_Nm_content = self.phloem_Nm[1] * self.phloem_volume[1]
 
-        # Computing actualised volume
+
+        # Computing actualised volumes
         self.xylem_volume[1] = 0
+        self.phloem_volume[1] = 0
+
 
         # No order in update propagation
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                # Local nitrogen pool update
-                self.Nm[vid] += (time_step / self.struct_mass[vid]) * (self.influx_Nm[vid] - self.loading_Nm[vid])
+                # Local volume update
+                self.volume[vid] = (( np.pi * self.length[vid] * (self.radius[vid]) ** 2 )
+                                   * (1 - (xylem_to_root ** 2) - (phloem_to_root ** 2)))
+
+                # Local nitrogen concentration update
+                self.Nm[vid] += (time_step / self.volume[vid]) * (
+                        self.influx_Nm[vid]
+                        + self.diffusion_Nm_phloem[vid]
+                        - self.loading_Nm[vid])
 
                 # Global vessel's nitrogen pool update
                 xylem_Nm_content += time_step * self.loading_Nm[vid]
+                phloem_Nm_content -= time_step * self.diffusion_Nm_phloem[vid]
                 self.xylem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * xylem_to_root) ** 2
+                self.phloem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * phloem_to_root) ** 2
 
         # Update plant-level properties
         self.xylem_Nm[1] = xylem_Nm_content / self.xylem_volume[1]
+        self.phloem_Nm[1] = phloem_Nm_content / self.phloem_volume[1]

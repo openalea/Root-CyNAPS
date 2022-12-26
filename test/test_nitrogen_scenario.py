@@ -41,7 +41,7 @@ def test_nitrogen_scenario(n, scenario):
         else:
             plot_N(g, rng_min, rng_max, **Nparam.plot_N)
         print_g(g, **Nparam.print_g_one)
-        sleep(1)
+        sleep(0.1)
 
 
 
@@ -53,5 +53,5 @@ def test_nitrogen_scenario(n, scenario):
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_scenario(n=3, scenario=Nparam.init_soil_patch)
+    test_nitrogen_scenario(n=30, scenario=Nparam.init_soil_patch)
     input('end? ')

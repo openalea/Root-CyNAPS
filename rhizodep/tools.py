@@ -448,7 +448,6 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     # We cover each node of the MTG:
     for vid in colors:
         if vid in shapes:
-            print(shapes[vid].geometry.geometry)
             n = g.node(vid)
             # If the element is not dead:
             if n.type != "Dead":
