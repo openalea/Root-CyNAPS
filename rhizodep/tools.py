@@ -411,7 +411,7 @@ def circle_coordinates(x_center=0., y_center=0., z_center=0., radius=1., n_point
 
 def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-12, vmax=3e-7,
              x_center=0., y_center=0., z_center=0.,
-             x_cam=1., y_cam=0., z_cam=0., viewer=True):
+             x_cam=1., y_cam=0., z_cam=0., viewer=True, k=1):
     """
     This function creates a graph on PlantGL that displays a MTG and color it according to a specified property.
     :param g: the investigated MTG
@@ -438,7 +438,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     scene = turt.TurtleFrame(g, visitor=visitor, turtle=turtle, gc=False)
     # We update the scene with the specified position of the center of the graph and the camera:
     if viewer:
-        prepareScene(scene, x_center=x_center, y_center=y_center, z_center=z_center, x_cam=x_cam, y_cam=y_cam, z_cam=z_cam, scale=7.36)
+        prepareScene(scene, x_center=x_center, y_center=y_center, z_center=z_center-0.5, x_cam=x_cam, y_cam=y_cam, z_cam=z_cam, scale=0.76)
     # We compute the colors of the graph:
     my_colormap(g, prop_cmap, cmap=cmap, vmin=vmin, vmax=vmax, lognorm=lognorm)
     # We get a list of all shapes in the scene:
@@ -482,6 +482,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     # We return the new updated scene:
     new_scene = pgl.Scene()
     for vid in shapes:
+        shapes[vid].geometry = pgl.Translated(0, k*0.1, 0, shapes[vid].geometry)
         new_scene += shapes[vid]
 
     # Consider: https://learnopengl.com/In-Practice/Text-Rendering

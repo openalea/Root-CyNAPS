@@ -1,4 +1,5 @@
 import numpy as np
+from time import sleep
 from rhizodep.nitrogen import ContinuousVessels
 import rhizodep.parameters_nitrogen as Nparam
 from test_mtg import test_mtg, test_nitrogen
@@ -34,15 +35,23 @@ def test_nitrogen_scenario(n, scenario):
     for i in range(n):
         rs.transport_N(**Nparam.transport_N)
         rs.update_N(**Nparam.update_N)
+        if i == 0:
+            rng_min, rng_max = [0 for k in Nparam.plot_N['p']], [0 for k in Nparam.plot_N['p']]
+            rng_min, rng_max = plot_N(g, rng_min, rng_max, **Nparam.plot_N)
+        else:
+            plot_N(g, rng_min, rng_max, **Nparam.plot_N)
         print_g(g, **Nparam.print_g_one)
+        sleep(0.1)
 
-    plot_N(g, **Nparam.plot_N)
-    print_g(g, **Nparam.print_g_all)
+
+
+    #plot_N(g, **Nparam.plot_N)
+    #print_g(g, **Nparam.print_g_all)
 
     return g
 
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_scenario(n=10, scenario=Nparam.init_soil_patch)
+    test_nitrogen_scenario(n=72, scenario=Nparam.init_soil_patch)
     input('end? ')
