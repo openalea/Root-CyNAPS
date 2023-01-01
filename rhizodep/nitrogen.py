@@ -30,7 +30,8 @@ import rhizodep.parameters_nitrogen as Nparam
 
 class ContinuousVessels:
 
-    def __init__(self, g, Nm, influx_Nm, loading_Nm, diffusion_Nm_phloem, xylem_Nm, xylem_volume, phloem_Nm, phloem_volume):
+    def __init__(self, g, Nm, influx_Nm, loading_Nm, diffusion_Nm_phloem, xylem_Nm, xylem_volume,
+                 phloem_Nm, phloem_volume, Nm_root_shoot_xylem, Nm_root_shoot_phloem):
 
         """
         Description
@@ -59,7 +60,9 @@ class ContinuousVessels:
                         xylem_Nm=xylem_Nm,
                         xylem_volume=xylem_volume,
                         phloem_Nm=phloem_Nm,
-                        phloem_volume=phloem_volume
+                        phloem_volume=phloem_volume,
+                        Nm_root_shoot_xylem=Nm_root_shoot_xylem,
+                        Nm_root_shoot_phloem=Nm_root_shoot_phloem
                         )
 
         props = self.g.properties()
@@ -85,6 +88,8 @@ class ContinuousVessels:
                 xylem_volume
                 phloem_Nm
                 phloem_volume
+                Nm_root_shoot_xylem
+                Nm_root_shoot_phloem
                 length
                 radius
                 struct_mass
@@ -193,5 +198,5 @@ class ContinuousVessels:
                 self.phloem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * phloem_to_root) ** 2
 
         # Update plant-level properties
-        self.xylem_Nm[1] = xylem_Nm_content / self.xylem_volume[1]
-        self.phloem_Nm[1] = phloem_Nm_content / self.phloem_volume[1]
+        self.xylem_Nm[1] = (xylem_Nm_content - time_step * self.Nm_root_shoot_xylem[1]) / self.xylem_volume[1]
+        self.phloem_Nm[1] = (phloem_Nm_content + time_step * self.Nm_root_shoot_phloem[1]) / self.phloem_volume[1]

@@ -38,7 +38,9 @@ init_N = {
             "xylem_Nm": float(                  1e-5),
             "xylem_volume": float(              5e-10),
             "phloem_Nm": float(                 1e-5),
-            "phloem_volume": float(             5e-10)
+            "phloem_volume": float(             5e-10),
+            "Nm_root_shoot_xylem": float(       0),
+            "Nm_root_shoot_phloem": float(      0)
           }
 
 
@@ -53,7 +55,7 @@ transport_N = {
             "affinity_Nm_root": float(          1e-4),
             "vmax_Nm_emergence": float(         1e-9),
             "affinity_Nm_xylem": float(         1e-4),
-            "diffusion_phloem": float(          1e-12),
+            "diffusion_phloem": float(          1e-8),
             # metabolism-related parameters
             "transport_C_regulation": float(    1e-2),
             "transport_N_regulation": float(    0.01),

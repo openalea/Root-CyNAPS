@@ -53,5 +53,5 @@ def test_nitrogen_scenario(n, scenario):
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_scenario(n=30, scenario=Nparam.init_soil_patch)
+    test_nitrogen_scenario(n=72, scenario=Nparam.init_soil_patch)
     input('end? ')
