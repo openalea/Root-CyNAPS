@@ -6,11 +6,13 @@ from test_mtg import test_mtg, test_nitrogen
 from output_display import plot_N, print_g
 
 
-def init_soil_N(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
+def init_soil(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
 
     props = g.properties()
     props.setdefault('soil_Nm', {})
+    props.setdefault('W_potential', {})
     soil_Nm = props['soil_Nm']
+    W_potential = props['W_potential']
     z1 = props['z1']
 
     # No order in update propagation
@@ -22,11 +24,17 @@ def init_soil_N(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
                 (0.01 * np.exp(-((z1[vid] - zmax_soil_Nm) ** 2) / soil_Nm_variance)) ** (scenario)
                 * (1 + soil_Nm_slope * z1[vid]) ** (1 - scenario)
         )
+
+        W_potential[vid] = (
+                (0.01 * np.exp(-((z1[vid] - zmax_soil_Nm) ** 2) / soil_Nm_variance)) ** (scenario)
+                * (1 + soil_Nm_slope * z1[vid]) ** (1 - scenario)
+        )
     return g
+
 
 def test_nitrogen_scenario(n, scenario):
     g = test_mtg()
-    g = init_soil_N(g, **scenario)
+    g = init_soil(g, **scenario)
 
     # Initialization of state variables
     rs = ContinuousVessels(g, **Nparam.init_N)
