@@ -35,6 +35,9 @@ init_N = {
             "influx_Nm": float(                 0),
             "loading_Nm": float(                0),
             "diffusion_Nm_phloem": float(       0),
+            "struct_synthesis": float(          0),
+            "storage_synthesis": float(         0),
+            "storage_catabolism": float(        0),
             "xylem_Nm": float(                  1e-5),
             "xylem_volume": float(              5e-10),
             "phloem_Nm": float(                 1e-5),
@@ -66,7 +69,19 @@ transport_N = {
             "endoderm_differentiation": float(  1e-6)
                 }
 
+metabolism_N = {
+            # kinetic parameters
+            "smax_struct": float(               0),
+            "affinity_Nm_struct": float(        0.001),
+            "affinity_C_struct": float(         0.001),
+            "cmax_stor": float(                 0),
+            "affinity_stor_catab": float(       0.001),
+            "storage_C_regulation": float(      0.1)
+                }
+
 update_N = {
+            "r_Nm_struct": float(               2),
+            "r_Nm_stor": float(               2),
             "xylem_to_root": xylem_to_root,
             "phloem_to_root": phloem_to_root,
             "time_step": int(                   3600),
