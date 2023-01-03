@@ -35,6 +35,8 @@ init_N = {
             "influx_Nm": float(                 0),
             "loading_Nm": float(                0),
             "diffusion_Nm_phloem": float(       0),
+            "axial_diffusion_Nm_xylem": float(  0),
+            "axial_diffusion_Nm_phloem":float(  0),
             "struct_synthesis": float(          0),
             "storage_synthesis": float(         0),
             "storage_catabolism": float(        0),
@@ -59,6 +61,8 @@ transport_N = {
             "vmax_Nm_emergence": float(         1e-9),
             "affinity_Nm_xylem": float(         1e-4),
             "diffusion_phloem": float(          1e-8),
+            "axial_diffusion_xylem": float(     1e-7),
+            "axial_diffusion_phloem": float(    1e-7),
             # metabolism-related parameters
             "transport_C_regulation": float(    1e-2),
             "transport_N_regulation": float(    0.01),
