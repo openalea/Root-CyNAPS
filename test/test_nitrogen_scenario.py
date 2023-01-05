@@ -34,7 +34,9 @@ def test_nitrogen_scenario(n, scenario):
 
     for i in range(n):
         rs.transport_N(**Nparam.transport_N)
+        rs.metabolism_N(**Nparam.metabolism_N)
         rs.update_N(**Nparam.update_N)
+
         if i == 0:
             rng_min, rng_max = [0 for k in Nparam.plot_N['p']], [0 for k in Nparam.plot_N['p']]
             rng_min, rng_max = plot_N(g, rng_min, rng_max, **Nparam.plot_N)
@@ -53,5 +55,5 @@ def test_nitrogen_scenario(n, scenario):
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_scenario(n=72, scenario=Nparam.init_soil_patch)
+    test_nitrogen_scenario(n=20, scenario=Nparam.init_soil_patch)
     input('end? ')
