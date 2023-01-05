@@ -25,14 +25,13 @@ With carbon model :
 """
 
 import numpy as np
-import rhizodep.parameters_nitrogen as Nparam
 
 
-class ContinuousVessels:
+class GlobalVessels:
 
-    def __init__(self, g, Nm, influx_Nm, loading_Nm, diffusion_Nm_phloem, struct_synthesis, storage_synthesis,
-                 storage_catabolism, xylem_Nm, xylem_volume, phloem_Nm, phloem_volume, Nm_root_shoot_xylem,
-                 Nm_root_shoot_phloem):
+    def __init__(self, g, Nm, AA, influx_Nm, diffusion_AA_soil, loading_Nm, loading_AA, diffusion_Nm_phloem, diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis,
+                 AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_volume, phloem_Nm, phloem_AA, phloem_volume, Nm_root_shoot_xylem, AA_root_shoot_xylem,
+                 Nm_root_shoot_phloem, AA_root_shoot_phloem):
 
         """
         Description
@@ -59,18 +58,28 @@ class ContinuousVessels:
         self.g = g
         # New properties' creation in MTG
         keywords = dict(Nm=Nm,
+                        AA=AA,
                         influx_Nm=influx_Nm,
+                        diffusion_AA_soil=diffusion_AA_soil,
                         loading_Nm=loading_Nm,
+                        loading_AA=loading_AA,
                         diffusion_Nm_phloem=diffusion_Nm_phloem,
+                        diffusion_AA_phloem=diffusion_AA_phloem,
+                        AA_synthesis=AA_synthesis,
                         struct_synthesis=struct_synthesis,
                         storage_synthesis=storage_synthesis,
+                        AA_catabolism=AA_catabolism,
                         storage_catabolism=storage_catabolism,
                         xylem_Nm=xylem_Nm,
+                        xylem_AA=xylem_AA,
                         xylem_volume=xylem_volume,
                         phloem_Nm=phloem_Nm,
+                        phloem_AA=phloem_AA,
                         phloem_volume=phloem_volume,
                         Nm_root_shoot_xylem=Nm_root_shoot_xylem,
-                        Nm_root_shoot_phloem=Nm_root_shoot_phloem
+                        AA_root_shoot_xylem=AA_root_shoot_xylem,
+                        Nm_root_shoot_phloem=Nm_root_shoot_phloem,
+                        AA_root_shoot_phloem=AA_root_shoot_phloem
                         )
 
         props = self.g.properties()
@@ -89,20 +98,31 @@ class ContinuousVessels:
         # main model related
         states = """
                 soil_Nm
+                soil_AA
                 Nm
+                AA
                 volume
                 influx_Nm
+                diffusion_AA_soil
                 loading_Nm
+                loading_AA
                 diffusion_Nm_phloem
+                diffusion_AA_phloem
+                AA_synthesis
                 struct_synthesis
                 storage_synthesis
+                AA_catabolism
                 storage_catabolism
                 xylem_Nm
+                xylem_AA
                 xylem_volume
                 phloem_Nm
+                phloem_AA
                 phloem_volume
                 Nm_root_shoot_xylem
+                AA_root_shoot_xylem
                 Nm_root_shoot_phloem
+                AA_root_shoot_phloem
                 length
                 radius
                 struct_mass
@@ -110,13 +130,14 @@ class ContinuousVessels:
                 C_hexose_reserve
                 thermal_time_since_emergence
                 """.split()
+
         for name in states:
             setattr(self, name, props[name])
 
         # Note : Global properties are declared as local ones, but only vertice 1 will be updated
 
-    def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, diffusion_phloem, transport_C_regulation,
-                    transport_N_regulation, xylem_to_root, phloem_to_root, epiderm_differentiation, endoderm_differentiation):
+    def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, vmax_AA_emergence, affinity_AA_xylem,
+                    diffusion_phloem, diffusion_soil, transport_C_regulation, transport_N_regulation, xylem_to_root, phloem_to_root, epiderm_differentiation, endoderm_differentiation):
 
         """
         Description
@@ -154,7 +175,10 @@ class ContinuousVessels:
 
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                # We define nitrogen active uptake from soil
+
+                # MINERAL NITROGEN TRANSPORT
+
+                # We define mineral nitrogen active uptake from soil
                 # Vmax supposed affected by root aging
                 vmax_Nm_root = vmax_Nm_emergence * np.exp(
                     - epiderm_differentiation * self.thermal_time_since_emergence[vid])
@@ -184,7 +208,30 @@ class ContinuousVessels:
                 self.diffusion_Nm_phloem[vid] = (diffusion_phloem * (self.phloem_Nm[1] - self.Nm[vid])
                                                 * (2 * np.pi * self.radius[vid] * phloem_to_root * self.length[vid]))
 
-    def metabolism_N(self, smax_struct, affinity_Nm_struct, affinity_C_struct, cmax_stor, affinity_stor_catab, storage_C_regulation):
+                # AMINO ACID TRANSPORT
+
+                # We define amino acid passive diffusion to soil
+                self.diffusion_AA_soil[vid] = (diffusion_soil * (self.AA[1] - self.soil_AA[vid])
+                                                 * (2 * np.pi * self.radius[vid] * phloem_to_root * self.length[vid]))
+
+                # We define active xylem loading from root segment
+                # Vmax supposed affected by root aging
+                vmax_AA_xylem = vmax_AA_emergence * np.exp(
+                    - endoderm_differentiation * self.thermal_time_since_emergence[vid])
+
+                # Km is defined as a constant here because xylem is global
+                # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+                self.loading_AA[vid] = ((self.AA[vid] * vmax_AA_xylem / (self.AA[vid] + affinity_AA_xylem))
+                                        * (2 * np.pi * self.radius[vid] * xylem_to_root * self.length[vid])
+                                        * (self.C_hexose_root[vid] / (
+                                self.C_hexose_root[vid] + transport_C_regulation)))
+
+                # Passive radial diffusion between phloem and cortex through plasmodesmata
+                self.diffusion_AA_phloem[vid] = (diffusion_phloem * (self.phloem_AA[1] - self.AA[vid])
+                                                 * (2 * np.pi * self.radius[vid] * phloem_to_root * self.length[vid]))
+
+    def metabolism_N(self, smax_AA, affinity_Nm_AA, affinity_C_AA, smax_struct, affinity_AA_struct, smax_stor,
+                     affinity_AA_stor, cmax_stor, affinity_stor_catab, cmax_AA, affinity_AA_catab, storage_C_regulation):
 
         """
         Description
@@ -203,24 +250,31 @@ class ContinuousVessels:
 
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                # Organic structure synthesis
-                self.struct_synthesis[vid] = smax_struct / (
-                    ((1 + affinity_Nm_struct) / self.Nm[vid])
-                    + ((1 + affinity_C_struct) / self.C_hexose_root[vid])
+                # amino acid synthesis
+                self.AA_synthesis[vid] = smax_AA / (
+                    ((1 + affinity_Nm_AA) / self.Nm[vid])
+                    + ((1 + affinity_C_AA) / self.C_hexose_root[vid])
                 )
 
-                # Organic storage synthesis
-                self.storage_synthesis[vid] = smax_struct / (
-                        ((1 + affinity_Nm_struct) / self.Nm[vid])
-                        + ((1 + affinity_C_struct) / self.C_hexose_root[vid])
-                )
+                # Organic structure synthesis
+                self.struct_synthesis[vid] = (smax_struct * self.AA[vid]
+                                               / (affinity_AA_struct + self.AA[vid]))
+
+                # Organic storage synthesis (Michaelis-Menten kinetic)
+                self.storage_synthesis[vid] = (smax_stor * self.AA[vid]
+                                               /(affinity_AA_stor + self.AA[vid]))
 
                 # Organic storage catabolism
                 Km_stor_root = affinity_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
                 self.storage_catabolism[vid] = cmax_stor * self.C_hexose_reserve[vid] / (
                         Km_stor_root + self.C_hexose_reserve[vid])
 
-    def update_N(self, r_Nm_struct, r_Nm_stor, xylem_to_root, phloem_to_root, time_step):
+                # AA catabolism
+                Km_stor_root = affinity_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
+                self.AA_catabolism[vid] = cmax_AA * self.AA[vid] / (
+                        Km_stor_root + self.AA[vid])
+
+    def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root, phloem_to_root, time_step):
         """
         Description
         ___________
@@ -232,8 +286,9 @@ class ContinuousVessels:
         """
         # We define xylem and phloem nitrogen content (mol) from previous volume and concentrations.
         xylem_Nm_content = self.xylem_Nm[1] * self.xylem_volume[1]
+        xylem_AA_content = self.xylem_AA[1] * self.xylem_volume[1]
         phloem_Nm_content = self.phloem_Nm[1] * self.phloem_volume[1]
-
+        phloem_AA_content = self.phloem_AA[1] * self.phloem_volume[1]
 
         # Computing actualised volumes
         self.xylem_volume[1] = 0
@@ -246,6 +301,7 @@ class ContinuousVessels:
             if self.struct_mass[vid] > 0:
                 # Local volume update
                 Nm_content = self.Nm[vid] * self.volume[vid]
+                AA_content = self.AA[vid] * self.volume[vid]
                 self.volume[vid] = (( np.pi * self.length[vid] * (self.radius[vid]) ** 2 )
                                    * (1 - (xylem_to_root ** 2) - (phloem_to_root ** 2)))
 
@@ -254,19 +310,33 @@ class ContinuousVessels:
                         self.influx_Nm[vid]
                         + self.diffusion_Nm_phloem[vid]
                         - self.loading_Nm[vid]
-                        - self.struct_synthesis[vid] * r_Nm_struct
-                        - self.storage_synthesis[vid] * r_Nm_stor
-                        + self.storage_catabolism[vid] / r_Nm_stor)
+                        - self.AA_synthesis[vid] * r_Nm_AA
+                        + self.AA_catabolism[vid] / r_Nm_AA)
+
+                self.AA[vid] = AA_content + (time_step / self.volume[vid]) * (
+                        self.diffusion_AA_phloem[vid]
+                        - self.diffusion_AA_soil[vid]
+                        - self.loading_AA[vid]
+                        + self.AA_synthesis[vid]
+                        - self.struct_synthesis[vid] * r_AA_struct
+                        - self.storage_synthesis[vid] * r_AA_stor
+                        + self.storage_catabolism[vid] / r_AA_stor
+                        - self.AA_catabolism[vid]
+                        )
 
                 # Global vessel's nitrogen pool update
                 xylem_Nm_content += time_step * self.loading_Nm[vid]
+                xylem_AA_content += time_step * self.loading_AA[vid]
                 phloem_Nm_content -= time_step * self.diffusion_Nm_phloem[vid]
+                phloem_AA_content -= time_step * self.diffusion_AA_phloem[vid]
                 self.xylem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * xylem_to_root) ** 2
                 self.phloem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * phloem_to_root) ** 2
 
         # Update plant-level properties
         self.xylem_Nm[1] = (xylem_Nm_content - time_step * self.Nm_root_shoot_xylem[1]) / self.xylem_volume[1]
+        self.xylem_AA[1] = (xylem_AA_content - time_step * self.AA_root_shoot_xylem[1]) / self.xylem_volume[1]
         self.phloem_Nm[1] = (phloem_Nm_content + time_step * self.Nm_root_shoot_phloem[1]) / self.phloem_volume[1]
+        self.phloem_AA[1] = (phloem_AA_content + time_step * self.AA_root_shoot_phloem[1]) / self.phloem_volume[1]
 
 
 class DiscreteVessels:

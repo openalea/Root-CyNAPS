@@ -1,8 +1,8 @@
 import numpy as np
 from time import sleep
-from rhizodep.nitrogen import ContinuousVessels
+from rhizodep.nitrogen import GlobalVessels
 import rhizodep.parameters_nitrogen as Nparam
-from test_mtg import test_mtg, test_nitrogen
+from test_mtg import test_mtg
 from output_display import plot_N, print_g
 
 
@@ -10,7 +10,9 @@ def init_soil_N(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
 
     props = g.properties()
     props.setdefault('soil_Nm', {})
+    props.setdefault('soil_AA', {})
     soil_Nm = props['soil_Nm']
+    soil_AA = props['soil_AA']
     z1 = props['z1']
 
     # No order in update propagation
@@ -22,6 +24,9 @@ def init_soil_N(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
                 (0.01 * np.exp(-((z1[vid] - zmax_soil_Nm) ** 2) / soil_Nm_variance)) ** (scenario)
                 * (1 + soil_Nm_slope * z1[vid]) ** (1 - scenario)
         )
+
+        soil_AA[vid] = 1e-5
+
     return g
 
 def test_nitrogen_scenario(n, scenario):
@@ -29,7 +34,7 @@ def test_nitrogen_scenario(n, scenario):
     g = init_soil_N(g, **scenario)
 
     # Initialization of state variables
-    rs = ContinuousVessels(g, **Nparam.init_N)
+    rs = GlobalVessels(g, **Nparam.init_N)
 
     for i in range(n):
         rs.transport_N(**Nparam.transport_N)
@@ -55,5 +60,5 @@ def test_nitrogen_scenario(n, scenario):
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_scenario(n=20, scenario=Nparam.init_soil_patch)
+    test_nitrogen_scenario(n=30, scenario=Nparam.init_soil_patch)
     input('end? ')

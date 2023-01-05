@@ -32,28 +32,20 @@ init_soil_patch = {
 
 init_N = {
             "Nm": float(                        1e-5),
-            "AA": float(                        1e-5),
             "influx_Nm": float(                 0),
-            "diffusion_AA_soil": float(         0),
             "loading_Nm": float(                0),
-            "loading_AA": float(                0),
             "diffusion_Nm_phloem": float(       0),
-            "diffusion_AA_phloem": float(       0),
-            "AA_synthesis": float(              0),
+            "axial_diffusion_Nm_xylem": float(  0),
+            "axial_diffusion_Nm_phloem":float(  0),
             "struct_synthesis": float(          0),
             "storage_synthesis": float(         0),
-            "AA_catabolism": float(             0),
             "storage_catabolism": float(        0),
             "xylem_Nm": float(                  1e-5),
-            "xylem_AA": float(                  1e-5),
             "xylem_volume": float(              5e-10),
             "phloem_Nm": float(                 1e-5),
-            "phloem_AA": float(                 1e-5),
             "phloem_volume": float(             5e-10),
             "Nm_root_shoot_xylem": float(       0),
-            "AA_root_shoot_xylem": float(       0),
-            "Nm_root_shoot_phloem": float(      0),
-            "AA_root_shoot_phloem": float(      0)
+            "Nm_root_shoot_phloem": float(      0)
           }
 
 
@@ -68,10 +60,9 @@ transport_N = {
             "affinity_Nm_root": float(          1e-4),
             "vmax_Nm_emergence": float(         1e-9),
             "affinity_Nm_xylem": float(         1e-4),
-            "vmax_AA_emergence": float(         1e-9),
-            "affinity_AA_xylem": float(         1e-4),
             "diffusion_phloem": float(          1e-8),
-            "diffusion_soil": float(            1e-9),
+            "axial_diffusion_xylem": float(     1e-7),
+            "axial_diffusion_phloem": float(    1e-7),
             # metabolism-related parameters
             "transport_C_regulation": float(    1e-2),
             "transport_N_regulation": float(    0.01),
@@ -84,24 +75,17 @@ transport_N = {
 
 metabolism_N = {
             # kinetic parameters
-            "smax_AA": float(                   0),
-            "affinity_Nm_AA": float(            0.001),
-            "affinity_C_AA": float(             0.001),
             "smax_struct": float(               0),
-            "affinity_AA_struct": float(        0.001),
-            "smax_stor": float(                 0),
-            "affinity_AA_stor": float(          0.001),
+            "affinity_Nm_struct": float(        0.001),
+            "affinity_C_struct": float(         0.001),
             "cmax_stor": float(                 0),
             "affinity_stor_catab": float(       0.001),
-            "cmax_AA": float(                 0),
-            "affinity_AA_catab": float(       0.001),
             "storage_C_regulation": float(      0.1)
                 }
 
 update_N = {
-            "r_Nm_AA": float(                   2),
-            "r_AA_struct": float(               2),
-            "r_AA_stor": float(                 2),
+            "r_Nm_struct": float(               2),
+            "r_Nm_stor": float(               2),
             "xylem_to_root": xylem_to_root,
             "phloem_to_root": phloem_to_root,
             "time_step": int(                   3600),
