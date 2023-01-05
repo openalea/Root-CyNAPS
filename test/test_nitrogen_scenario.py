@@ -25,9 +25,10 @@ def init_soil_N(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
                 * (1 + soil_Nm_slope * z1[vid]) ** (1 - scenario)
         )
 
-        soil_AA[vid] = 1e-5
+        soil_AA[vid] = 1e-3
 
     return g
+
 
 def test_nitrogen_scenario(n, scenario):
     g = test_mtg()

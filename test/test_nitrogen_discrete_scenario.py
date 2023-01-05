@@ -2,7 +2,7 @@ import numpy as np
 from time import sleep
 from rhizodep.nitrogen import DiscreteVessels
 import rhizodep.parameters_nitrogen_discrete as Nparam
-from test_mtg import test_mtg, test_nitrogen
+from test_mtg import test_mtg
 from output_display import plot_N, print_g
 
 
@@ -10,9 +10,9 @@ def init_soil(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
 
     props = g.properties()
     props.setdefault('soil_Nm', {})
-    props.setdefault('soil_W', {})
+    props.setdefault('soil_AA', {})
     soil_Nm = props['soil_Nm']
-    soil_W = props['soil_W']
+    soil_AA = props['soil_AA']
     z1 = props['z1']
 
     # No order in update propagation
@@ -25,10 +25,8 @@ def init_soil(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
                 * (1 + soil_Nm_slope * z1[vid]) ** (1 - scenario)
         )
 
-        soil_W[vid] = (
-                (0.01 * np.exp(-((z1[vid] - zmax_soil_Nm) ** 2) / soil_Nm_variance)) ** (scenario)
-                * (1 + soil_Nm_slope * z1[vid]) ** (1 - scenario)
-        )
+        soil_AA[vid] = 1e-3
+
     return g
 
 
