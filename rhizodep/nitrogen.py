@@ -8,7 +8,7 @@ __________________________
 
 Main functions
 ______________
-Classes' names reprensent accounted hypothesis in the progressive development of the model.
+Classes' names represent accounted hypothesis in the progressive development of the model.
 Methods' names are systematic through all class for ease of use :
 
 TODO : report functions descriptions
@@ -29,9 +29,10 @@ import numpy as np
 
 class GlobalVessels:
 
-    def __init__(self, g, Nm, AA, influx_Nm, diffusion_AA_soil, loading_Nm, loading_AA, diffusion_Nm_phloem, diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis,
-                 AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_volume, phloem_Nm, phloem_AA, phloem_volume, Nm_root_shoot_xylem, AA_root_shoot_xylem,
-                 Nm_root_shoot_phloem, AA_root_shoot_phloem):
+    def __init__(self, g, Nm, AA, influx_Nm, diffusion_AA_soil, loading_Nm, loading_AA, diffusion_Nm_phloem,
+                 diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis, AA_catabolism,
+                 storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_Nm, phloem_AA,
+                 phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem, AA_root_shoot_phloem):
 
         """
         Description
@@ -72,10 +73,10 @@ class GlobalVessels:
                         storage_catabolism=storage_catabolism,
                         xylem_Nm=xylem_Nm,
                         xylem_AA=xylem_AA,
-                        xylem_volume=xylem_volume,
+                        xylem_struct_mass=xylem_struct_mass,
                         phloem_Nm=phloem_Nm,
                         phloem_AA=phloem_AA,
-                        phloem_volume=phloem_volume,
+                        phloem_struct_mass=phloem_struct_mass,
                         Nm_root_shoot_xylem=Nm_root_shoot_xylem,
                         AA_root_shoot_xylem=AA_root_shoot_xylem,
                         Nm_root_shoot_phloem=Nm_root_shoot_phloem,
@@ -115,10 +116,10 @@ class GlobalVessels:
                 storage_catabolism
                 xylem_Nm
                 xylem_AA
-                xylem_volume
+                xylem_struct_mass
                 phloem_Nm
                 phloem_AA
-                phloem_volume
+                phloem_struct_mass
                 Nm_root_shoot_xylem
                 AA_root_shoot_xylem
                 Nm_root_shoot_phloem
@@ -284,36 +285,28 @@ class GlobalVessels:
         :param r_Nm_struct : Nm mol consumed per mol of organic structural synthesis (adim)
 
         """
-        # We define xylem and phloem nitrogen content (mol) from previous volume and concentrations.
-        xylem_Nm_content = self.xylem_Nm[1] * self.xylem_volume[1]
-        xylem_AA_content = self.xylem_AA[1] * self.xylem_volume[1]
-        phloem_Nm_content = self.phloem_Nm[1] * self.phloem_volume[1]
-        phloem_AA_content = self.phloem_AA[1] * self.phloem_volume[1]
 
-        # Computing actualised volumes
-        self.xylem_volume[1] = 0
-        self.phloem_volume[1] = 0
-
+        # Computing vessels' mass as a fraction of total segments mass
+        self.xylem_struct_mass[1] = sum(self.struct_mass.values()) * xylem_to_root
+        self.phloem_struct_mass[1] = sum(self.struct_mass.values()) * phloem_to_root
 
         # No order in update propagation
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
                 # Local volume update
-                Nm_content = self.Nm[vid] * self.volume[vid]
-                AA_content = self.AA[vid] * self.volume[vid]
-                self.volume[vid] = (( np.pi * self.length[vid] * (self.radius[vid]) ** 2 )
-                                   * (1 - (xylem_to_root ** 2) - (phloem_to_root ** 2)))
+                Nm_content = self.Nm[vid] * self.struct_mass[vid]
+                AA_content = self.AA[vid] * self.struct_mass[vid]
 
                 # Local nitrogen concentration update
-                self.Nm[vid] = Nm_content + (time_step / self.volume[vid]) * (
+                self.Nm[vid] += time_step / self.struct_mass[vid] * (
                         self.influx_Nm[vid]
                         + self.diffusion_Nm_phloem[vid]
                         - self.loading_Nm[vid]
                         - self.AA_synthesis[vid] * r_Nm_AA
                         + self.AA_catabolism[vid] / r_Nm_AA)
 
-                self.AA[vid] = AA_content + (time_step / self.volume[vid]) * (
+                self.AA[vid] += time_step / self.struct_mass[vid] * (
                         self.diffusion_AA_phloem[vid]
                         - self.diffusion_AA_soil[vid]
                         - self.loading_AA[vid]
@@ -325,18 +318,16 @@ class GlobalVessels:
                         )
 
                 # Global vessel's nitrogen pool update
-                xylem_Nm_content += time_step * self.loading_Nm[vid]
-                xylem_AA_content += time_step * self.loading_AA[vid]
-                phloem_Nm_content -= time_step * self.diffusion_Nm_phloem[vid]
-                phloem_AA_content -= time_step * self.diffusion_AA_phloem[vid]
-                self.xylem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * xylem_to_root) ** 2
-                self.phloem_volume[1] += np.pi * self.length[vid] * (self.radius[vid] * phloem_to_root) ** 2
+                self.xylem_Nm[1] += time_step * self.loading_Nm[vid] / self.xylem_struct_mass[1]
+                self.xylem_AA[1] += time_step * self.loading_AA[vid] / self.xylem_struct_mass[1]
+                self.phloem_Nm[1] -= time_step * self.diffusion_Nm_phloem[vid] / self.xylem_struct_mass[1]
+                self.phloem_AA[1] -= time_step * self.diffusion_AA_phloem[vid] / self.xylem_struct_mass[1]
 
         # Update plant-level properties
-        self.xylem_Nm[1] = (xylem_Nm_content - time_step * self.Nm_root_shoot_xylem[1]) / self.xylem_volume[1]
-        self.xylem_AA[1] = (xylem_AA_content - time_step * self.AA_root_shoot_xylem[1]) / self.xylem_volume[1]
-        self.phloem_Nm[1] = (phloem_Nm_content + time_step * self.Nm_root_shoot_phloem[1]) / self.phloem_volume[1]
-        self.phloem_AA[1] = (phloem_AA_content + time_step * self.AA_root_shoot_phloem[1]) / self.phloem_volume[1]
+        self.xylem_Nm[1] -= time_step * self.Nm_root_shoot_xylem[1] / self.xylem_struct_mass[1]
+        self.xylem_AA[1] -= time_step * self.AA_root_shoot_xylem[1] / self.xylem_struct_mass[1]
+        self.phloem_Nm[1] += time_step * self.Nm_root_shoot_phloem[1] / self.phloem_struct_mass[1]
+        self.phloem_AA[1] += time_step * self.AA_root_shoot_phloem[1] / self.phloem_struct_mass[1]
 
 
 class DiscreteVessels:
