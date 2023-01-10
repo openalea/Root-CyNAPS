@@ -34,6 +34,7 @@ class CommonNitrogenModel:
                  phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem, AA_root_shoot_phloem):
 
         self.g = g
+
         # New properties' creation in MTG
         self.keywords.update(dict(Nm=Nm,
                         AA=AA,
