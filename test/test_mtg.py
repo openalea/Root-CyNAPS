@@ -5,7 +5,6 @@
 import pickle
 import numpy as np
 from openalea.mtg import *
-from rhizodep.nitrogen import GlobalVessels
 from output_display import plot_N, print_g
 
 

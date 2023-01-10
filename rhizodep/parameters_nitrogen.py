@@ -30,7 +30,7 @@ init_soil_patch = {
 
 ### State variables initialisation
 
-init_N = {
+init_common_N = {
             "Nm": float(                        1e-4),
             "AA": float(                        1e-4),
             "influx_Nm": float(                 0),
@@ -54,6 +54,13 @@ init_N = {
             "AA_root_shoot_xylem": float(       0),
             "Nm_root_shoot_phloem": float(      0),
             "AA_root_shoot_phloem": float(      0)
+          }
+
+init_DiscreteVessels_N = {
+            "axial_diffusion_Nm_xylem": float(  0),
+            "axial_diffusion_AA_xylem": float(  0),
+            "axial_diffusion_Nm_phloem":float(  0),
+            "axial_diffusion_AA_phloem":float(  0),
           }
 
 

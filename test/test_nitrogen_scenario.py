@@ -1,6 +1,6 @@
 import numpy as np
 from time import sleep
-from rhizodep.nitrogen import GlobalVessels
+from rhizodep.nitrogen import OnePoolVessels
 import rhizodep.parameters_nitrogen as Nparam
 from test_mtg import test_mtg
 from output_display import plot_N, print_g
@@ -35,7 +35,7 @@ def test_nitrogen_scenario(n, scenario):
     g = init_soil_N(g, **scenario)
 
     # Initialization of state variables
-    rs = GlobalVessels(g, **Nparam.init_N)
+    rs = OnePoolVessels(g, **Nparam.init_N)
 
     for i in range(n):
         rs.transport_N(**Nparam.transport_N)

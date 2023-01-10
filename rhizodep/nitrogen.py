@@ -25,41 +25,17 @@ With carbon model :
 """
 
 import numpy as np
-from openalea.mtg.aml import VtxList, Father, Scale
 
 
-class GlobalVessels:
-
+class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, influx_Nm, diffusion_AA_soil, loading_Nm, loading_AA, diffusion_Nm_phloem,
                  diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis, AA_catabolism,
                  storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_Nm, phloem_AA,
                  phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem, AA_root_shoot_phloem):
 
-        """
-        Description
-        Initialization of nitrogen-related variables
-
-        Parameters
-        :param g: MTG
-        :param Nm: Local mineral nitrogen volumic concentration (mol.m-3)
-        :param influx_Nm: Local mineral nitrogen influx from soil (mol.s-1)
-        :param loading_Nm: Local mineral nitrogen loading to xylem (mol.s-1)
-        :param diffusion_Nm_phloem: Local mineral nitrogen diffusion between cortex and phloem (mol.s-1)
-        :param xylem_Nm: Global xylem mineral nitrogen volumic concentration (mol.m-3)
-        :param xylem_volume: Global xylem vessel volume (m3)
-        :param phloem_Nm: Global phloem mineral nitrogen volumic concentration (mol.m-3)
-        :param phloem_volume: Global phloem vessel volume (m3)
-        :param Nm_root_shoot_xylem: Mineral nitrogen transport to shoot from root xylem (mol.s-1)
-        :param Nm_root_shoot_phloem: Mineral nitrogen transport from shoot to root phloem (mol.s-1)
-
-        Hypothesis
-        H1 :
-        H2 :
-        """
-
         self.g = g
         # New properties' creation in MTG
-        keywords = dict(Nm=Nm,
+        self.keywords.update(dict(Nm=Nm,
                         AA=AA,
                         influx_Nm=influx_Nm,
                         diffusion_AA_soil=diffusion_AA_soil,
@@ -82,61 +58,70 @@ class GlobalVessels:
                         AA_root_shoot_xylem=AA_root_shoot_xylem,
                         Nm_root_shoot_phloem=Nm_root_shoot_phloem,
                         AA_root_shoot_phloem=AA_root_shoot_phloem
-                        )
+                        ))
 
         props = self.g.properties()
-        for name in keywords:
+        for name in self.keywords:
             props.setdefault(name, {})
 
         # vertices storage for future calls in for loops
         self.vertices = self.g.vertices(scale=g.max_scale())
         for vid in self.vertices:
-            for name, value in keywords.items():
+            for name, value in self.keywords.items():
                 # Effectively creates the new property
                 props[name][vid] = value
 
         # Accessing properties once, pointing to g for further modifications
         # N related
         # main model related
-        states = """
-                soil_Nm
-                soil_AA
-                Nm
-                AA
-                volume
-                influx_Nm
-                diffusion_AA_soil
-                loading_Nm
-                loading_AA
-                diffusion_Nm_phloem
-                diffusion_AA_phloem
-                AA_synthesis
-                struct_synthesis
-                storage_synthesis
-                AA_catabolism
-                storage_catabolism
-                xylem_Nm
-                xylem_AA
-                xylem_struct_mass
-                phloem_Nm
-                phloem_AA
-                phloem_struct_mass
-                Nm_root_shoot_xylem
-                AA_root_shoot_xylem
-                Nm_root_shoot_phloem
-                AA_root_shoot_phloem
-                length
-                radius
-                struct_mass
-                C_hexose_root
-                C_hexose_reserve
-                thermal_time_since_emergence
-                """.split()
+        self.states += """
+                        soil_Nm
+                        soil_AA
+                        Nm
+                        AA
+                        volume
+                        influx_Nm
+                        diffusion_AA_soil
+                        loading_Nm
+                        loading_AA
+                        diffusion_Nm_phloem
+                        diffusion_AA_phloem
+                        AA_synthesis
+                        struct_synthesis
+                        storage_synthesis
+                        AA_catabolism
+                        storage_catabolism
+                        xylem_Nm
+                        xylem_AA
+                        xylem_struct_mass
+                        phloem_Nm
+                        phloem_AA
+                        phloem_struct_mass
+                        Nm_root_shoot_xylem
+                        AA_root_shoot_xylem
+                        Nm_root_shoot_phloem
+                        AA_root_shoot_phloem
+                        length
+                        radius
+                        struct_mass
+                        C_hexose_root
+                        C_hexose_reserve
+                        thermal_time_since_emergence
+                        """.split()
 
-        for name in states:
+        for name in self.states:
             setattr(self, name, props[name])
 
         # Note : Global properties are declared as local ones, but only vertice 1 will be updated
+
+
+class OnePoolVessels(CommonNitrogenModel):
+
+    def __init__(self, g, **kwargs):
+
+        self.keywords = {}
+        self.states = []
+        super().__init__(g, **kwargs)
 
     def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, vmax_AA_emergence, affinity_AA_xylem,
                     diffusion_phloem, diffusion_soil, transport_C_regulation, transport_N_regulation, xylem_to_root, phloem_to_root, epiderm_differentiation, endoderm_differentiation):
@@ -331,13 +316,10 @@ class GlobalVessels:
         self.phloem_AA[1] += time_step * self.AA_root_shoot_phloem[1] / self.phloem_struct_mass[1]
 
 
-class DiscreteVessels:
+class DiscreteVessels(CommonNitrogenModel):
 
-    def __init__(self, g, Nm, AA, influx_Nm, diffusion_AA_soil, loading_Nm, loading_AA, diffusion_Nm_phloem,
-                 diffusion_AA_phloem, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem, axial_diffusion_Nm_phloem,
-                 axial_diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis, AA_catabolism,
-                 storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_Nm, phloem_AA,
-                 phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem, AA_root_shoot_phloem):
+    def __init__(self, g, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem, axial_diffusion_Nm_phloem,
+                 axial_diffusion_AA_phloem , **kwargs):
 
         """
         Description
@@ -361,94 +343,24 @@ class DiscreteVessels:
         H2 :
         """
 
-        self.g = g
         # New properties' creation in MTG
-        keywords = dict(Nm=Nm,
-                        AA=AA,
-                        influx_Nm=influx_Nm,
-                        diffusion_AA_soil=diffusion_AA_soil,
-                        loading_Nm=loading_Nm,
-                        loading_AA=loading_AA,
-                        diffusion_Nm_phloem=diffusion_Nm_phloem,
-                        diffusion_AA_phloem=diffusion_AA_phloem,
-                        axial_diffusion_Nm_xylem=axial_diffusion_Nm_xylem,
-                        axial_diffusion_AA_xylem=axial_diffusion_AA_xylem,
-                        axial_diffusion_Nm_phloem=axial_diffusion_Nm_phloem,
-                        axial_diffusion_AA_phloem=axial_diffusion_AA_phloem,
-                        AA_synthesis=AA_synthesis,
-                        struct_synthesis=struct_synthesis,
-                        storage_synthesis=storage_synthesis,
-                        AA_catabolism=AA_catabolism,
-                        storage_catabolism=storage_catabolism,
-                        xylem_Nm=xylem_Nm,
-                        xylem_AA=xylem_AA,
-                        xylem_struct_mass=xylem_struct_mass,
-                        phloem_Nm=phloem_Nm,
-                        phloem_AA=phloem_AA,
-                        phloem_struct_mass=phloem_struct_mass,
-                        Nm_root_shoot_xylem=Nm_root_shoot_xylem,
-                        AA_root_shoot_xylem=AA_root_shoot_xylem,
-                        Nm_root_shoot_phloem=Nm_root_shoot_phloem,
-                        AA_root_shoot_phloem=AA_root_shoot_phloem
-                        )
+        self.keywords = dict(axial_diffusion_Nm_xylem=axial_diffusion_Nm_xylem,
+                             axial_diffusion_AA_xylem=axial_diffusion_AA_xylem,
+                             axial_diffusion_Nm_phloem=axial_diffusion_Nm_phloem,
+                             axial_diffusion_AA_phloem=axial_diffusion_AA_phloem
+                                )
 
-        props = self.g.properties()
-        for name in keywords:
-            props.setdefault(name, {})
-
-        # vertices storage for future calls in for loops
-        self.vertices = self.g.vertices(scale=g.max_scale())
-        for vid in self.vertices:
-            for name, value in keywords.items():
-                # Effectively creates the new property
-                props[name][vid] = value
-
-        # Accessing properties once, pointing to g for further modifications
+        # Properties to be accessed, pointing to g for further modifications
         # N related
         # main model related
-        states = """
-                soil_Nm
-                soil_AA
-                Nm
-                AA
-                volume
-                influx_Nm
-                diffusion_AA_soil
-                loading_Nm
-                loading_AA
-                diffusion_Nm_phloem
-                diffusion_AA_phloem
+        self.states = """
                 axial_diffusion_Nm_xylem
                 axial_diffusion_AA_xylem
                 axial_diffusion_Nm_phloem
                 axial_diffusion_AA_phloem
-                AA_synthesis
-                struct_synthesis
-                storage_synthesis
-                AA_catabolism
-                storage_catabolism
-                xylem_Nm
-                xylem_AA
-                xylem_struct_mass
-                phloem_Nm
-                phloem_AA
-                phloem_struct_mass
-                Nm_root_shoot_xylem
-                AA_root_shoot_xylem
-                Nm_root_shoot_phloem
-                AA_root_shoot_phloem
-                length
-                radius
-                struct_mass
-                C_hexose_root
-                C_hexose_reserve
-                thermal_time_since_emergence
                 """.split()
 
-        for name in states:
-            setattr(self, name, props[name])
-
-        # Note : Global properties are declared as local ones, but only vertice 1 will be updated
+        super().__init__(g, **kwargs)
 
     def transport_N(self, affinity_Nm_root, vmax_Nm_emergence, affinity_Nm_xylem, vmax_AA_emergence, affinity_AA_xylem,
                     diffusion_phloem, diffusion_soil, axial_diffusion_xylem, axial_diffusion_phloem,
@@ -575,7 +487,6 @@ class DiscreteVessels:
 
                         self.axial_diffusion_AA_phloem[vid] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[vid]) * (
                                                             np.pi * (xylem_to_root * (self.radius[vid] + self.radius[k]) / 2) ** 2)
-                print(self.axial_diffusion_Nm_xylem[vid])
 
     def metabolism_N(self, smax_AA, affinity_Nm_AA, affinity_C_AA, smax_struct, affinity_AA_struct, smax_stor,
                      affinity_AA_stor, cmax_stor, affinity_stor_catab, cmax_AA, affinity_AA_catab, storage_C_regulation):

@@ -2,6 +2,7 @@ import numpy as np
 from time import sleep
 from rhizodep.nitrogen import DiscreteVessels
 import rhizodep.parameters_nitrogen_discrete as Nparam
+import rhizodep.parameters_nitrogen as Nparamtp
 from test_mtg import test_mtg
 from output_display import plot_N, print_g
 
@@ -35,7 +36,7 @@ def test_nitrogen_discrete_scenario(n, scenario):
     g = init_soil(g, **scenario)
 
     # Initialization of state variables
-    rs = DiscreteVessels(g, **Nparam.init_N)
+    rs = DiscreteVessels(g, **Nparamtp.init_DiscreteVessels_N, **Nparamtp.init_common_N)
 
     for i in range(n):
         rs.transport_N(**Nparam.transport_N)
