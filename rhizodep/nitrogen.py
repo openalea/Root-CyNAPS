@@ -25,6 +25,105 @@ With carbon model :
 """
 
 import numpy as np
+from dataclasses import dataclass
+
+
+# Properties' init
+
+
+@dataclass
+class InitCommonN:
+    Nm: float = 1e-4
+    AA: float = 1e-4
+    influx_Nm: float = 0
+    diffusion_AA_soil: float = 0
+    loading_Nm: float = 0
+    loading_AA: float = 0
+    diffusion_Nm_phloem: float = 0
+    diffusion_AA_phloem: float = 0
+    AA_synthesis: float = 0
+    struct_synthesis: float = 0
+    storage_synthesis: float = 0
+    AA_catabolism: float = 0
+    storage_catabolism: float = 0
+    xylem_Nm: float = 1e-4
+    xylem_AA: float = 1e-4
+    xylem_struct_mass: float = 1e-3
+    phloem_Nm: float = 1e-4
+    phloem_AA: float = 1e-4
+    phloem_struct_mass: float = 1e-3
+    Nm_root_shoot_xylem: float = 0
+    AA_root_shoot_xylem: float = 0
+    Nm_root_shoot_phloem: float = 0
+    AA_root_shoot_phloem: float = 0
+
+
+@dataclass
+class InitDiscreteVesselsN(InitCommonN):
+    axial_diffusion_Nm_xylem: float = 0
+    axial_diffusion_AA_xylem: float = 0
+    axial_diffusion_Nm_phloem: float = 0
+    axial_diffusion_AA_phloem: float = 0
+
+
+# Parameters' default value
+
+
+@dataclass
+class TransportCommonN:
+    # architecture parameters
+    xylem_to_root: float = 0.2
+    phloem_to_root: float = 0.15
+    epiderm_differentiation: float = 1e-6
+    endoderm_differentiation: float = 1e-6
+    # kinetic parameters
+    affinity_Nm_root: float = 1e-4
+    vmax_Nm_emergence: float = 1e-9
+    affinity_Nm_xylem: float = 1e-4
+    vmax_AA_emergence: float = 1e-9
+    affinity_AA_xylem: float = 1e-4
+    diffusion_phloem: float = 1e-8
+    diffusion_soil: float = 1e-9
+    # metabolism-related parameters
+    transport_C_regulation: float = 1e-2
+    transport_N_regulation: float = 0.01
+
+
+@dataclass
+class TransportAxialN(TransportCommonN):
+    # kinetic parameters
+    axial_diffusion_xylem: float = 1e-7
+    axial_diffusion_phloem: float = 1e-7
+
+
+@dataclass
+class MetabolismN:
+    # kinetic parameters
+    smax_AA: float = 0
+    affinity_Nm_AA: float = 0.001
+    affinity_C_AA: float = 0.001
+    smax_struct: float = 0
+    affinity_AA_struct: float = 0.001
+    smax_stor: float = 0
+    affinity_AA_stor: float = 0.001
+    cmax_stor: float = 0
+    affinity_stor_catab: float = 0.001
+    cmax_AA: float = 0
+    affinity_AA_catab: float = 0.001
+    storage_C_regulation: float = 0.1
+
+
+@dataclass
+class UpdateN:
+    r_Nm_AA: float = 2
+    r_AA_struct: float = 2
+    r_AA_stor: float = 2
+    xylem_to_root: float = 0.2
+    phloem_to_root: float = 0.15
+    time_step: int = 3600
+
+
+# Nitrogen Models
 
 
 class CommonNitrogenModel:
@@ -315,7 +414,7 @@ class OnePoolVessels(CommonNitrogenModel):
 
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                super().transport_radial_N(vid, model=1, **kwargs)
+                self.transport_radial_N(vid, model=1, **kwargs)
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root, phloem_to_root, time_step):
         """
@@ -338,7 +437,7 @@ class OnePoolVessels(CommonNitrogenModel):
             if self.struct_mass[vid] > 0:
 
                 # Local nitrogen concentration update
-                super().update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
+                self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Global vessel's nitrogen pool update
                 self.xylem_Nm[1] += time_step * self.loading_Nm[vid] / self.xylem_struct_mass[1]
@@ -347,7 +446,7 @@ class OnePoolVessels(CommonNitrogenModel):
                 self.phloem_AA[1] -= time_step * self.diffusion_AA_phloem[vid] / self.xylem_struct_mass[1]
 
         # Update plant-level properties
-        super().update_N_global(time_step)
+        self.update_N_global(time_step)
 
 
 class DiscreteVessels(CommonNitrogenModel):
@@ -381,8 +480,8 @@ class DiscreteVessels(CommonNitrogenModel):
 
                 # RADIAL TRANSPORT
 
-                super().transport_radial_N(v=vid, model=vid, xylem_to_root=xylem_to_root, phloem_to_root=phloem_to_root,
-                                           **kwargs)
+                self.transport_radial_N(v=vid, model=vid, xylem_to_root=xylem_to_root, phloem_to_root=phloem_to_root,
+                                        **kwargs)
 
                 # AXIAL TRANSPORT
 
@@ -429,7 +528,7 @@ class DiscreteVessels(CommonNitrogenModel):
             if self.struct_mass[vid] > 0:
 
                 # Local nitrogen concentration update
-                super().update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
+                self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Local vessels' structural mass update
                 self.xylem_struct_mass[vid] = self.struct_mass[vid] * xylem_to_root
@@ -450,5 +549,5 @@ class DiscreteVessels(CommonNitrogenModel):
                         + self.axial_diffusion_AA_phloem[vid])
 
         # Update plant-level properties
-        super().update_N_global(time_step)
+        self.update_N_global(time_step)
 
