@@ -35,10 +35,10 @@ def test_nitrogen_scenario(n, scenario):
     g = init_soil_N(g, **scenario)
 
     # Initialization of state variables
-    rs = OnePoolVessels(g, **Nparam.init_N)
+    rs = OnePoolVessels(g, **Nparam.init_common_N)
 
     for i in range(n):
-        rs.transport_N(**Nparam.transport_N)
+        rs.transport_N(**Nparam.transport_common_N)
         # N metabolism is not yet computed as C is not actualized yet.
         # rs.metabolism_N(**Nparam.metabolism_N)
         rs.update_N(**Nparam.update_N)

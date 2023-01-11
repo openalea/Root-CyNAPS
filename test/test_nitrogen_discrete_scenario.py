@@ -1,8 +1,7 @@
 import numpy as np
 from time import sleep
 from rhizodep.nitrogen import DiscreteVessels
-import rhizodep.parameters_nitrogen_discrete as Nparam
-import rhizodep.parameters_nitrogen as Nparamtp
+import rhizodep.parameters_nitrogen as Nparam
 from test_mtg import test_mtg
 from output_display import plot_N, print_g
 
@@ -36,10 +35,10 @@ def test_nitrogen_discrete_scenario(n, scenario):
     g = init_soil(g, **scenario)
 
     # Initialization of state variables
-    rs = DiscreteVessels(g, **Nparamtp.init_DiscreteVessels_N, **Nparamtp.init_common_N)
+    rs = DiscreteVessels(g, **Nparam.init_DiscreteVessels_N, **Nparam.init_common_N)
 
     for i in range(n):
-        rs.transport_N(**Nparam.transport_N)
+        rs.transport_N(**Nparam.transport_axial_N, **Nparam.transport_common_N)
         # N metabolism is not yet computed as C is not actualized yet.
         # rs.metabolism_N(**Nparam.metabolism_N)
         rs.update_N(**Nparam.update_N)

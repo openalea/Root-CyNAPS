@@ -70,7 +70,12 @@ init_DiscreteVessels_N = {
 xylem_to_root: float = 0.2
 phloem_to_root: float = 0.15
 
-transport_N = {
+transport_common_N = {
+            # architecture parameters
+            "xylem_to_root": xylem_to_root,
+            "phloem_to_root": phloem_to_root,
+            "epiderm_differentiation": float(   1e-6),
+            "endoderm_differentiation": float(  1e-6),
             # kinetic parameters
             "affinity_Nm_root": float(          1e-4),
             "vmax_Nm_emergence": float(         1e-9),
@@ -81,12 +86,13 @@ transport_N = {
             "diffusion_soil": float(            1e-9),
             # metabolism-related parameters
             "transport_C_regulation": float(    1e-2),
-            "transport_N_regulation": float(    0.01),
-            # architecture parameters
-            "xylem_to_root": xylem_to_root,
-            "phloem_to_root": phloem_to_root,
-            "epiderm_differentiation": float(   1e-6),
-            "endoderm_differentiation": float(  1e-6)
+            "transport_N_regulation": float(    0.01)
+                }
+
+transport_axial_N = {
+            # kinetic parameters
+            "axial_diffusion_xylem": float(     1e-7),
+            "axial_diffusion_phloem": float(    1e-7)
                 }
 
 metabolism_N = {
@@ -100,8 +106,8 @@ metabolism_N = {
             "affinity_AA_stor": float(          0.001),
             "cmax_stor": float(                 0),
             "affinity_stor_catab": float(       0.001),
-            "cmax_AA": float(                 0),
-            "affinity_AA_catab": float(       0.001),
+            "cmax_AA": float(                   0),
+            "affinity_AA_catab": float(         0.001),
             "storage_C_regulation": float(      0.1)
                 }
 
