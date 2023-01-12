@@ -130,7 +130,7 @@ class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, influx_Nm, diffusion_AA_soil, loading_Nm, loading_AA, diffusion_Nm_phloem,
                  diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis, AA_catabolism,
                  storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_Nm, phloem_AA,
-                 phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem, AA_root_shoot_phloem):
+                phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem, AA_root_shoot_phloem):
 
         """
         Description
@@ -194,8 +194,6 @@ class CommonNitrogenModel:
                 props[name][vid] = value
 
         # Accessing properties once, pointing to g for further modifications
-        # N related
-        # main model related
         self.states += """
                         soil_Nm
                         soil_AA
