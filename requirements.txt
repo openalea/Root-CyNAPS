@@ -1,0 +1,6 @@
+numpy~=1.22.4
+matplotlib~=3.6.2
+rhizodep~=0.0.1
+pandas~=1.5.2
+setuptools~=65.5.1
+pillow~=9.2.0

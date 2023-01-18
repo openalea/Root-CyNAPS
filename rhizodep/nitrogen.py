@@ -12,20 +12,24 @@ Classes' names represent accounted hypothesis in the progressive development of 
 Methods' names are systematic through all class for ease of use :
 
 TODO : report functions descriptions
-init_N()
-transport_N()
-metabolism_N()
-update_N()
+CommonNitrogenModel
+    init_N()
+    transport_N()
+    metabolism_N()
+    update_N()
 
-Use examples
-____________
+OnePoolVessels(CommonNitrogenModel)
 
-With carbon model :
+DiscreteVessels(CommonNitrogenModel)
+
 
 """
-
+# Imports
 import numpy as np
 from dataclasses import dataclass
+
+# Dataclass for initialisation and parametrization.
+# For readability's sake, only units are displayed. See functions' documentation for descriptions.
 
 
 # Properties' init
@@ -35,9 +39,11 @@ from dataclasses import dataclass
 class InitCommonN:
     Nm: float = 1e-4    # mol N.g-1
     AA: float = 1e-4    # mol AA.g-1
-    influx_Nm: float = 0    # mol N.s-1
-    loading_Nm: float = 0    # mol N.s-1
-    loading_AA: float = 0    # mol AA.s-1
+    struct_protein: float = 0   # mol prot struct.g-1
+    storage_protein: float = 0     # mol prot stor.g-1
+    import_Nm: float = 0    # mol N.s-1
+    export_Nm: float = 0    # mol N.s-1
+    export_AA: float = 0    # mol AA.s-1
     diffusion_Nm_soil: float = 0    # mol N.s-1
     diffusion_Nm_xylem: float = 0    # mol N.s-1
     diffusion_AA_soil: float = 0  # mol AA.s-1
@@ -70,17 +76,16 @@ class InitDiscreteVesselsN(InitCommonN):
 @dataclass
 class TransportCommonN:
     # architecture parameters
-    xylem_to_root: float = 0.2
-    phloem_to_root: float = 0.15
-    epiderm_differentiation: float = 1e-6
-    endoderm_differentiation: float = 1e-6
+    xylem_to_root: float = 0.2  # adim
+    phloem_to_root: float = 0.15    # adim
+    parietal_differentiation: float = 1e-6   # préciser
     # kinetic parameters
-    vmax_Nm_emergence: float = 1e-9
-    vmax_Nm_xylem: float = 1e-9
-    Km_Nm_root: float = 1e-4
-    Km_Nm_xylem: float = 1e-4
-    vmax_AA_emergence: float = 1e-9
-    affinity_AA_xylem: float = 1e-4
+    vmax_Nm_emergence: float = 1e-9     # mol N.s-1.m-2
+    vmax_Nm_xylem: float = 1e-9     # mol N.s-1.m-2
+    Km_Nm_root: float = 1e-4    # mol N.g-1
+    Km_Nm_xylem: float = 1e-4   # mol N.g-1
+    vmax_AA_xylem: float = 1e-9     # mol AA.s-1.m-2
+    Km_AA_xylem: float = 1e-4   # mol AA.g-1
     diffusion_soil: float = 1e-9
     diffusion_xylem: float = 1e-8
     diffusion_phloem : float = 1e-8
@@ -99,16 +104,16 @@ class TransportAxialN(TransportCommonN):
 class MetabolismN:
     # kinetic parameters
     smax_AA: float = 0
-    affinity_Nm_AA: float = 0.001
-    affinity_C_AA: float = 0.001
+    Km_Nm_AA: float = 0.001
+    Km_C_AA: float = 0.001
     smax_struct: float = 0
-    affinity_AA_struct: float = 0.001
+    Km_AA_struct: float = 0.001
     smax_stor: float = 0
-    affinity_AA_stor: float = 0.001
+    Km_AA_stor: float = 0.001
     cmax_stor: float = 0
-    affinity_stor_catab: float = 0.001
+    Km_stor_catab: float = 0.001
     cmax_AA: float = 0
-    affinity_AA_catab: float = 0.001
+    Km_AA_catab: float = 0.001
     storage_C_regulation: float = 0.1
 
 
@@ -122,13 +127,13 @@ class UpdateN:
     time_step: int = 3600
 
 
-# Nitrogen Models
+# Nitrogen Model versions as classes. A version relates to a set of structural assumptions given in the class name.
 
 
 class CommonNitrogenModel:
-    def __init__(self, g, Nm, AA, influx_Nm, loading_Nm, loading_AA, diffusion_Nm_soil, diffusion_Nm_xylem,
-                 diffusion_AA_soil, diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis,
-                 AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
+    def __init__(self, g, Nm, AA, struct_protein, storage_protein, import_Nm, export_Nm, export_AA, diffusion_Nm_soil,
+                 diffusion_Nm_xylem, diffusion_AA_soil, diffusion_AA_phloem, AA_synthesis, struct_synthesis,
+                 storage_synthesis, AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
                  phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem,
                  AA_root_shoot_phloem):
 
@@ -139,8 +144,8 @@ class CommonNitrogenModel:
         Parameters
         :param g: MTG
         :param Nm: Local mineral nitrogen volumic concentration (mol.m-3)
-        :param influx_Nm: Local mineral nitrogen influx from soil (mol.s-1)
-        :param loading_Nm: Local mineral nitrogen loading to xylem (mol.s-1)
+        :param import_Nm: Local mineral nitrogen influx from soil (mol.s-1)
+        :param export_Nm: Local mineral nitrogen loading to xylem (mol.s-1)
         :param diffusion_Nm_phloem: Local mineral nitrogen diffusion between cortex and phloem (mol.s-1)
         :param xylem_Nm: Global xylem mineral nitrogen volumic concentration (mol.m-3)
         :param xylem_volume: Global xylem vessel volume (m3)
@@ -159,9 +164,11 @@ class CommonNitrogenModel:
         # New properties' creation in MTG
         self.keywords.update(dict(Nm=Nm,
                         AA=AA,
-                        influx_Nm=influx_Nm,
-                        loading_Nm=loading_Nm,
-                        loading_AA=loading_AA,
+                        struct_protein=struct_protein,
+                        storage_protein=storage_protein,
+                        import_Nm=import_Nm,
+                        export_Nm=export_Nm,
+                        export_AA=export_AA,
                         diffusion_Nm_soil=diffusion_Nm_soil,
                         diffusion_Nm_xylem=diffusion_Nm_xylem,
                         diffusion_AA_soil=diffusion_AA_soil,
@@ -198,10 +205,12 @@ class CommonNitrogenModel:
                         soil_AA
                         Nm
                         AA
+                        struct_protein
+                        storage_protein
                         volume
-                        influx_Nm
-                        loading_Nm
-                        loading_AA
+                        import_Nm
+                        export_Nm
+                        export_AA
                         diffusion_Nm_soil
                         diffusion_Nm_xylem
                         diffusion_AA_soil
@@ -232,8 +241,8 @@ class CommonNitrogenModel:
 
         # Note : Global properties are declared as local ones, but only vertice 1 will be updated
 
-    def metabolism_N(self, smax_AA, affinity_Nm_AA, affinity_C_AA, smax_struct, affinity_AA_struct, smax_stor,
-                     affinity_AA_stor, cmax_stor, affinity_stor_catab, cmax_AA, affinity_AA_catab, storage_C_regulation):
+    def metabolism_N(self, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
+                     Km_AA_stor, cmax_stor, Km_stor_catab, cmax_AA, Km_AA_catab, storage_C_regulation):
 
         """
         Description
@@ -243,8 +252,8 @@ class CommonNitrogenModel:
         Parameters
         __________
         :param smax_struct : Maximal organic structure synthesis from mineral nitrogen and labil C (mol.s-1)
-        :param affinity_Nm_struct :
-        :param affinity_C_struct :
+        :param Km_Nm_struct :
+        :param Km_C_struct :
 
         """
         # for all root segments in MTG...
@@ -254,32 +263,31 @@ class CommonNitrogenModel:
             if self.struct_mass[vid] > 0:
                 # amino acid synthesis
                 self.AA_synthesis[vid] = smax_AA / (
-                    ((1 + affinity_Nm_AA) / self.Nm[vid])
-                    + ((1 + affinity_C_AA) / self.C_hexose_root[vid])
+                    ((1 + Km_Nm_AA) / self.Nm[vid])
+                    + ((1 + Km_C_AA) / self.C_hexose_root[vid])
                 )
 
                 # Organic structure synthesis
                 self.struct_synthesis[vid] = (smax_struct * self.AA[vid]
-                                               / (affinity_AA_struct + self.AA[vid]))
+                                               / (Km_AA_struct + self.AA[vid]))
 
                 # Organic storage synthesis (Michaelis-Menten kinetic)
                 self.storage_synthesis[vid] = (smax_stor * self.AA[vid]
-                                               /(affinity_AA_stor + self.AA[vid]))
+                                               /(Km_AA_stor + self.AA[vid]))
 
                 # Organic storage catabolism
-                Km_stor_root = affinity_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
+                Km_stor_root = Km_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
                 self.storage_catabolism[vid] = cmax_stor * self.C_hexose_reserve[vid] / (
                         Km_stor_root + self.C_hexose_reserve[vid])
 
                 # AA catabolism
-                Km_stor_root = affinity_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
+                Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
                 self.AA_catabolism[vid] = cmax_AA * self.AA[vid] / (
                         Km_stor_root + self.AA[vid])
 
-    def transport_radial_N(self, v, model, xylem_to_root, phloem_to_root, epiderm_differentiation,
-                           endoderm_differentiation,  vmax_Nm_emergence, vmax_Nm_xylem, Km_Nm_root, Km_Nm_xylem,
-                           vmax_AA_emergence, affinity_AA_xylem, diffusion_soil, diffusion_xylem, diffusion_phloem,
-                           transport_C_regulation):
+    def transport_radial_N(self, v, model, xylem_to_root, phloem_to_root, parietal_differentiation,
+                           vmax_Nm_emergence, vmax_Nm_xylem, Km_Nm_root, Km_Nm_xylem, vmax_AA_xylem,
+                           Km_AA_xylem, diffusion_soil, diffusion_xylem, diffusion_phloem, transport_C_regulation):
 
         """
         Description
@@ -288,13 +296,12 @@ class CommonNitrogenModel:
 
         Parameters
         __________
-        :param affinity_Nm_root: Active transport from soil Km parameter (mol.m-3)
+        :param Km_Nm_root: Active transport from soil Km parameter (mol.m-3)
         :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
-        :param affinity_Nm_xylem: Active transport from root Km parameter (mol.m-3)
+        :param Km_Nm_xylem: Active transport from root Km parameter (mol.m-3)
         :param diffusion_phloem: Mineral nitrogen diffusion parameter (m.s-1)
-        :param transport_C_regulation: Affinity coefficient for the nitrogen active transport regulation function
+        :param transport_C_regulation: Km coefficient for the nitrogen active transport regulation function
         by root C (mol.g-1) (?)
-        :param transport_N_regulation: Affinity coefficient for the nitrogen active transport regulation function
         by root mineral nitrogen (mol.m-3)
         :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
         :param phloem_to_root: Radius ratio between mean phloem and root segment (adim)
@@ -319,10 +326,10 @@ class CommonNitrogenModel:
         # We define mineral nitrogen active uptake from soil
         # Vmax supposed affected by root aging
         vmax_Nm_root = vmax_Nm_emergence * np.exp(
-            - epiderm_differentiation * self.thermal_time_since_emergence[v])
+            - parietal_differentiation * self.thermal_time_since_emergence[v])
 
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.influx_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
+        self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
                                * (2 * np.pi * self.radius[v] * self.length[v])
                                * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
 
@@ -330,10 +337,10 @@ class CommonNitrogenModel:
         self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] - self.soil_Nm[v])
                                       * (2 * np.pi * self.radius[v] * self.length[v]))
 
-        # We define active xylem loading from root segment
+        # We define active export to xylem from root segment
 
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.loading_Nm[v] = ((self.Nm[v] * vmax_Nm_xylem / (self.Nm[v] + Km_Nm_xylem))
+        self.export_Nm[v] = ((self.Nm[v] * vmax_Nm_xylem / (self.Nm[v] + Km_Nm_xylem))
                                 * (2 * np.pi * self.radius[v] * xylem_to_root * self.length[v])
                                 * (self.C_hexose_root[v] / (
                             self.C_hexose_root[v] + transport_C_regulation)))
@@ -348,14 +355,11 @@ class CommonNitrogenModel:
         self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v] - self.soil_AA[v])
                                          * (2 * np.pi * self.radius[v] * phloem_to_root * self.length[v]))
 
-        # We define active xylem loading from root segment
-        # Vmax supposed affected by root aging
-        vmax_AA_xylem = vmax_AA_emergence * np.exp(
-            - endoderm_differentiation * self.thermal_time_since_emergence[v])
+        # We define active export to xylem from root segment
 
         # Km is defined as a constant here because xylem is global
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.loading_AA[v] = ((self.AA[v] * vmax_AA_xylem / (self.AA[v] + affinity_AA_xylem))
+        self.export_AA[v] = ((self.AA[v] * vmax_AA_xylem / (self.AA[v] + Km_AA_xylem))
                                 * (2 * np.pi * self.radius[v] * xylem_to_root * self.length[v])
                                 * (self.C_hexose_root[v] / (
                         self.C_hexose_root[v] + transport_C_regulation)))
@@ -367,22 +371,31 @@ class CommonNitrogenModel:
     def update_N_local(self, v, r_Nm_AA, r_AA_struct, r_AA_stor, time_step):
 
         self.Nm[v] += time_step / self.struct_mass[v] * (
-                self.influx_Nm[v]
+                self.import_Nm[v]
                 - self.diffusion_Nm_soil[v]
                 + self.diffusion_Nm_xylem[v]
-                - self.loading_Nm[v]
+                - self.export_Nm[v]
                 - self.AA_synthesis[v] * r_Nm_AA
                 + self.AA_catabolism[v] / r_Nm_AA)
 
         self.AA[v] += time_step / self.struct_mass[v] * (
                 self.diffusion_AA_phloem[v]
                 - self.diffusion_AA_soil[v]
-                - self.loading_AA[v]
+                - self.export_AA[v]
                 + self.AA_synthesis[v]
                 - self.struct_synthesis[v] * r_AA_struct
                 - self.storage_synthesis[v] * r_AA_stor
                 + self.storage_catabolism[v] / r_AA_stor
                 - self.AA_catabolism[v]
+                )
+
+        self.struct_protein[v] += time_step/ self.struct_mass[v] * (
+                self.struct_synthesis[v]
+                )
+
+        self.storage_protein[v] += time_step / self.struct_mass[v] * (
+                self.storage_synthesis[v]
+                - self.storage_catabolism[v]
                 )
 
     def update_N_global(self, time_step):
@@ -432,8 +445,8 @@ class OnePoolVessels(CommonNitrogenModel):
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Global vessel's nitrogen pool update
-                self.xylem_Nm[1] += time_step * (self.loading_Nm[vid] - self.diffusion_Nm_xylem[vid]) / self.xylem_struct_mass[1]
-                self.xylem_AA[1] += time_step * self.loading_AA[vid] / self.xylem_struct_mass[1]
+                self.xylem_Nm[1] += time_step * (self.export_Nm[vid] - self.diffusion_Nm_xylem[vid]) / self.xylem_struct_mass[1]
+                self.xylem_AA[1] += time_step * self.export_AA[vid] / self.xylem_struct_mass[1]
                 self.phloem_AA[1] -= time_step * self.diffusion_AA_phloem[vid] / self.xylem_struct_mass[1]
 
         # Update plant-level properties
@@ -521,15 +534,15 @@ class DiscreteVessels(CommonNitrogenModel):
 
                 # Global vessel's nitrogen pool update
                 self.xylem_Nm[vid] += time_step / self.xylem_struct_mass[vid] * (
-                        self.loading_Nm[vid]
+                        self.export_Nm[vid]
                         - self.diffusion_Nm_xylem[vid]
                         + self.axial_diffusion_Nm_xylem[vid])
                 self.xylem_AA[vid] += time_step / self.xylem_struct_mass[vid] * (
-                        self.loading_AA[vid]
+                        self.export_AA[vid]
                         + self.axial_diffusion_AA_xylem[vid])
                 self.phloem_AA[vid] -= time_step / self.xylem_struct_mass[vid] * (
                         self.diffusion_AA_phloem[vid]
-                        + self.axial_diffusion_AA_phloem[vid])
+                        - self.axial_diffusion_AA_phloem[vid])
 
         # Update plant-level properties
         self.update_N_global(time_step)
