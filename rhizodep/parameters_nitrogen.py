@@ -53,7 +53,7 @@ print_g_all = {
 print_g_one = {
             "select": list([                    'influx_Nm',
                                                 'loading_Nm',
-                                                'diffusion_Nm_phloem',
+                                                'diffusion_Nm_xylem',
                                                 'Nm',
                                                 'volume',
                                                 'z1',
