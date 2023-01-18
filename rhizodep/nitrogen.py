@@ -50,12 +50,10 @@ class InitCommonN:
     xylem_Nm: float = 1e-4    # mol N.g-1
     xylem_AA: float = 1e-4    # mol AA.g-1
     xylem_struct_mass: float = 1e-3    # g
-    phloem_Nm: float = 1e-4    # mol N.g-1
     phloem_AA: float = 1e-4    # mol AA.g-1
     phloem_struct_mass: float = 1e-3    # g
     Nm_root_shoot_xylem: float = 0    # mol N.s-1
     AA_root_shoot_xylem: float = 0    # mol AA.s-1
-    Nm_root_shoot_phloem: float = 0    # mol N.s-1
     AA_root_shoot_phloem: float = 0    # mol AA.s-1
 
 
@@ -63,7 +61,6 @@ class InitCommonN:
 class InitDiscreteVesselsN(InitCommonN):
     axial_diffusion_Nm_xylem: float = 0    # mol N.s-1
     axial_diffusion_AA_xylem: float = 0    # mol AA.s-1
-    axial_diffusion_Nm_phloem: float = 0    # mol N.s-1
     axial_diffusion_AA_phloem: float = 0    # mol AA.s-1
 
 
@@ -131,8 +128,8 @@ class UpdateN:
 class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, influx_Nm, loading_Nm, loading_AA, diffusion_Nm_soil, diffusion_Nm_xylem,
                  diffusion_AA_soil, diffusion_AA_phloem, AA_synthesis, struct_synthesis, storage_synthesis,
-                 AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_Nm, phloem_AA,
-                 phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem, Nm_root_shoot_phloem,
+                 AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
+                 phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem,
                  AA_root_shoot_phloem):
 
         """
@@ -177,12 +174,10 @@ class CommonNitrogenModel:
                         xylem_Nm=xylem_Nm,
                         xylem_AA=xylem_AA,
                         xylem_struct_mass=xylem_struct_mass,
-                        phloem_Nm=phloem_Nm,
                         phloem_AA=phloem_AA,
                         phloem_struct_mass=phloem_struct_mass,
                         Nm_root_shoot_xylem=Nm_root_shoot_xylem,
                         AA_root_shoot_xylem=AA_root_shoot_xylem,
-                        Nm_root_shoot_phloem=Nm_root_shoot_phloem,
                         AA_root_shoot_phloem=AA_root_shoot_phloem
                         ))
 
@@ -219,12 +214,10 @@ class CommonNitrogenModel:
                         xylem_Nm
                         xylem_AA
                         xylem_struct_mass
-                        phloem_Nm
                         phloem_AA
                         phloem_struct_mass
                         Nm_root_shoot_xylem
                         AA_root_shoot_xylem
-                        Nm_root_shoot_phloem
                         AA_root_shoot_phloem
                         length
                         radius
@@ -395,7 +388,6 @@ class CommonNitrogenModel:
     def update_N_global(self, time_step):
         self.xylem_Nm[1] -= time_step * self.Nm_root_shoot_xylem[1] / self.xylem_struct_mass[1]
         self.xylem_AA[1] -= time_step * self.AA_root_shoot_xylem[1] / self.xylem_struct_mass[1]
-        self.phloem_Nm[1] += time_step * self.Nm_root_shoot_phloem[1] / self.phloem_struct_mass[1]
         self.phloem_AA[1] += time_step * self.AA_root_shoot_phloem[1] / self.phloem_struct_mass[1]
 
 
@@ -450,20 +442,18 @@ class OnePoolVessels(CommonNitrogenModel):
 
 class DiscreteVessels(CommonNitrogenModel):
 
-    def __init__(self, g, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem, axial_diffusion_Nm_phloem,
+    def __init__(self, g, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem,
                  axial_diffusion_AA_phloem, **kwargs):
 
         # New properties' creation in MTG
         self.keywords = dict(axial_diffusion_Nm_xylem=axial_diffusion_Nm_xylem,
                              axial_diffusion_AA_xylem=axial_diffusion_AA_xylem,
-                             axial_diffusion_Nm_phloem=axial_diffusion_Nm_phloem,
                              axial_diffusion_AA_phloem=axial_diffusion_AA_phloem)
 
         # Properties to be accessed, pointing to g for further modifications
         self.states = """
                 axial_diffusion_Nm_xylem
                 axial_diffusion_AA_xylem
-                axial_diffusion_Nm_phloem
                 axial_diffusion_AA_phloem
                 """.split()
 
@@ -490,7 +480,6 @@ class DiscreteVessels(CommonNitrogenModel):
 
                 # Reinitialization before computing for each neighbor
                 self.axial_diffusion_Nm_xylem[vid] = 0.0
-                self.axial_diffusion_Nm_phloem[vid] = 0.0
                 self.axial_diffusion_AA_xylem[vid] = 0.0
                 self.axial_diffusion_AA_phloem[vid] = 0.0
 
@@ -499,9 +488,6 @@ class DiscreteVessels(CommonNitrogenModel):
                         # MINERAL NITROGEN TRANSPORT
                         self.axial_diffusion_Nm_xylem[vid] += axial_diffusion_xylem * (self.xylem_Nm[k] - self.xylem_Nm[vid]) * (
                                                             np.pi * (xylem_to_root * (self.radius[vid] + self.radius[k]) / 2)**2)
-
-                        self.axial_diffusion_Nm_phloem[vid] += axial_diffusion_phloem * (self.phloem_Nm[k] - self.phloem_Nm[vid]) * (
-                                                            np.pi * (phloem_to_root * (self.radius[vid] + self.radius[k]) / 2) ** 2)
 
                         # AMINO ACID TRANSPORT
                         self.axial_diffusion_AA_xylem[vid] += axial_diffusion_xylem * (self.xylem_AA[k] - self.xylem_AA[vid]) * (
