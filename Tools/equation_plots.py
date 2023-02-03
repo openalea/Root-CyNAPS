@@ -17,15 +17,16 @@ def surfaces(X):
 
 # Richard's generalized logistic function
 def Km(X, high, low, span, begin):
-    Q = 0.99/(0.01*np.exp(-begin))
+    precision = 0.99
+    Q = precision/((1-precision)*np.exp(-begin))
     return (high-low)/(1+Q*np.exp(-X*(1/span)))+low
 
 
 # The function to be called anytime a slider's value changes
 def update(val):
-    km = Km(Nm_slider.val, high_slider.val, low_slider.val, span_slider.val)
+    km = Km(Nm_slider.val, high_slider.val, low_slider.val, span_slider.val, begin_slider.val)
     line.set_ydata(MM(Nm_soil, vmax_slider.val, km))
-    line2.set_ydata(Km(Nm, high_slider.val, low_slider.val, span_slider.val))
+    line2.set_ydata(Km(Nm, high_slider.val, low_slider.val, span_slider.val, begin_slider.val))
     ax[1].relim()
     ax[1].autoscale_view()
     fig.canvas.draw_idle()
@@ -39,15 +40,17 @@ init_vmax = 1
 init_Nm = 0.1
 init_high = 0.95
 init_low = 0.1
-init_span = 0.1
-init_km = Km(init_Nm, init_high, init_low, init_span)
+init_span = 0.03
+init_begin = 6
+init_km = Km(init_Nm, init_high, init_low, init_span, init_begin)
 
 
 # Create the figure and the line that we will manipulate
 fig, ax = plt.subplots(2)
 line, = ax[0].plot(Nm_soil, MM(Nm_soil, init_vmax, init_km))
-line2, = ax[1].plot(Nm, Km(Nm, init_high, init_low, init_span))
-ax[0].set_xlabel('Soil mineral nitrogen [mol.g-1]')
+line2, = ax[1].plot(Nm, Km(Nm, init_high, init_low, init_span, init_begin))
+ax[0].set_title('MM kinetic')
+ax[1].set_title('Km')
 
 # adjust the main plot to make room for the sliders
 fig.subplots_adjust(left=0.25, bottom=0.25)
@@ -67,6 +70,15 @@ span_slider = Slider(
     label='Affinity transition span',
     valmin=0.001,
     valmax=1,
+    valinit=init_span,
+)
+
+axbegin = fig.add_axes([0.25, 0.02, 0.65, 0.03])
+begin_slider = Slider(
+    ax=axbegin,
+    label='Transition location',
+    valmin=0,
+    valmax=10,
     valinit=init_span,
 )
 
@@ -105,6 +117,7 @@ high_slider = Slider(
 # register the update function with each slider
 vmax_slider.on_changed(update)
 span_slider.on_changed(update)
+begin_slider.on_changed(update)
 Nm_slider.on_changed(update)
 high_slider.on_changed(update)
 low_slider.on_changed(update)
