@@ -230,6 +230,7 @@ class CommonNitrogenModel:
                         AA_root_shoot_phloem
                         length
                         radius
+                        living_root_hairs_external_surface
                         struct_mass
                         C_hexose_root
                         C_hexose_reserve
@@ -330,12 +331,14 @@ class CommonNitrogenModel:
 
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
-                               * (2 * np.pi * self.radius[v] * self.length[v])
-                               * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
+                            * (2 * np.pi * self.radius[v] * self.length[v] + self.living_root_hairs_external_surface[v])
+                            * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
 
-        # Passive radial diffusion between phloem and cortex through plasmodesmata
+        # Passive radial diffusion between soil and cortex.
+        # It happens only through root segment external surface.
+        # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
         self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] - self.soil_Nm[v])
-                                      * (2 * np.pi * self.radius[v] * self.length[v]))
+                            * (2 * np.pi * self.radius[v] * self.length[v] + self.living_root_hairs_external_surface[v]))
 
         # We define active export to xylem from root segment
 
@@ -546,4 +549,3 @@ class DiscreteVessels(CommonNitrogenModel):
 
         # Update plant-level properties
         self.update_N_global(time_step)
-
