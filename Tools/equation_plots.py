@@ -32,6 +32,8 @@ def update(val):
     fig.canvas.draw_idle()
 
 
+# Script
+
 Nm_soil = np.linspace(0, 1, 1000)
 Nm = np.linspace(0, 1, 1000)
 
