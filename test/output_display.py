@@ -51,7 +51,7 @@ def print_g(g, select, vertice):
             print(' / ' + select[k] + ' :', end=' ')
             print("{:1.3e}".format(extract[k][vertice]), end=' ')
         print('')
-        print(props['xylem_Nm'][1], props['phloem_Nm'][1])
+        print(props['xylem_Nm'][1], props['xylem_AA'][1])
 
     else:
         max_scale = g.max_scale()
@@ -62,4 +62,4 @@ def print_g(g, select, vertice):
                 print(' / ' + select[k] + ' :', end=' ')
                 print("{:e}".format(extract[k][vertice]), end=' ')
             print('')
-        print(props['xylem_Nm'][1], props['phloem_Nm'][1])
+        print(props['xylem_Nm'][1], props['xylem_AA'][1])

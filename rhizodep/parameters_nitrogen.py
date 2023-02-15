@@ -31,15 +31,15 @@ init_soil_patch = {
 ### Output parameters
 
 plot_N = {
-            "p": list([                           'loading_Nm',
-                                                  'influx_Nm',
+            "p": list([                           'export_Nm',
+                                                  'import_Nm',
                                                   'Nm'
                         ])
         }
 
 print_g_all = {
-            "select": list([                    'influx_Nm',
-                                                'loading_Nm',
+            "select": list([                    'import_Nm',
+                                                'export_Nm',
                                                 'soil_Nm',
                                                 'Nm',
                                                 'z1',
@@ -51,8 +51,8 @@ print_g_all = {
             }
 
 print_g_one = {
-            "select": list([                    'influx_Nm',
-                                                'loading_Nm',
+            "select": list([                    'import_Nm',
+                                                'export_Nm',
                                                 'diffusion_Nm_xylem',
                                                 'Nm',
                                                 'volume',
