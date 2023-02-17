@@ -10,7 +10,7 @@ from output_display import plot_N, print_g
 
 
 def test_mtg():
-    with open('inputs/root00119.pckl', 'rb') as f:
+    with open('test/inputs/root00119.pckl', 'rb') as f:
         g = pickle.load(f)
     return g
 

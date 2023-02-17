@@ -88,7 +88,8 @@ class TransportCommonN:
     Km_AA_xylem: float = 1e-4   # mol AA.g-1
     diffusion_soil: float = 1e-9
     diffusion_xylem: float = 1e-8
-    diffusion_phloem : float = 1e-8
+    diffusion_phloem: float = 1e-7
+    diffusion_apoplasm: float = 1e-7
     # metabolism-related parameters
     transport_C_regulation: float = 1e-2
 
@@ -132,7 +133,7 @@ class UpdateN:
 
 class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, struct_protein, storage_protein, import_Nm, export_Nm, export_AA, diffusion_Nm_soil,
-                 diffusion_Nm_xylem, diffusion_AA_soil, diffusion_AA_phloem, AA_synthesis, struct_synthesis,
+                 diffusion_Nm_xylem, diffusion_Nm_soil_xylem, diffusion_AA_soil, diffusion_AA_phloem, diffusion_AA_soil_xylem, AA_synthesis, struct_synthesis,
                  storage_synthesis, AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
                  phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem,
                  AA_root_shoot_phloem):
@@ -171,8 +172,10 @@ class CommonNitrogenModel:
                         export_AA=export_AA,
                         diffusion_Nm_soil=diffusion_Nm_soil,
                         diffusion_Nm_xylem=diffusion_Nm_xylem,
+                        diffusion_Nm_soil_xylem=diffusion_Nm_soil_xylem,
                         diffusion_AA_soil=diffusion_AA_soil,
                         diffusion_AA_phloem=diffusion_AA_phloem,
+                        diffusion_AA_soil_xylem=diffusion_AA_soil_xylem,
                         AA_synthesis=AA_synthesis,
                         struct_synthesis=struct_synthesis,
                         storage_synthesis=storage_synthesis,
@@ -213,8 +216,10 @@ class CommonNitrogenModel:
                         export_AA
                         diffusion_Nm_soil
                         diffusion_Nm_xylem
+                        diffusion_Nm_soil_xylem
                         diffusion_AA_soil
                         diffusion_AA_phloem
+                        diffusion_AA_soil_xylem
                         AA_synthesis
                         struct_synthesis
                         storage_synthesis
@@ -228,6 +233,8 @@ class CommonNitrogenModel:
                         Nm_root_shoot_xylem
                         AA_root_shoot_xylem
                         AA_root_shoot_phloem
+                        root_exchange_surface
+                        stele_exchange_surface
                         length
                         radius
                         living_root_hairs_external_surface
@@ -242,6 +249,100 @@ class CommonNitrogenModel:
 
         # Note : Global properties are declared as local ones, but only vertice 1 will be updated
 
+    def transport_radial_N(self, v, model, vmax_Nm_root, vmax_Nm_xylem, Km_Nm_root_LATS, Km_Nm_root_HATS, begin_N_regulation, span_N_regulation,
+                        Km_Nm_xylem, vmax_AA_xylem, Km_AA_xylem, diffusion_soil, diffusion_xylem, diffusion_phloem, diffusion_apoplasm, 
+                        transport_C_regulation):
+
+        """
+        Description
+        ___________
+        Nitrogen transport between local soil, local root segment and global vessels (xylem and phloem).
+
+        Parameters
+        __________
+        :param Km_Nm_root: Active transport from soil Km parameter (mol.m-3)
+        :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
+        :param Km_Nm_xylem: Active transport from root Km parameter (mol.m-3)
+        :param diffusion_phloem: Mineral nitrogen diffusion parameter (m.s-1)
+        :param transport_C_regulation: Km coefficient for the nitrogen active transport regulation function
+        by root C (mol.g-1) (?)
+        by root mineral nitrogen (mol.m-3)
+        :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
+        :param phloem_to_root: Radius ratio between mean phloem and root segment (adim)
+        :param epiderm_differentiation: Epiderm differentiation rate (°C-1.s-1)
+        :param endoderm_differentiation: Endoderm differentiation rate (°C-1.s-1)
+
+        Hypothesis
+        __________
+        H1: We summarize radial active transport controls (transporter density, affinity regulated with genetics
+        or environmental control, etc) as one mean transporter following Michaelis Menten's model.
+
+        H2: We can summarize apoplastic and symplastic radial transport through one radial transport.
+        Differentiation with epidermis conductance loss, root hair density, aerenchyma, etc, is supposed to impact Vmax.
+
+        H3: We declare similar kinetic parameters for soil-root and root-xylem active transport (exept for concentration conflict)
+        """
+
+        # ONLY RADIAL TRANSPORT IS COMMON BETWEEN MODELS
+
+        # MINERAL NITROGEN TRANSPORT
+
+        # We define mineral nitrogen active uptake from soil
+
+        precision = 0.99
+        Km_Nm_root = (Km_Nm_root_LATS - Km_Nm_root_HATS)/(
+                        1 + (precision/((1-precision) * np.exp(-begin_N_regulation))
+                        * np.exp(-self.Nm[v]/span_N_regulation))
+                        )
+
+        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+        self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
+                            * (self.root_exchange_surface[v])
+                            * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
+
+        # Passive radial diffusion between soil and cortex.
+        # It happens only through root segment external surface.
+        # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
+        self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] - self.soil_Nm[v])
+                            * self.root_exchange_surface[v])
+
+        # We define active export to xylem from root segment
+
+        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+        self.export_Nm[v] = ((self.Nm[v] * vmax_Nm_xylem / (self.Nm[v] + Km_Nm_xylem))
+                                * self.stele_exchange_surface[v]
+                                * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
+
+        # Passive radial diffusion between xylem and cortex through plasmalema
+        self.diffusion_Nm_xylem[v] = (diffusion_xylem * (self.xylem_Nm[model] - self.Nm[v])
+                                    * self.stele_exchange_surface[v])
+        
+        self.diffusion_Nm_soil_xylem[v] = (diffusion_apoplasm * (self.soil_Nm[v] - self.xylem_Nm[model])
+                                    * 2 * np.pi * self.radius[v] * self.apoplasmic_stele[v])
+
+        # AMINO ACID TRANSPORT
+
+        # We define amino acid passive diffusion to soil
+        self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v] - self.soil_AA[v])
+                                    * self.root_exchange_surface[v])
+
+        # We define active export to xylem from root segment
+
+        # Km is defined as a constant here because xylem is global
+        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+        self.export_AA[v] = ((self.AA[v] * vmax_AA_xylem / (self.AA[v] + Km_AA_xylem))
+                                * self.stele_exchange_surface[v]
+                                * (self.C_hexose_root[v] / (
+                        self.C_hexose_root[v] + transport_C_regulation)))
+
+        # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+        self.diffusion_AA_soil_xylem[v] = (diffusion_apoplasm * (self.soil_AA[v] - self.xylem_AA[model])
+                                    * 2 * np.pi * self.radius[v] * self.apoplasmic_stele[v])
+
+        # Passive radial diffusion between phloem and cortex through plasmodesmata
+        self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.phloem_AA[model] - self.AA[v])
+                                         * (2 * np.pi * self.radius[v]))
+        
     def metabolism_N(self, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
                      Km_AA_stor, cmax_stor, Km_stor_catab, cmax_AA, Km_AA_catab, storage_C_regulation):
 
@@ -285,91 +386,6 @@ class CommonNitrogenModel:
                 Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
                 self.AA_catabolism[vid] = cmax_AA * self.AA[vid] / (
                         Km_stor_root + self.AA[vid])
-
-    def transport_radial_N(self, v, model, xylem_to_root, phloem_to_root, parietal_differentiation,
-                           vmax_Nm_emergence, vmax_Nm_xylem, Km_Nm_root, Km_Nm_xylem, vmax_AA_xylem,
-                           Km_AA_xylem, diffusion_soil, diffusion_xylem, diffusion_phloem, transport_C_regulation):
-
-        """
-        Description
-        ___________
-        Nitrogen transport between local soil, local root segment and global vessels (xylem and phloem).
-
-        Parameters
-        __________
-        :param Km_Nm_root: Active transport from soil Km parameter (mol.m-3)
-        :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
-        :param Km_Nm_xylem: Active transport from root Km parameter (mol.m-3)
-        :param diffusion_phloem: Mineral nitrogen diffusion parameter (m.s-1)
-        :param transport_C_regulation: Km coefficient for the nitrogen active transport regulation function
-        by root C (mol.g-1) (?)
-        by root mineral nitrogen (mol.m-3)
-        :param xylem_to_root: Radius ratio between mean xylem and root segment (adim)
-        :param phloem_to_root: Radius ratio between mean phloem and root segment (adim)
-        :param epiderm_differentiation: Epiderm differentiation rate (°C-1.s-1)
-        :param endoderm_differentiation: Endoderm differentiation rate (°C-1.s-1)
-
-        Hypothesis
-        __________
-        H1: We summarize radial active transport controls (transporter density, affinity regulated with genetics
-        or environmental control, etc) as one mean transporter following Michaelis Menten's model.
-
-        H2: We can summarize apoplastic and symplastic radial transport through one radial transport.
-        Differentiation with epidermis conductance loss, root hair density, aerenchyma, etc, is supposed to impact Vmax.
-
-        H3: We declare similar kinetic parameters for soil-root and root-xylem active transport (exept for concentration conflict)
-        """
-
-        # ONLY RADIAL TRANSPORT IS COMMON BETWEEN MODELS
-
-        # MINERAL NITROGEN TRANSPORT
-
-        # We define mineral nitrogen active uptake from soil
-        # Vmax supposed affected by root aging
-        vmax_Nm_root = vmax_Nm_emergence * np.exp(
-            - parietal_differentiation * self.thermal_time_since_emergence[v])
-
-        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
-                            * (2 * np.pi * self.radius[v] * self.length[v] + self.living_root_hairs_external_surface[v])
-                            * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
-
-        # Passive radial diffusion between soil and cortex.
-        # It happens only through root segment external surface.
-        # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-        self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] - self.soil_Nm[v])
-                            * (2 * np.pi * self.radius[v] * self.length[v] + self.living_root_hairs_external_surface[v]))
-
-        # We define active export to xylem from root segment
-
-        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.export_Nm[v] = ((self.Nm[v] * vmax_Nm_xylem / (self.Nm[v] + Km_Nm_xylem))
-                                * (2 * np.pi * self.radius[v] * xylem_to_root * self.length[v])
-                                * (self.C_hexose_root[v] / (
-                            self.C_hexose_root[v] + transport_C_regulation)))
-
-        # Passive radial diffusion between xylem and cortex through plasmalema
-        self.diffusion_Nm_xylem[v] = (diffusion_xylem * (self.xylem_Nm[model] - self.Nm[v])
-                                        * (2 * np.pi * self.radius[v] * xylem_to_root * self.length[v]))
-
-        # AMINO ACID TRANSPORT
-
-        # We define amino acid passive diffusion to soil
-        self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v] - self.soil_AA[v])
-                                         * (2 * np.pi * self.radius[v] * phloem_to_root * self.length[v]))
-
-        # We define active export to xylem from root segment
-
-        # Km is defined as a constant here because xylem is global
-        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.export_AA[v] = ((self.AA[v] * vmax_AA_xylem / (self.AA[v] + Km_AA_xylem))
-                                * (2 * np.pi * self.radius[v] * xylem_to_root * self.length[v])
-                                * (self.C_hexose_root[v] / (
-                        self.C_hexose_root[v] + transport_C_regulation)))
-
-        # Passive radial diffusion between phloem and cortex through plasmodesmata
-        self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.phloem_AA[model] - self.AA[v])
-                                         * (2 * np.pi * self.radius[v] * phloem_to_root * self.length[v]))
 
     def update_N_local(self, v, r_Nm_AA, r_AA_struct, r_AA_stor, time_step):
 
@@ -448,8 +464,8 @@ class OnePoolVessels(CommonNitrogenModel):
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Global vessel's nitrogen pool update
-                self.xylem_Nm[1] += time_step * (self.export_Nm[vid] - self.diffusion_Nm_xylem[vid]) / self.xylem_struct_mass[1]
-                self.xylem_AA[1] += time_step * self.export_AA[vid] / self.xylem_struct_mass[1]
+                self.xylem_Nm[1] += time_step * (self.export_Nm[vid] + self.diffusion_Nm_soil_xylem[vid] - self.diffusion_Nm_xylem[vid]) / self.xylem_struct_mass[1]
+                self.xylem_AA[1] += time_step * (self.export_AA[vid] + self.diffusion_AA_soil_xylem[vid]) / self.xylem_struct_mass[1]
                 self.phloem_AA[1] -= time_step * self.diffusion_AA_phloem[vid] / self.xylem_struct_mass[1]
 
         # Update plant-level properties
@@ -538,10 +554,12 @@ class DiscreteVessels(CommonNitrogenModel):
                 # Global vessel's nitrogen pool update
                 self.xylem_Nm[vid] += time_step / self.xylem_struct_mass[vid] * (
                         self.export_Nm[vid]
+                        + self.diffusion_Nm_soil_xylem[vid]
                         - self.diffusion_Nm_xylem[vid]
                         + self.axial_diffusion_Nm_xylem[vid])
                 self.xylem_AA[vid] += time_step / self.xylem_struct_mass[vid] * (
                         self.export_AA[vid]
+                        + self.diffusion_AA_soil_xylem[vid]
                         + self.axial_diffusion_AA_xylem[vid])
                 self.phloem_AA[vid] -= time_step / self.xylem_struct_mass[vid] * (
                         self.diffusion_AA_phloem[vid]
