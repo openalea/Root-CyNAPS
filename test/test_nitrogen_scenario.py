@@ -35,6 +35,7 @@ def init_soil_N(g, zmax_soil_Nm, soil_Nm_variance, soil_Nm_slope, scenario):
 def test_nitrogen_scenario(n, scenario):
     g = test_mtg()
     g = init_soil_N(g, **scenario)
+    output = input("plot results? (y/n) :")
 
     # Initialization of state variables
     root_topo = RadialTopology(g, **asdict(InitSurfaces))
@@ -47,11 +48,12 @@ def test_nitrogen_scenario(n, scenario):
         # root_nitrogen.metabolism_N(**asdict(MetabolismN))
         root_nitrogen.update_N(**asdict(UpdateN()))
 
-        if i == 0:
-            rng_min, rng_max = [0 for k in Nparam.plot_N['p']], [0 for k in Nparam.plot_N['p']]
-            rng_min, rng_max = plot_N(g, rng_min, rng_max, **Nparam.plot_N)
-        else:
-            plot_N(g, rng_min, rng_max, **Nparam.plot_N)
+        if output == 'y':
+            if i == 0:
+                rng_min, rng_max = [0 for k in Nparam.plot_N['p']], [0 for k in Nparam.plot_N['p']]
+                rng_min, rng_max = plot_N(g, rng_min, rng_max, **Nparam.plot_N)
+            else:
+                plot_N(g, rng_min, rng_max, **Nparam.plot_N)
         print_g(g, **Nparam.print_g_one)
         sleep(0.1)
 
