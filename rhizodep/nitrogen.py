@@ -317,6 +317,7 @@ class CommonNitrogenModel:
         self.diffusion_Nm_xylem[v] = (diffusion_xylem * (self.xylem_Nm[model] - self.Nm[v])
                                     * self.stele_exchange_surface[v])
         
+        # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         self.diffusion_Nm_soil_xylem[v] = (diffusion_apoplasm * (self.soil_Nm[v] - self.xylem_Nm[model])
                                     * 2 * np.pi * self.radius[v] * self.apoplasmic_stele[v])
 

@@ -12,17 +12,25 @@ Classes' names represent accounted hypothesis in the progressive development of 
 Methods' names are systematic through all class for ease of use :
 
 TODO : report functions descriptions
-
-
-
 """
+
+# Imports
+
 import numpy as np
 from dataclasses import dataclass
 
+
+# Dataclass for initialisation and parametrization.
+
+# Properties' init
+
 @dataclass
 class InitSurfaces:
-    root_exchange_surface: float = 0    # m-2
-    stele_exchange_surface: float = 0   # m-2
+    root_exchange_surface: float = 0    # (m-2)
+    stele_exchange_surface: float = 0   # (m-2)
+    apoplasmic_stele: float = 0     # (adim)
+
+# Parameters' default value
 
 @dataclass
 class TissueTopology:
@@ -36,29 +44,29 @@ class TissueTopology:
     phloem_ratio: float = 4     # (adim) phloem surface surface ratio over root's cylinder surface
 
 
+
 class RadialTopology:
     def __init__(self, g, root_exchange_surface, stele_exchange_surface, apoplasmic_stele):
 
-        self.g = g
-
         # New properties' creation in MTG
-        self.keywords = dict(root_exchange_surface=root_exchange_surface,
+        keywords = dict(
+        root_exchange_surface=root_exchange_surface,
         stele_exchange_surface=stele_exchange_surface,
         apoplasmic_stele=apoplasmic_stele)
 
-        props = self.g.properties()
-        for name in self.keywords:
+        props = g.properties()
+        for name in keywords:
             props.setdefault(name, {})
 
         # vertices storage for future calls in for loops
-        self.vertices = self.g.vertices(scale=g.max_scale())
+        self.vertices = g.vertices(scale=g.max_scale())
         for vid in self.vertices:
-            for name, value in self.keywords.items():
+            for name, value in keywords.items():
                 # Effectively creates the new property
                 props[name][vid] = value
         
         # Accessing properties once, pointing to g for further modifications
-        self.states += """
+        states += """
                         root_exchange_surface
                         stele_exchange_surface
                         apoplasmic_stele
@@ -67,7 +75,7 @@ class RadialTopology:
                         struct_mass
                         """.split()
         
-        for name in self.states:
+        for name in states:
             setattr(self, name, props[name])
 
     def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate, epidermis_ratio, cortex_ratio, stele_ratio):
@@ -88,14 +96,18 @@ class RadialTopology:
                 epidermis_differentiation = np.exp(-epidermis_diff_rate * self.struct_mass[vid])
                 
                 # Update exchange surfaces
+
+                # Exchanges between soil and symplasmic parenchyma
                 self.root_exchange_surface[vid] = 2 * np.pi * self.radius[vid] *(
                     epidermis_ratio +
                     cortex_ratio * epidermis_differentiation +
                     stele_ratio * endodermis_differentiation
                 ) + self.living_root_hairs_external_surface[vid]
 
+                # Exchanges between symplamic parenchyma and xylem
                 self.stele_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * stele_ratio * xylem_differentiation
 
+                # Apoplasmic exchanges factor between soil and xylem
                 self.apoplasmic_stele[vid] = xylem_differentiation * endodermis_differentiation
 
         

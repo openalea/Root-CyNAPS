@@ -57,7 +57,6 @@ def test_nitrogen_scenario(n, scenario):
         print_g(g, **Nparam.print_g_one)
         sleep(0.1)
 
-    # Briffard 
 
     #plot_N(g, **Nparam.plot_N)
     #print_g(g, **Nparam.print_g_all)
