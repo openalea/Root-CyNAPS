@@ -38,7 +38,7 @@ def test_nitrogen_scenario(n, scenario):
     output = input("plot results? (y/n) :")
 
     # Initialization of state variables
-    root_topo = RadialTopology(g, **asdict(InitSurfaces))
+    root_topo = RadialTopology(g, **asdict(InitSurfaces()))
     root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()))
 
     for i in range(n):

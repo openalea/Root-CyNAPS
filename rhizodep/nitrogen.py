@@ -46,8 +46,10 @@ class InitCommonN:
     export_AA: float = 0    # mol AA.s-1
     diffusion_Nm_soil: float = 0    # mol N.s-1
     diffusion_Nm_xylem: float = 0    # mol N.s-1
+    diffusion_Nm_soil_xylem: float = 0  # mol N.s-1
     diffusion_AA_soil: float = 0  # mol AA.s-1
     diffusion_AA_phloem: float = 0    # mol AA.s-1
+    diffusion_AA_soil_xylem: float = 0  # mol AA.s-1
     AA_synthesis: float = 0    # mol AA.s-1
     struct_synthesis: float = 0    # mol struct.s-1
     storage_synthesis: float = 0    # mol stor.s-1
@@ -75,14 +77,13 @@ class InitDiscreteVesselsN(InitCommonN):
 
 @dataclass
 class TransportCommonN:
-    # architecture parameters
-    xylem_to_root: float = 0.2  # adim
-    phloem_to_root: float = 0.15    # adim
-    parietal_differentiation: float = 1e-6   # préciser
     # kinetic parameters
-    vmax_Nm_emergence: float = 1e-9     # mol N.s-1.m-2
+    vmax_Nm_root: float = 1e-9     # mol N.s-1.m-2
     vmax_Nm_xylem: float = 1e-9     # mol N.s-1.m-2
-    Km_Nm_root: float = 1e-4    # mol N.g-1
+    Km_Nm_root_LATS: float = 1e-4    # mol N.g-1
+    Km_Nm_root_HATS: float = 1e-5    # mol N.g-1
+    begin_N_regulation: float = 0   # mol N.g-1 value
+    span_N_regulation: float = 1e-2    # mol N.g-1 range
     Km_Nm_xylem: float = 1e-4   # mol N.g-1
     vmax_AA_xylem: float = 1e-9     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-4   # mol AA.g-1
@@ -96,9 +97,13 @@ class TransportCommonN:
 
 @dataclass
 class TransportAxialN(TransportCommonN):
+    # architecture parameters
+    xylem_to_root: float = 0.2  # adim
+    phloem_to_root: float = 0.15    # adim
     # kinetic parameters
     axial_diffusion_xylem: float = 1e-7
     axial_diffusion_phloem: float = 1e-7
+
 
 
 @dataclass
@@ -235,6 +240,7 @@ class CommonNitrogenModel:
                         AA_root_shoot_phloem
                         root_exchange_surface
                         stele_exchange_surface
+                        apoplasmic_stele
                         length
                         radius
                         living_root_hairs_external_surface
