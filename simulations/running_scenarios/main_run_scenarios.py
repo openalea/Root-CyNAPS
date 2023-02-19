@@ -15,6 +15,7 @@ import pandas as pd
 import multiprocessing as mp
 import shutil
 import time
+from pathlib import Path
 
 import rhizodep.tools as tools
 import rhizodep.simulation as simulation
@@ -22,7 +23,7 @@ import rhizodep.parameters as param
 import rhizodep.model as model
 
 
-def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='simulations\\running_scenarios\\outputs'):
+def run_one_scenario(scenario_id=1, inputs_dir_path='simulations\\running_scenarios\\inputs', outputs_dir_path='simulations\\running_scenarios\\outputs'):
     """
     Run main_simulation() of simulation.py using parameters of a specific scenario
 
@@ -31,28 +32,18 @@ def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='simu
     :param str outputs_dir_path: the path to save outputs
     """
     # -- OUTPUTS DIRECTORY OF THE SCENARIO --
-    # We define the path of the directory that will contain the outputs of the model:
-    if not outputs_dir_path:
-        OUTPUTS_DIRPATH = outputs_dir_path
-    else:
-        OUTPUTS_DIRPATH = 'simulations\\running_scenarios\\outputs'
-    if not os.path.exists(OUTPUTS_DIRPATH):
+    # We check the output directory exists and create if necessary
+    if not os.path.exists(outputs_dir_path):
         # We create it:
-        os.mkdir(OUTPUTS_DIRPATH)
-
-    # We define the path of the directory that contains the inputs of the model:
-    if inputs_dir_path:
-        INPUTS_DIRPATH = inputs_dir_path
-    else:
-        INPUTS_DIRPATH = 'simulations\\running_scenarios\\inputs'
+        os.mkdir(outputs_dir_path)
 
     # We read the scenario to be run:
-    scenarios_df = pd.read_csv(os.path.join(INPUTS_DIRPATH, 'scenarios_list.csv'), index_col='Scenario')
+    scenarios_df = pd.read_csv(inputs_dir_path / 'scenarios_list.csv', index_col='Scenario')
     scenario = scenarios_df.loc[scenario_id].to_dict()
     scenario_name = 'Scenario_%.4d' % scenario_id
 
     # We define the specific directory in which the outputs of this scenario will be recorded:
-    scenario_dirpath = os.path.join(OUTPUTS_DIRPATH, scenario_name)
+    scenario_dirpath = os.path.join(outputs_dir_path, scenario_name)
     # If the output directory doesn't exist:
     if not os.path.exists(scenario_dirpath):
         # We create it:
@@ -95,7 +86,7 @@ def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='simu
     # If not, it returns the default value indicated in the second argument)
     SCENARIO_INPUT_FILENAME = scenario_parameters.get('input_file', None)
     if SCENARIO_INPUT_FILENAME:
-        SCENARIO_INPUT_FILE = os.path.join(INPUTS_DIRPATH, SCENARIO_INPUT_FILENAME)
+        SCENARIO_INPUT_FILE = os.path.join(inputs_dir_path, SCENARIO_INPUT_FILENAME)
     else:
         SCENARIO_INPUT_FILE = None
     # We read the other specific instructions of the scenario that don't correspond to the parameters in the list:
@@ -235,11 +226,11 @@ def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='simu
 
     return
 
-def previous_outputs_clearing(clearing = False):
+def previous_outputs_clearing(clearing = False, outputs_dir_path='simulations\\running_scenarios\\outputs'):
 
     if clearing:
         # If the output directory already exists:
-        if os.path.exists('simulations\\running_scenarios\\outputs'):
+        if os.path.exists(outputs_dir_path):
             # print("Deleting the files in the 'outputs' folder...")
             # # We delete all the directories and files that are already present inside:
             # for root, dirs, files in os.walk('outputs'):
@@ -252,24 +243,24 @@ def previous_outputs_clearing(clearing = False):
             try:
                 # We remove all files and subfolders:
                 print("Deleting the 'outputs' folder...")
-                shutil.rmtree('simulations\\running_scenarios\\outputs')
+                shutil.rmtree(outputs_dir_path)
                 print("Creating a new 'outputs' folder...")
-                os.mkdir('simulations\\running_scenarios\\outputs')
+                os.mkdir(outputs_dir_path)
             except OSError as e:
                 print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
         else:
             # We recreate an empty folder 'outputs':
             print("Creating a new 'outputs' folder...")
-            os.mkdir('simulations\\running_scenarios\\outputs')
+            os.mkdir(outputs_dir_path)
     return
 
-def run_multiple_scenarios():
+def run_multiple_scenarios(inputs_dir_path='simulations\\running_scenarios\\inputs'):
 
     # We read the data frame containing the different scenarios to be simulated:
     print("Loading the instructions of scenarios...")
-    scenarios_df = pd.read_csv(os.path.join('simulations\\running_scenarios\\inputs', 'scenarios_list.csv'), index_col='Scenario')
+    scenarios_df = pd.read_csv(inputs_dir_path / 'scenarios_list.csv', index_col='Scenario')
     # We copy the list of scenarios' properties in the 'outputs' directory:
-    scenarios_df.to_csv(os.path.join('simulations\\running_scenarios\\outputs', 'scenarios_list.csv'), na_rep='NA', index=False, header=True)
+    scenarios_df.to_csv(os.path.join(inputs_dir_path, 'scenarios_list.csv'), na_rep='NA', index=False, header=True)
     # We record the number of each scenario to be simulated:
     scenarios_df['Scenario'] = scenarios_df.index
     scenarios = scenarios_df.Scenario
@@ -296,6 +287,9 @@ def run_multiple_scenarios():
 
 if __name__ == '__main__':
 # (Note: this condition avoids launching automatically the program when imported in another file)
+    d = Path(".")
+    input_dir =  d / 'simulations' / 'running_scenarios' / 'inputs'
+    output_dir = d / 'simulations' / 'running_scenarios' / 'outputs'
 
     #CALLING ONE SCENARIO ONLY:
 #     inputs = None
@@ -316,10 +310,10 @@ if __name__ == '__main__':
 #         elif opt in ("-s", "--scenario"):
 #             scenario = int(arg)
 #
-#     run_one_scenario(inputs_dir_path=inputs, outputs_dir_path=outputs, scenario_id=scenario)
+    run_one_scenario(inputs_dir_path=input_dir, outputs_dir_path=output_dir, scenario_id=2)
 
     # CALLING MULTIPLE SCENARIOS:
     # We can clear the folder containing previous outputs:
-    previous_outputs_clearing(clearing=True)
+    #previous_outputs_clearing(clearing=True, outputs_dir_path=output_dir)
     # We run the scenarios in parallel:
-    run_multiple_scenarios()
+    #run_multiple_scenarios(inputs_dir_path=input_dir)
