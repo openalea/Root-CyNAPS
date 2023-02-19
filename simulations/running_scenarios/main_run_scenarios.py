@@ -44,7 +44,7 @@ def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='outp
     if inputs_dir_path:
         INPUTS_DIRPATH = inputs_dir_path
     else:
-        INPUTS_DIRPATH = 'inputs'
+        INPUTS_DIRPATH = 'simulations\\running_scenarios\\inputs'
 
     # We read the scenario to be run:
     scenarios_df = pd.read_csv(os.path.join(INPUTS_DIRPATH, 'scenarios_list.csv'), index_col='Scenario')
@@ -267,7 +267,7 @@ def run_multiple_scenarios():
 
     # We read the data frame containing the different scenarios to be simulated:
     print("Loading the instructions of scenarios...")
-    scenarios_df = pd.read_csv(os.path.join('inputs', 'scenarios_list.csv'), index_col='Scenario')
+    scenarios_df = pd.read_csv(os.path.join('simulations\\running_scenarios\\inputs', 'scenarios_list.csv'), index_col='Scenario')
     # We copy the list of scenarios' properties in the 'outputs' directory:
     scenarios_df.to_csv(os.path.join('outputs', 'scenarios_list.csv'), na_rep='NA', index=False, header=True)
     # We record the number of each scenario to be simulated:
