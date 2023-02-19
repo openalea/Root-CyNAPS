@@ -22,7 +22,7 @@ import rhizodep.parameters as param
 import rhizodep.model as model
 
 
-def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='outputs'):
+def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='simulations\\running_scenarios\\outputs'):
     """
     Run main_simulation() of simulation.py using parameters of a specific scenario
 
@@ -35,7 +35,7 @@ def run_one_scenario(scenario_id=1, inputs_dir_path=None, outputs_dir_path='outp
     if not outputs_dir_path:
         OUTPUTS_DIRPATH = outputs_dir_path
     else:
-        OUTPUTS_DIRPATH = 'outputs'
+        OUTPUTS_DIRPATH = 'simulations\\running_scenarios\\outputs'
     if not os.path.exists(OUTPUTS_DIRPATH):
         # We create it:
         os.mkdir(OUTPUTS_DIRPATH)
@@ -239,7 +239,7 @@ def previous_outputs_clearing(clearing = False):
 
     if clearing:
         # If the output directory already exists:
-        if os.path.exists('outputs'):
+        if os.path.exists('simulations\\running_scenarios\\outputs'):
             # print("Deleting the files in the 'outputs' folder...")
             # # We delete all the directories and files that are already present inside:
             # for root, dirs, files in os.walk('outputs'):
@@ -252,15 +252,15 @@ def previous_outputs_clearing(clearing = False):
             try:
                 # We remove all files and subfolders:
                 print("Deleting the 'outputs' folder...")
-                shutil.rmtree('outputs')
+                shutil.rmtree('simulations\\running_scenarios\\outputs')
                 print("Creating a new 'outputs' folder...")
-                os.mkdir('outputs')
+                os.mkdir('simulations\\running_scenarios\\outputs')
             except OSError as e:
                 print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
         else:
             # We recreate an empty folder 'outputs':
             print("Creating a new 'outputs' folder...")
-            os.mkdir('outputs')
+            os.mkdir('simulations\\running_scenarios\\outputs')
     return
 
 def run_multiple_scenarios():
@@ -269,7 +269,7 @@ def run_multiple_scenarios():
     print("Loading the instructions of scenarios...")
     scenarios_df = pd.read_csv(os.path.join('simulations\\running_scenarios\\inputs', 'scenarios_list.csv'), index_col='Scenario')
     # We copy the list of scenarios' properties in the 'outputs' directory:
-    scenarios_df.to_csv(os.path.join('outputs', 'scenarios_list.csv'), na_rep='NA', index=False, header=True)
+    scenarios_df.to_csv(os.path.join('simulations\\running_scenarios\\outputs', 'scenarios_list.csv'), na_rep='NA', index=False, header=True)
     # We record the number of each scenario to be simulated:
     scenarios_df['Scenario'] = scenarios_df.index
     scenarios = scenarios_df.Scenario

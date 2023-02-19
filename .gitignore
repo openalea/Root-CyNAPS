@@ -1,5 +1,7 @@
-# Images output
+# Images and MTG output
 *.png
+*.pckl
+
 
 # Packages
 *.egg

@@ -55,9 +55,9 @@ class RadialTopology:
 
         # New properties' creation in MTG
         keywords = dict(
-        root_exchange_surface=root_exchange_surface,
-        stele_exchange_surface=stele_exchange_surface,
-        apoplasmic_stele=apoplasmic_stele)
+            root_exchange_surface=root_exchange_surface,
+            stele_exchange_surface=stele_exchange_surface,
+            apoplasmic_stele=apoplasmic_stele)
 
         props = g.properties()
         for name in keywords:
@@ -76,9 +76,9 @@ class RadialTopology:
                         stele_exchange_surface
                         apoplasmic_stele
                         radius
-                        living_root_hairs_external_surface
                         struct_mass
                         """.split()
+        # NO ROOT HAIR PROPERTY
         
         for name in states:
             setattr(self, name, props[name])
@@ -126,7 +126,8 @@ class RadialTopology:
                     epidermis_ratio +
                     cortex_ratio * epidermis_differentiation +
                     stele_ratio * endodermis_differentiation
-                ) + self.living_root_hairs_external_surface[vid]
+                ) # + self.root_hairs_external_surface[vid]
+                # NO ROOT HAIR PROPERTY
 
                 # Exchanges between symplamic parenchyma and xylem
                 self.stele_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * stele_ratio * xylem_differentiation

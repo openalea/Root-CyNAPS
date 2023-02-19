@@ -1,7 +1,45 @@
+# Import
 import openalea.plantgl.all as pgl
 from rhizodep.tools import plot_mtg
 import matplotlib.pyplot as plt
 import numpy as np
+
+
+### Output parameters
+
+
+plot_properties = list = [ 'soil_Nm',                      
+                    'import_Nm',
+                    'export_Nm',
+                    'Nm']
+
+print_g_all = dict = {"select" : [
+                    'import_Nm',
+                    'export_Nm',
+                    'diffusion_Nm_xylem',
+                    'Nm',
+                    'volume',
+                    'z1',
+                    'struct_mass'
+                    # 'C_hexose_root'
+                    # 'thermal_time_since_emergence'
+                        ],
+                        "vertice" : 0}
+
+print_g_one = dict = {"select" : [
+                    'import_Nm',
+                    'export_Nm',
+                    'diffusion_Nm_xylem',
+                    'Nm',
+                    'volume',
+                    'z1',
+                    'struct_mass'
+                    # 'C_hexose_root'
+                    # 'thermal_time_since_emergence'
+                        ],
+                        "vertice" : 17}
+    
+
 
 def plot_N(g, range_min, range_max, p):
 

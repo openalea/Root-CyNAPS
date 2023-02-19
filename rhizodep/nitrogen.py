@@ -130,7 +130,6 @@ class UpdateN:
     r_AA_stor: float = 2
     xylem_to_root: float = 0.2
     phloem_to_root: float = 0.15
-    time_step: int = 3600
 
 
 # Nitrogen Model versions as classes. A version relates to a set of structural assumptions given in the class name.
@@ -243,7 +242,6 @@ class CommonNitrogenModel:
                         apoplasmic_stele
                         length
                         radius
-                        living_root_hairs_external_surface
                         struct_mass
                         C_hexose_root
                         C_hexose_reserve

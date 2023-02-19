@@ -359,7 +359,7 @@ def prepareScene(scene, width=1200, height=1200, scale=0.8, x_center=0., y_cente
 
     # We define the coordinates of the point cam_target that will be the center of the graph:
     cam_target = pgl.Vector3(x_center * scale,
-                             y_center * scale,
+                             y_center * scale + 0.7,
                              z_center * scale)
     # We define the coordinates of the point cam_pos that represents the position of the camera:
     cam_pos = pgl.Vector3(x_cam * scale,
@@ -438,7 +438,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     scene = turt.TurtleFrame(g, visitor=visitor, turtle=turtle, gc=False)
     # We update the scene with the specified position of the center of the graph and the camera:
     if viewer:
-        prepareScene(scene, x_center=x_center, y_center=y_center, z_center=z_center-0.5, x_cam=x_cam, y_cam=y_cam, z_cam=z_cam, scale=0.76)
+        prepareScene(scene, x_center=x_center, y_center=y_center, z_center=z_center-0.5, x_cam=x_cam, y_cam=y_cam, z_cam=z_cam, scale=1.5)
     # We compute the colors of the graph:
     my_colormap(g, prop_cmap, cmap=cmap, vmin=vmin, vmax=vmax, lognorm=lognorm)
     # We get a list of all shapes in the scene:
@@ -482,7 +482,7 @@ def plot_mtg(g, prop_cmap='hexose_exudation', cmap='jet', lognorm=True, vmin=1e-
     # We return the new updated scene:
     new_scene = pgl.Scene()
     for vid in shapes:
-        shapes[vid].geometry = pgl.Translated(0, k*0.1, 0, shapes[vid].geometry)
+        shapes[vid].geometry = pgl.Translated(0, k*0.5, 0, shapes[vid].geometry)
         new_scene += shapes[vid]
 
     # Consider: https://learnopengl.com/In-Practice/Text-Rendering
