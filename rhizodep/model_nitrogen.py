@@ -26,7 +26,7 @@ DiscreteVessels(CommonNitrogenModel)
 """
 # Imports
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 # Dataclass for initialisation and parametrization.
 # For readability's sake, only units are displayed. See functions' documentation for descriptions.
@@ -348,7 +348,7 @@ class CommonNitrogenModel:
         self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.phloem_AA[model] - self.AA[v])
                                          * (2 * np.pi * self.radius[v]))
 
-    def transport_radial_hormones(self):
+    def transport_radial_hormones(self, v):
         pass
 
     def metabolism_N(self, v, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
@@ -367,10 +367,13 @@ class CommonNitrogenModel:
 
         """
         # amino acid synthesis
-        self.AA_synthesis[v] = smax_AA / (
-            ((1 + Km_Nm_AA) / self.Nm[v])
-            + ((1 + Km_C_AA) / self.C_hexose_root[v])
-        )
+        if self.C_hexose_root[v] > 0:
+            self.AA_synthesis[v] = smax_AA / (
+                ((1 + Km_Nm_AA) / self.Nm[v])
+                + ((1 + Km_C_AA) / self.C_hexose_root[v])
+            )
+        else:
+            self.AA_synthesis[v] = 0.0
 
         # Organic structure synthesis
         self.struct_synthesis[v] = (smax_struct * self.AA[v]
@@ -440,7 +443,7 @@ class OnePoolVessels(CommonNitrogenModel):
     def transport_N(self, v, **kwargs):
         self.transport_radial_N(v, model=1, **kwargs)
 
-    def transport_hormones(self):
+    def transport_hormones(self, v):
         pass
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root, phloem_to_root, time_step):
@@ -469,7 +472,7 @@ class OnePoolVessels(CommonNitrogenModel):
     def update_hormones(self):
         pass
 
-    def exchanges_and_balance(self):
+    def exchanges_and_balance(self, time_step):
 
         """
         Description
@@ -484,14 +487,11 @@ class OnePoolVessels(CommonNitrogenModel):
             # if root segment emerged
             if self.struct_mass[vid] > 0:
                 self.transport_N(vid, **asdict(TransportCommonN()))
-                self.transport_hormones()
-                self.metabolism_N(vid, **asdict(MetabolismN))
-                self.metabolism_hormones()
+                self.transport_hormones(vid)
+                self.metabolism_N(vid, **asdict(MetabolismN()))
+                self.metabolism_hormones(vid)
 
-
-        self.update_N(**asdict(UpdateN))
-
-
+        self.update_N(time_step=time_step, **asdict(UpdateN()))
 
 
 class DiscreteVessels(CommonNitrogenModel):
@@ -583,7 +583,7 @@ class DiscreteVessels(CommonNitrogenModel):
         # Update plant-level properties
         self.update_N_global(time_step)
 
-    def N_exchanges_and_balance(self):
+    def N_exchanges_and_balance(self, time_step):
 
         """
         Description
@@ -600,4 +600,4 @@ class DiscreteVessels(CommonNitrogenModel):
                 self.transport_N(vid, **asdict(TransportAxialN()))
                 self.metabolism_N(vid, **asdict(MetabolismN))
 
-        self.update_N(**asdict(UpdateN))
+        self.update_N(time_step=time_step, **asdict(UpdateN))
