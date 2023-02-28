@@ -1,5 +1,6 @@
-# Images output
+# Images and MTG output
 *.png
+
 
 # Packages
 *.egg

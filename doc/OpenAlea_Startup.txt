@@ -24,6 +24,10 @@
 	conda activate <env>
 	conda install -c openalea3 -c conda-forge openalea.<packagename>
 
+# Before running, well declare your local package running the following in your environement :
+
+	python setup.py develop
+
 
 
 ### Run ###
