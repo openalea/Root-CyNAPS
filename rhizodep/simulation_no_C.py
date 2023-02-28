@@ -1,13 +1,13 @@
 from time import sleep
-from rhizodep.soil import MeanConcentrations, SoilPatch, SoilNitrogen
-from rhizodep.nitrogen import InitCommonN, TransportCommonN, UpdateN, OnePoolVessels
-from rhizodep.topology import InitSurfaces, TissueTopology, RadialTopology
-from test_mtg import test_mtg
-from rhizodep.tools_output import plot_properties, print_g_one, plot_N, print_g
+from rhizodep.model_soil import MeanConcentrations, SoilPatch, SoilNitrogen
+from rhizodep.model_nitrogen import InitCommonN, OnePoolVessels
+from rhizodep.model_topology import InitSurfaces, TissueTopology, RadialTopology
+from test.test_mtg import test_mtg
+from tools_output import plot_properties, print_g_one, plot_N, print_g
 from dataclasses import asdict
 
 
-def test_nitrogen_scenario(n, time_step):
+def N_simulation(n, time_step):
     g = test_mtg()
     output = input("plot results? (y/n) :")
 
@@ -19,10 +19,7 @@ def test_nitrogen_scenario(n, time_step):
     for i in range(n):
         soil_nitrogen.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
         root_topo.update_topology(**asdict(TissueTopology()))
-        root_nitrogen.transport_N(**asdict(TransportCommonN()))
-        # N metabolism is not yet computed as C is not actualized yet.
-        # root_nitrogen.metabolism_N(**asdict(MetabolismN))
-        root_nitrogen.update_N(time_step=time_step, **asdict(UpdateN()))
+        root_nitrogen.exchanges_and_balance()
 
         if output == 'y':
             if i == 0:
@@ -40,5 +37,5 @@ def test_nitrogen_scenario(n, time_step):
 
 # Execution
 if __name__ == '__main__':
-    test_nitrogen_scenario(n=20, time_step=3600)
+    N_simulation(n=20, time_step=3600)
     input('end? ')

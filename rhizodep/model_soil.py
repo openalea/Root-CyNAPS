@@ -29,6 +29,7 @@ class MeanConcentrations:
 
 # External conditions parameters
 
+
 @dataclass
 class SoilPatch:
     soil_Nm_max: float = 0.01
@@ -66,7 +67,6 @@ class SoilNitrogen:
         
         for name in states:
             setattr(self, name, props[name])
-            
 
     def update_patches(self, patch_age, soil_Nm_max, patch_dilution, z_soil_Nm_max, lixiviation_speed, soil_Nm_variance):
         # for all root segments in MTG...

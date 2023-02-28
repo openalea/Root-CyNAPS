@@ -3,14 +3,11 @@
 """
 
 import pickle
-import numpy as np
 from openalea.mtg import *
-from output_display import plot_N, print_g
-
 
 
 def test_mtg():
-    with open('test/inputs/root00239.pckl', 'rb') as f:
+    with open('test/inputs/root00478.pckl', 'rb') as f:
         g = pickle.load(f)
     return g
 

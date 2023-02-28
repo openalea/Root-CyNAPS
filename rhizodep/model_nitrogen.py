@@ -347,8 +347,11 @@ class CommonNitrogenModel:
         # Passive radial diffusion between phloem and cortex through plasmodesmata
         self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.phloem_AA[model] - self.AA[v])
                                          * (2 * np.pi * self.radius[v]))
-        
-    def metabolism_N(self, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
+
+    def transport_radial_hormones(self):
+        pass
+
+    def metabolism_N(self, v, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
                      Km_AA_stor, cmax_stor, Km_stor_catab, cmax_AA, Km_AA_catab, storage_C_regulation):
 
         """
@@ -363,34 +366,32 @@ class CommonNitrogenModel:
         :param Km_C_struct :
 
         """
-        # for all root segments in MTG...
-        for vid in self.vertices:
+        # amino acid synthesis
+        self.AA_synthesis[v] = smax_AA / (
+            ((1 + Km_Nm_AA) / self.Nm[v])
+            + ((1 + Km_C_AA) / self.C_hexose_root[v])
+        )
 
-            # if root segment emerged
-            if self.struct_mass[vid] > 0:
-                # amino acid synthesis
-                self.AA_synthesis[vid] = smax_AA / (
-                    ((1 + Km_Nm_AA) / self.Nm[vid])
-                    + ((1 + Km_C_AA) / self.C_hexose_root[vid])
-                )
+        # Organic structure synthesis
+        self.struct_synthesis[v] = (smax_struct * self.AA[v]
+                                       / (Km_AA_struct + self.AA[v]))
 
-                # Organic structure synthesis
-                self.struct_synthesis[vid] = (smax_struct * self.AA[vid]
-                                               / (Km_AA_struct + self.AA[vid]))
+        # Organic storage synthesis (Michaelis-Menten kinetic)
+        self.storage_synthesis[v] = (smax_stor * self.AA[v]
+                                       /(Km_AA_stor + self.AA[v]))
 
-                # Organic storage synthesis (Michaelis-Menten kinetic)
-                self.storage_synthesis[vid] = (smax_stor * self.AA[vid]
-                                               /(Km_AA_stor + self.AA[vid]))
+        # Organic storage catabolism
+        Km_stor_root = Km_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
+        self.storage_catabolism[v] = cmax_stor * self.C_hexose_reserve[v] / (
+                Km_stor_root + self.C_hexose_reserve[v])
 
-                # Organic storage catabolism
-                Km_stor_root = Km_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
-                self.storage_catabolism[vid] = cmax_stor * self.C_hexose_reserve[vid] / (
-                        Km_stor_root + self.C_hexose_reserve[vid])
+        # AA catabolism
+        Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
+        self.AA_catabolism[v] = cmax_AA * self.AA[v] / (
+                Km_stor_root + self.AA[v])
 
-                # AA catabolism
-                Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[vid])
-                self.AA_catabolism[vid] = cmax_AA * self.AA[vid] / (
-                        Km_stor_root + self.AA[vid])
+    def metabolism_hormones(self, v):
+        pass
 
     def update_N_local(self, v, r_Nm_AA, r_AA_struct, r_AA_stor, time_step):
 
@@ -436,26 +437,13 @@ class OnePoolVessels(CommonNitrogenModel):
         self.states = []
         super().__init__(g, **kwargs)
 
-    def transport_N(self, **kwargs):
+    def transport_N(self, v, **kwargs):
+        self.transport_radial_N(v, model=1, **kwargs)
 
-        # for all root segments in MTG...
-        for vid in self.vertices:
-
-            # if root segment emerged
-            if self.struct_mass[vid] > 0:
-                self.transport_radial_N(vid, model=1, **kwargs)
+    def transport_hormones(self):
+        pass
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root, phloem_to_root, time_step):
-        """
-        Description
-        ___________
-
-        Parameters
-        __________
-        :param r_Nm_struct : Nm mol consumed per mol of organic structural synthesis (adim)
-
-        """
-
         # Computing vessels' mass as a fraction of total segments mass
         self.xylem_struct_mass[1] = sum(self.struct_mass.values()) * xylem_to_root
         self.phloem_struct_mass[1] = sum(self.struct_mass.values()) * phloem_to_root
@@ -464,17 +452,46 @@ class OnePoolVessels(CommonNitrogenModel):
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-
                 # Local nitrogen concentration update
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Global vessel's nitrogen pool update
-                self.xylem_Nm[1] += time_step * (self.export_Nm[vid] + self.diffusion_Nm_soil_xylem[vid] - self.diffusion_Nm_xylem[vid]) / self.xylem_struct_mass[1]
-                self.xylem_AA[1] += time_step * (self.export_AA[vid] + self.diffusion_AA_soil_xylem[vid]) / self.xylem_struct_mass[1]
+                self.xylem_Nm[1] += time_step * (
+                            self.export_Nm[vid] + self.diffusion_Nm_soil_xylem[vid] - self.diffusion_Nm_xylem[vid]) / \
+                                    self.xylem_struct_mass[1]
+                self.xylem_AA[1] += time_step * (self.export_AA[vid] + self.diffusion_AA_soil_xylem[vid]) / \
+                                    self.xylem_struct_mass[1]
                 self.phloem_AA[1] -= time_step * self.diffusion_AA_phloem[vid] / self.xylem_struct_mass[1]
 
         # Update plant-level properties
         self.update_N_global(time_step)
+
+    def update_hormones(self):
+        pass
+
+    def exchanges_and_balance(self):
+
+        """
+        Description
+        ___________
+        Model time-step processes and balance for nitrogen to be called by simulation files.
+
+        """
+
+        # Computing all derivative processes
+        # for all root segments in MTG...
+        for vid in self.vertices:
+            # if root segment emerged
+            if self.struct_mass[vid] > 0:
+                self.transport_N(vid, **asdict(TransportCommonN()))
+                self.transport_hormones()
+                self.metabolism_N(vid, **asdict(MetabolismN))
+                self.metabolism_hormones()
+
+
+        self.update_N(**asdict(UpdateN))
+
+
 
 
 class DiscreteVessels(CommonNitrogenModel):
@@ -496,42 +513,35 @@ class DiscreteVessels(CommonNitrogenModel):
 
         super().__init__(g, **kwargs)
 
-    def transport_N(self, axial_diffusion_xylem, axial_diffusion_phloem, xylem_to_root, phloem_to_root, **kwargs):
+    def transport_N(self, v, axial_diffusion_xylem, axial_diffusion_phloem, xylem_to_root, phloem_to_root, **kwargs):
+        # RADIAL TRANSPORT
 
-        # for all root segments in MTG...
-        for vid in self.vertices:
+        self.transport_radial_N(v=v, model=v, xylem_to_root=xylem_to_root, phloem_to_root=phloem_to_root,
+                                **kwargs)
 
-            # if root segment emerged
-            if self.struct_mass[vid] > 0:
+        # AXIAL TRANSPORT
 
-                # RADIAL TRANSPORT
+        neighbor = [self.g.parent(v)] + self.g.children(v)
+        if None in neighbor:
+            neighbor.remove(None)
 
-                self.transport_radial_N(v=vid, model=vid, xylem_to_root=xylem_to_root, phloem_to_root=phloem_to_root,
-                                        **kwargs)
+        # Reinitialization before computing for each neighbor
+        self.axial_diffusion_Nm_xylem[v] = 0.0
+        self.axial_diffusion_AA_xylem[v] = 0.0
+        self.axial_diffusion_AA_phloem[v] = 0.0
 
-                # AXIAL TRANSPORT
+        for k in neighbor:
+            if self.struct_mass[k] > 0:
+                # MINERAL NITROGEN TRANSPORT
+                self.axial_diffusion_Nm_xylem[v] += axial_diffusion_xylem * (self.xylem_Nm[k] - self.xylem_Nm[v]) * (
+                                                    np.pi * (xylem_to_root * (self.radius[v] + self.radius[k]) / 2)**2)
 
-                neighbor = [self.g.parent(vid)] + self.g.children(vid)
-                if None in neighbor:
-                    neighbor.remove(None)
+                # AMINO ACID TRANSPORT
+                self.axial_diffusion_AA_xylem[v] += axial_diffusion_xylem * (self.xylem_AA[k] - self.xylem_AA[v]) * (
+                                                    np.pi * (xylem_to_root * (self.radius[v] + self.radius[k]) / 2) ** 2)
 
-                # Reinitialization before computing for each neighbor
-                self.axial_diffusion_Nm_xylem[vid] = 0.0
-                self.axial_diffusion_AA_xylem[vid] = 0.0
-                self.axial_diffusion_AA_phloem[vid] = 0.0
-
-                for k in neighbor:
-                    if self.struct_mass[k] > 0:
-                        # MINERAL NITROGEN TRANSPORT
-                        self.axial_diffusion_Nm_xylem[vid] += axial_diffusion_xylem * (self.xylem_Nm[k] - self.xylem_Nm[vid]) * (
-                                                            np.pi * (xylem_to_root * (self.radius[vid] + self.radius[k]) / 2)**2)
-
-                        # AMINO ACID TRANSPORT
-                        self.axial_diffusion_AA_xylem[vid] += axial_diffusion_xylem * (self.xylem_AA[k] - self.xylem_AA[vid]) * (
-                                                            np.pi * (xylem_to_root * (self.radius[vid] + self.radius[k]) / 2) ** 2)
-
-                        self.axial_diffusion_AA_phloem[vid] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[vid]) * (
-                                                            np.pi * (xylem_to_root * (self.radius[vid] + self.radius[k]) / 2) ** 2)
+                self.axial_diffusion_AA_phloem[v] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[v]) * (
+                                                    np.pi * (xylem_to_root * (self.radius[v] + self.radius[k]) / 2) ** 2)
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root, phloem_to_root, time_step):
         """
@@ -572,3 +582,22 @@ class DiscreteVessels(CommonNitrogenModel):
 
         # Update plant-level properties
         self.update_N_global(time_step)
+
+    def N_exchanges_and_balance(self):
+
+        """
+        Description
+        ___________
+        Model time-step processes and balance for nitrogen to be called by simulation files.
+
+        """
+
+        # Computing all derivative processes
+        # for all root segments in MTG...
+        for vid in self.vertices:
+            # if root segment emerged
+            if self.struct_mass[vid] > 0:
+                self.transport_N(vid, **asdict(TransportAxialN()))
+                self.metabolism_N(vid, **asdict(MetabolismN))
+
+        self.update_N(**asdict(UpdateN))
