@@ -42,8 +42,8 @@ class InitSurfaces:
 class TissueTopology:
     begin_xylem_diff: float = 0     # (g) structural mass at which xylem differentiation begins
     span_xylem_diff: float = 0.01    # (g) structural mass range width during which xylem differentiation occcurs
-    endodermis_diff_rate: float = 2     # (g-1) endodermis suberisation rate
-    epidermis_diff_rate: float = 1      # (g-1) epidermis suberisation rate
+    endodermis_diff_rate: float = 20000     # (g-1) endodermis suberisation rate
+    epidermis_diff_rate: float = 1000      # (g-1) epidermis suberisation rate
     epidermis_ratio: float = 4  # (adim) epidermis surface ratio over root's cylinder surface
     cortex_ratio: float = 30    # (adim) cortex surface ratio over root's cylinder surface
     stele_ratio: float = 20     # (adim) stele + endodermis surface ratio over root's cylinder surface

@@ -36,7 +36,7 @@ class SoilPatch:
     patch_dilution: float = 0.0001/3600
     z_soil_Nm_max: float = 0
     lixiviation_speed: float = 0.001/3600
-    soil_Nm_variance: float = 0.0001
+    soil_Nm_variance: float = 1
 
 
 class SoilNitrogen:
