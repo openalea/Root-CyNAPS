@@ -27,6 +27,7 @@ print_g_all = dict = {"select" : [
                         "vertice" : 0}
 
 print_g_one = dict = {"select" : [
+                    'soil_Nm',
                     'import_Nm',
                     'export_Nm',
                     'diffusion_Nm_xylem',
@@ -37,7 +38,7 @@ print_g_one = dict = {"select" : [
                     # 'C_hexose_root'
                     # 'thermal_time_since_emergence'
                         ],
-                        "vertice" : 17}
+                    "vertice" : 149}
     
 
 

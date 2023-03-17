@@ -10,14 +10,14 @@ from rhizodep.model_topology import InitSurfaces, TissueTopology, RadialTopology
 from rhizodep.tools_output import plot_properties, print_g_one, plot_N, print_g
 
 
-def N_simulation(init, n, time_step):
+def N_simulation(init, n, time_step, outside_flows):
     with open(init, 'rb') as f:
         g = pickle.load(f)
     output = input("plot results? (y/n) :")
     # Initialization of state variables
     soil_nitrogen = SoilNitrogen(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
-    root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()))
+    root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()), **outside_flows)
 
     for i in range(n):
         soil_nitrogen.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
@@ -31,7 +31,7 @@ def N_simulation(init, n, time_step):
             else:
                 plot_N(g, rng_min, rng_max, plot_properties)
         print_g(g, **print_g_one)
-        sleep(0.1)
+        sleep(0.01)
 
     #print_g(g, **print_g_all)
     input("end? ")
