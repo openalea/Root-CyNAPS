@@ -26,21 +26,26 @@ DiscreteVessels(CommonNitrogenModel)
 """
 # Imports
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 # Dataclass for initialisation and parametrization.
 # For readability's sake, only units are displayed. See functions' documentation for descriptions.
 
 
-# Properties' init
+# Properties' initialization
 
 
 @dataclass
 class InitCommonN:
+    # Pools initial size
     Nm: float = 1e-4    # mol N.g-1
     AA: float = 1e-4    # mol AA.g-1
     struct_protein: float = 0   # mol prot struct.g-1
     storage_protein: float = 0     # mol prot stor.g-1
+    xylem_Nm: float = 1e-4  # mol N.g-1
+    xylem_AA: float = 1e-4  # mol AA.g-1
+    phloem_AA: float = 1e-4  # mol AA.g-1
+    # Transport processes
     import_Nm: float = 0    # mol N.s-1
     export_Nm: float = 0    # mol N.s-1
     export_AA: float = 0    # mol AA.s-1
@@ -50,23 +55,18 @@ class InitCommonN:
     diffusion_AA_soil: float = 0  # mol AA.s-1
     diffusion_AA_phloem: float = 0    # mol AA.s-1
     diffusion_AA_soil_xylem: float = 0  # mol AA.s-1
+    # Metabolic processes
     AA_synthesis: float = 0    # mol AA.s-1
     struct_synthesis: float = 0    # mol struct.s-1
     storage_synthesis: float = 0    # mol stor.s-1
     AA_catabolism: float = 0    # mol AA.s-1
     storage_catabolism: float = 0    # mol stor.s-1
-    xylem_Nm: float = 1e-4    # mol N.g-1
-    xylem_AA: float = 1e-4    # mol AA.g-1
-    xylem_struct_mass: float = 1e-3    # g
-    phloem_AA: float = 1e-4    # mol AA.g-1
-    phloem_struct_mass: float = 1e-3    # g
-    Nm_root_shoot_xylem: float = 0    # mol N.s-1
-    AA_root_shoot_xylem: float = 0    # mol AA.s-1
-    AA_root_shoot_phloem: float = 0    # mol AA.s-1
 
 
 @dataclass
 class InitDiscreteVesselsN(InitCommonN):
+    xylem_struct_mass: float = 1e-3  # g
+    phloem_struct_mass: float = 1e-3  # g
     axial_diffusion_Nm_xylem: float = 0    # mol N.s-1
     axial_diffusion_AA_xylem: float = 0    # mol AA.s-1
     axial_diffusion_AA_phloem: float = 0    # mol AA.s-1
@@ -80,10 +80,10 @@ class TransportCommonN:
     # kinetic parameters
     vmax_Nm_root: float = 1e-9     # mol N.s-1.m-2
     vmax_Nm_xylem: float = 1e-9     # mol N.s-1.m-2
-    Km_Nm_root_LATS: float = 1e-4    # mol N.g-1
-    Km_Nm_root_HATS: float = 1e-5    # mol N.g-1
-    begin_N_regulation: float = 0   # mol N.g-1 value
-    span_N_regulation: float = 1e-2    # mol N.g-1 range
+    Km_Nm_root_LATS: float = 1e-2    # mol N.g-1
+    Km_Nm_root_HATS: float = 1e-4    # mol N.g-1
+    begin_N_regulation: float = 1e-3   # mol N.g-1 value
+    span_N_regulation: float = 1e-3    # mol N.g-1 range
     Km_Nm_xylem: float = 1e-4   # mol N.g-1
     vmax_AA_xylem: float = 1e-9     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-4   # mol AA.g-1
@@ -122,6 +122,13 @@ class MetabolismN:
     Km_AA_catab: float = 0.001
     storage_C_regulation: float = 0.1
 
+@dataclass
+class MetabolismHormones:
+    # kinetic parameters
+    smax_cytok: float = 0.01
+    Km_C_cytok: float = 0.001
+    Km_N_cytok:float = 0.001
+
 
 @dataclass
 class UpdateN:
@@ -138,9 +145,8 @@ class UpdateN:
 class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, struct_protein, storage_protein, import_Nm, export_Nm, export_AA, diffusion_Nm_soil,
                  diffusion_Nm_xylem, diffusion_Nm_soil_xylem, diffusion_AA_soil, diffusion_AA_phloem, diffusion_AA_soil_xylem, AA_synthesis, struct_synthesis,
-                 storage_synthesis, AA_catabolism, storage_catabolism, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
-                 phloem_struct_mass, Nm_root_shoot_xylem, AA_root_shoot_xylem,
-                 AA_root_shoot_phloem):
+                 storage_synthesis, AA_catabolism, storage_catabolism, Nm_root_shoot_xylem, AA_root_shoot_xylem,
+                 AA_root_shoot_phloem, cytokinins_root_shoot_xylem):
 
         """
         Description
@@ -185,15 +191,22 @@ class CommonNitrogenModel:
                         storage_synthesis=storage_synthesis,
                         AA_catabolism=AA_catabolism,
                         storage_catabolism=storage_catabolism,
-                        xylem_Nm=xylem_Nm,
-                        xylem_AA=xylem_AA,
-                        xylem_struct_mass=xylem_struct_mass,
-                        phloem_AA=phloem_AA,
-                        phloem_struct_mass=phloem_struct_mass,
-                        Nm_root_shoot_xylem=Nm_root_shoot_xylem,
-                        AA_root_shoot_xylem=AA_root_shoot_xylem,
-                        AA_root_shoot_phloem=AA_root_shoot_phloem
                         ))
+
+        # Creating variables for
+        self.root_system_totals.update(dict(total_Nm=0,
+                                    total_hexose=0,
+                                    total_cytokinins=0,
+                                    total_struct_mass=0,
+                                    xylem_total_Nm=0,
+                                    xylem_total_AA=0,
+                                    phloem_total_AA=0))
+
+        self.shoot_exchanges = dict(Nm_root_shoot_xylem=Nm_root_shoot_xylem,
+                                         AA_root_shoot_xylem=AA_root_shoot_xylem,
+                                         AA_root_shoot_phloem=AA_root_shoot_phloem,
+                                         cytokinins_root_shoot_xylem=cytokinins_root_shoot_xylem
+                                         )
 
         props = self.g.properties()
         for name in self.keywords:
@@ -229,14 +242,6 @@ class CommonNitrogenModel:
                         storage_synthesis
                         AA_catabolism
                         storage_catabolism
-                        xylem_Nm
-                        xylem_AA
-                        xylem_struct_mass
-                        phloem_AA
-                        phloem_struct_mass
-                        Nm_root_shoot_xylem
-                        AA_root_shoot_xylem
-                        AA_root_shoot_phloem
                         root_exchange_surface
                         stele_exchange_surface
                         apoplasmic_stele
@@ -248,10 +253,18 @@ class CommonNitrogenModel:
                         thermal_time_since_emergence
                         """.split()
 
+        # Declare MTG properties in self
         for name in self.states:
             setattr(self, name, props[name])
 
-        # Note : Global properties are declared as local ones, but only vertice 1 will be updated
+        # Declare exchanges with flow retreived from the shoot model
+        for name in self.shoot_exchanges:
+            setattr(self, name, self.shoot_exchanges[name])
+
+        # Declare totals computed for global model's outputs
+        for name in self.root_system_totals:
+            setattr(self, name, self.root_system_totals[name])
+
 
     def transport_radial_N(self, v, model, vmax_Nm_root, vmax_Nm_xylem, Km_Nm_root_LATS, Km_Nm_root_HATS, begin_N_regulation, span_N_regulation,
                         Km_Nm_xylem, vmax_AA_xylem, Km_AA_xylem, diffusion_soil, diffusion_xylem, diffusion_phloem, diffusion_apoplasm, 
@@ -348,9 +361,6 @@ class CommonNitrogenModel:
         self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.phloem_AA[model] - self.AA[v])
                                          * (2 * np.pi * self.radius[v]))
 
-    def transport_radial_hormones(self):
-        pass
-
     def metabolism_N(self, v, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
                      Km_AA_stor, cmax_stor, Km_stor_catab, cmax_AA, Km_AA_catab, storage_C_regulation):
 
@@ -367,10 +377,13 @@ class CommonNitrogenModel:
 
         """
         # amino acid synthesis
-        self.AA_synthesis[v] = smax_AA / (
-            ((1 + Km_Nm_AA) / self.Nm[v])
-            + ((1 + Km_C_AA) / self.C_hexose_root[v])
-        )
+        if self.C_hexose_root[v] > 0:
+            self.AA_synthesis[v] = smax_AA / (
+                ((1 + Km_Nm_AA) / self.Nm[v])
+                + ((1 + Km_C_AA) / self.C_hexose_root[v])
+            )
+        else:
+            self.AA_synthesis[v] = 0.0
 
         # Organic structure synthesis
         self.struct_synthesis[v] = (smax_struct * self.AA[v]
@@ -390,8 +403,10 @@ class CommonNitrogenModel:
         self.AA_catabolism[v] = cmax_AA * self.AA[v] / (
                 Km_stor_root + self.AA[v])
 
-    def metabolism_hormones(self, v):
-        pass
+    def metabolism_total_hormones(self, smax_cytok, Km_C_cytok, Km_N_cytok):
+        self.cytokinin_synthesis = smax_cytok * (
+                self.total_hexose/(self.total_hexose + Km_C_cytok)) * (
+                self.total_Nm/(self.total_Nm + Km_N_cytok))
 
     def update_N_local(self, v, r_Nm_AA, r_AA_struct, r_AA_stor, time_step):
 
@@ -423,31 +438,37 @@ class CommonNitrogenModel:
                 - self.storage_catabolism[v]
                 )
 
-    def update_N_global(self, time_step):
-        self.xylem_Nm[1] -= time_step * self.Nm_root_shoot_xylem[1] / self.xylem_struct_mass[1]
-        self.xylem_AA[1] -= time_step * self.AA_root_shoot_xylem[1] / self.xylem_struct_mass[1]
-        self.phloem_AA[1] += time_step * self.AA_root_shoot_phloem[1] / self.phloem_struct_mass[1]
+    def update_sums(self, time_step):
+        self.total_struct_mass = sum(self.struct_mass.values())
+        self.total_Nm = sum([x*y for x,y in zip(self.Nm.values(),self.struct_mass.values())])/self.total_struct_mass
+        self.total_hexose = sum([x*y for x,y in zip(self.C_hexose_root.values(),self.struct_mass.values())])/self.total_struct_mass
+        self.total_cytokinins += time_step / self.total_struct_mass * (
+                self.cytokinin_synthesis
+                - self.cytokinins_root_shoot_xylem
+                )
 
 
 class OnePoolVessels(CommonNitrogenModel):
 
-    def __init__(self, g, **kwargs):
+    def __init__(self, g, xylem_Nm, xylem_AA, phloem_AA, **kwargs):
 
         self.keywords = {}
+        self.root_system_totals = dict(xylem_Nm=[xylem_Nm],
+                                       xylem_AA=[xylem_AA],
+                                       phloem_AA=[phloem_AA])
         self.states = []
+
         super().__init__(g, **kwargs)
 
     def transport_N(self, v, **kwargs):
-        self.transport_radial_N(v, model=1, **kwargs)
-
-    def transport_hormones(self):
-        pass
+        self.transport_radial_N(v, model=0, **kwargs)
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root, phloem_to_root, time_step):
-        # Computing vessels' mass as a fraction of total segments mass
-        self.xylem_struct_mass[1] = sum(self.struct_mass.values()) * xylem_to_root
-        self.phloem_struct_mass[1] = sum(self.struct_mass.values()) * phloem_to_root
-
+        # Get summed root system level properties for outputs
+        self.update_sums(time_step)
+        # Vessels structural masses, defined as a fixed proportion to be abe to define concentrations
+        self.xylem_total_struct_mass = self.total_struct_mass * xylem_to_root
+        self.phloem_total_struct_mass = self.total_struct_mass * phloem_to_root
         # for all root segments in MTG...
         for vid in self.vertices:
             # if root segment emerged
@@ -456,20 +477,25 @@ class OnePoolVessels(CommonNitrogenModel):
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Global vessel's nitrogen pool update
-                self.xylem_Nm[1] += time_step * (
+                self.xylem_Nm[0] += time_step * (
                             self.export_Nm[vid] + self.diffusion_Nm_soil_xylem[vid] - self.diffusion_Nm_xylem[vid]) / \
-                                    self.xylem_struct_mass[1]
-                self.xylem_AA[1] += time_step * (self.export_AA[vid] + self.diffusion_AA_soil_xylem[vid]) / \
-                                    self.xylem_struct_mass[1]
-                self.phloem_AA[1] -= time_step * self.diffusion_AA_phloem[vid] / self.xylem_struct_mass[1]
+                                    self.xylem_total_struct_mass
+                self.xylem_AA[0] += time_step * (self.export_AA[vid] + self.diffusion_AA_soil_xylem[vid]) / \
+                                    self.xylem_total_struct_mass
+                self.phloem_AA[0] -= time_step * self.diffusion_AA_phloem[vid] / self.phloem_total_struct_mass
 
-        # Update plant-level properties
-        self.update_N_global(time_step)
+        # Update vessels according to exchanges with shoot
+        self.xylem_Nm[0] -= time_step * self.Nm_root_shoot_xylem / self.xylem_total_struct_mass
+        self.xylem_AA[0] -= time_step * self.AA_root_shoot_xylem / self.xylem_total_struct_mass
+        self.phloem_AA[0] += time_step * self.AA_root_shoot_phloem / self.phloem_total_struct_mass
 
-    def update_hormones(self):
-        pass
 
-    def exchanges_and_balance(self):
+        # Global xylem and phloem pools for outputs
+        self.xylem_total_Nm = self.xylem_Nm[0]
+        self.xylem_total_AA = self.xylem_AA[0]
+        self.phloem_total_AA = self.phloem_AA[0]
+
+    def exchanges_and_balance(self, time_step):
 
         """
         Description
@@ -479,33 +505,42 @@ class OnePoolVessels(CommonNitrogenModel):
         """
 
         # Computing all derivative processes
-        # for all root segments in MTG...
+        # Global root system processes
+        self.metabolism_total_hormones(**asdict(MetabolismHormones()))
+        # Spatialized for all root segments in MTG...
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
                 self.transport_N(vid, **asdict(TransportCommonN()))
-                self.transport_hormones()
-                self.metabolism_N(vid, **asdict(MetabolismN))
-                self.metabolism_hormones()
+                self.metabolism_N(vid, **asdict(MetabolismN()))
 
-
-        self.update_N(**asdict(UpdateN))
-
-
+        self.update_N(time_step=time_step, **asdict(UpdateN()))
 
 
 class DiscreteVessels(CommonNitrogenModel):
 
-    def __init__(self, g, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem,
+    def __init__(self, g, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
+                 phloem_struct_mass, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem,
                  axial_diffusion_AA_phloem, **kwargs):
 
         # New properties' creation in MTG
-        self.keywords = dict(axial_diffusion_Nm_xylem=axial_diffusion_Nm_xylem,
-                             axial_diffusion_AA_xylem=axial_diffusion_AA_xylem,
-                             axial_diffusion_AA_phloem=axial_diffusion_AA_phloem)
+        self.keywords = dict(xylem_Nm=xylem_Nm,
+                            xylem_AA=xylem_AA,
+                            xylem_struct_mass=xylem_struct_mass,
+                            phloem_AA=phloem_AA,
+                            phloem_struct_mass=phloem_struct_mass,
+                            axial_diffusion_Nm_xylem=axial_diffusion_Nm_xylem,
+                            axial_diffusion_AA_xylem=axial_diffusion_AA_xylem,
+                            axial_diffusion_AA_phloem=axial_diffusion_AA_phloem)
+        self.root_system_totals = {}
 
         # Properties to be accessed, pointing to g for further modifications
         self.states = """
+                xylem_Nm
+                xylem_AA
+                xylem_struct_mass
+                phloem_AA
+                phloem_struct_mass
                 axial_diffusion_Nm_xylem
                 axial_diffusion_AA_xylem
                 axial_diffusion_AA_phloem
@@ -576,14 +611,21 @@ class DiscreteVessels(CommonNitrogenModel):
                         self.export_AA[vid]
                         + self.diffusion_AA_soil_xylem[vid]
                         + self.axial_diffusion_AA_xylem[vid])
-                self.phloem_AA[vid] -= time_step / self.xylem_struct_mass[vid] * (
+                self.phloem_AA[vid] -= time_step / self.phloem_struct_mass[vid] * (
                         self.diffusion_AA_phloem[vid]
                         - self.axial_diffusion_AA_phloem[vid])
 
         # Update plant-level properties
-        self.update_N_global(time_step)
+        self.update_sums(time_step)
+        # Vessels structural masses, defined as a fixed proportion to be abe to define concentrations
+        self.xylem_total_struct_mass = self.total_struct_mass * xylem_to_root
+        self.phloem_total_struct_mass = self.total_struct_mass * phloem_to_root
+        # Global xylem and phloem pools for outputs
+        self.xylem_total_Nm = sum(self.xylem_Nm.values())
+        self.xylem_total_AA = sum(self.xylem_AA.values())
+        self.phloem_total_AA = sum(self.phloem_AA.values())
 
-    def N_exchanges_and_balance(self):
+    def exchanges_and_balance(self, time_step):
 
         """
         Description
@@ -593,11 +635,13 @@ class DiscreteVessels(CommonNitrogenModel):
         """
 
         # Computing all derivative processes
-        # for all root segments in MTG...
+        # Global root system processes
+        self.metabolism_total_hormones(**asdict(MetabolismHormones()))
+        # Spatialized for all root segments in MTG...
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
                 self.transport_N(vid, **asdict(TransportAxialN()))
-                self.metabolism_N(vid, **asdict(MetabolismN))
+                self.metabolism_N(vid, **asdict(MetabolismN()))
 
-        self.update_N(**asdict(UpdateN))
+        self.update_N(time_step=time_step, **asdict(UpdateN()))

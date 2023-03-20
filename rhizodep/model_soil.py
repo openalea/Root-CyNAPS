@@ -24,6 +24,8 @@ import numpy as np
 
 @dataclass
 class MeanConcentrations:
+    soil_water_pressure: float = 10325 # (Pa) mean soil water pressure
+    soil_temperature: float = 288.15 # (K) mean soil temperature
     soil_Nm: float = 1e-3
     soil_AA: float = 1e-3
 
@@ -32,18 +34,21 @@ class MeanConcentrations:
 
 @dataclass
 class SoilPatch:
+    patch: bool = False
     soil_Nm_max: float = 0.01
-    patch_dilution: float = 0.0001/3600
+    patch_dilution: float = 0
     z_soil_Nm_max: float = 0
-    lixiviation_speed: float = 0.001/3600
-    soil_Nm_variance: float = 0.0001
+    lixiviation_speed: float = 0
+    soil_Nm_variance: float = 1
 
 
-class SoilNitrogen:
-    def __init__(self, g, soil_Nm, soil_AA):
+class HydroMinSoil:
+    def __init__(self, g, soil_water_pressure, soil_temperature, soil_Nm, soil_AA):
 
         # New properties' creation in MTG
         keywords = dict(
+            soil_water_pressure=soil_water_pressure, # soil water content could be added to relate to water pressure
+            soil_temperature=soil_temperature,
             soil_Nm=soil_Nm,
             soil_AA=soil_AA)
 
@@ -61,25 +66,29 @@ class SoilNitrogen:
         # Accessing properties once, pointing to g for further modifications
         states = """
                     soil_Nm
-                    soil_AA
                     z1
                     """.split()
+        # soil water pressure, temperature and AA are not imported here because we keep it constant for now
         
         for name in states:
             setattr(self, name, props[name])
 
-    def update_patches(self, patch_age, soil_Nm_max, patch_dilution, z_soil_Nm_max, lixiviation_speed, soil_Nm_variance):
-        # for all root segments in MTG...
+    def update_patches(self, patch_age, patch, soil_Nm_max, patch_dilution, z_soil_Nm_max, lixiviation_speed, soil_Nm_variance):
+        # if chosen option is homegeneous conditions
+        if not patch:
+            # for all root segments in MTG...
+            for vid in self.vertices:
+                self.soil_Nm[vid] = soil_Nm_max
 
-        # Patch intensity decreasing with time
-        max_concentration =  soil_Nm_max - patch_dilution * patch_age
+        else:
+            # Patch intensity decreasing with time
+            max_concentration =  soil_Nm_max - patch_dilution * patch_age
 
-        # Patch lixiviation with time
-        depth_of_max = z_soil_Nm_max - lixiviation_speed * patch_age
+            # Patch lixiviation with time
+            depth_of_max = z_soil_Nm_max - lixiviation_speed * patch_age
+            # for all root segments in MTG...
+            for vid in self.vertices:
+                self.soil_Nm[vid] = (max_concentration * np.exp(-((self.z1[vid] - depth_of_max) ** 2) / soil_Nm_variance))
 
-        for vid in self.vertices:
-            self.soil_Nm[vid] = (
-                        (max_concentration * np.exp(-((self.z1[vid] - depth_of_max) ** 2) / soil_Nm_variance))
-                )
 
 
