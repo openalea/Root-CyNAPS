@@ -24,6 +24,8 @@ import numpy as np
 
 @dataclass
 class MeanConcentrations:
+    soil_water_pressure: float = 10325 # (Pa) mean soil water pressure
+    soil_temperature: float = 288.15 # (K) mean soil temperature
     soil_Nm: float = 1e-3
     soil_AA: float = 1e-3
 
@@ -40,11 +42,13 @@ class SoilPatch:
     soil_Nm_variance: float = 1
 
 
-class SoilNitrogen:
-    def __init__(self, g, soil_Nm, soil_AA):
+class HydroMinSoil:
+    def __init__(self, g, soil_water_pressure, soil_temperature, soil_Nm, soil_AA):
 
         # New properties' creation in MTG
         keywords = dict(
+            soil_water_pressure=soil_water_pressure, # soil water content could be added to relate to water pressure
+            soil_temperature=soil_temperature,
             soil_Nm=soil_Nm,
             soil_AA=soil_AA)
 
@@ -62,9 +66,9 @@ class SoilNitrogen:
         # Accessing properties once, pointing to g for further modifications
         states = """
                     soil_Nm
-                    soil_AA
                     z1
                     """.split()
+        # soil water pressure, temperature and AA are not imported here because we keep it constant for now
         
         for name in states:
             setattr(self, name, props[name])

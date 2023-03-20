@@ -60,10 +60,9 @@ class WaterModel:
 
         # Accessing properties once, pointing to g for further modifications
         self.states += """
-                                soil_water
-                                soil_pressure
+                                soil_water_pressure
                                 soil_temperature
-                                soil_hexose
+                                C_hexose_soil
                                 xylem_water
                                 xylem_volume
                                 C_sucrose_root
@@ -106,7 +105,7 @@ class WaterModel:
             if self.struct_mass[vid] > 0:
                 # Here radial flow if derived from hydraulic potential differencies over the time step
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
-                        self.soil_pressure[vid] - self.xylem_total_pressure) * reflexion_coef * R * \
+                        self.soil_water_pressure[vid] - self.xylem_total_pressure) * reflexion_coef * R * \
                                                 self.soil_temperature[vid] * (
                                                         self.soil_hexose[vid] - self.C_sucrose_root[vid]) * \
                                                 self.stele_exchange_surface[vid]

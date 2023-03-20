@@ -3,7 +3,7 @@ from time import sleep
 import pickle
 from dataclasses import asdict
 
-from rhizodep.model_soil import MeanConcentrations, SoilPatch, SoilNitrogen
+from rhizodep.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from rhizodep.model_topology import InitSurfaces, TissueTopology, RadialTopology
 from rhizodep.model_water import InitWater, WaterModel
 from rhizodep.model_nitrogen import InitCommonN, OnePoolVessels
@@ -18,7 +18,7 @@ def N_simulation(init, n, time_step, outside_flows,
         g = pickle.load(f)
     output = input("plot results? (y/n) :")
     # Initialization of state variables
-    soil = SoilNitrogen(g, **asdict(MeanConcentrations()))
+    soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
     #root_water = WaterModel(g, time_step, **asdict(InitWater()))
     root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()), **outside_flows)
