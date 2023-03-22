@@ -23,7 +23,7 @@ Methods :
 # Imports
 
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 
 # Dataclass for initialisation and parametrization.
@@ -85,6 +85,8 @@ class RadialTopology:
         
         for name in states:
             setattr(self, name, props[name])
+
+        self.update_topology(**asdict(TissueTopology()))
 
     def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate, cortex_ratio, stele_ratio, xylem_cross_area_ratio):
         """

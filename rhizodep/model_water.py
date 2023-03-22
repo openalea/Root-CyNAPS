@@ -10,16 +10,23 @@ from openalea.mtg.traversal import pre_order
 @dataclass
 class InitWater:
     # Pools
-    xylem_water: float = 0
-    # xylem_pressure : float = 101325 # (Pa) apoplastic pressure in stele
+    xylem_water: float = 0 # (mol) water content
+    xylem_total_pressure: float = 101325  # (Pa) apoplastic pressure in stele
+    # Water transports
+    radial_import_water: float = 0
+    axial_export_water_up: float = 0
+    axial_import_water_down:float = 0
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity: float = 0
+    radial_water_conductivity : float = 0.01
+    reflexion_coef : float = 0.8
+    R : float = 8.314
+    sap_viscosity : float = 1.3
 
 
 class WaterModel:
-    def __int__(self, g, time_step, xylem_water, radial_import_water, axial_export_water_up,
+    def __init__(self, g, time_step, xylem_water, xylem_total_pressure, radial_import_water, axial_export_water_up,
                 axial_import_water_down, water_root_shoot_xylem):
         """
                 Description
@@ -33,17 +40,17 @@ class WaterModel:
         self.time_step = time_step
 
         # New properties' creation in MTG
-        self.keywords.update(dict(
+        self.keywords = dict(
             xylem_water=xylem_water,
             radial_import_water=radial_import_water,
             axial_export_water_up=axial_export_water_up,
-            axial_import_water_down=axial_import_water_down))
+            axial_import_water_down=axial_import_water_down)
 
         # Creating variables for
-        self.root_system_totals.update(dict(xylem_total_water=0,
+        self.root_system_totals = dict(xylem_total_water=0,
                                             xylem_total_volume=0,
-                                            xylem_total_pressure=101325
-                                            ))
+                                            xylem_total_pressure=xylem_total_pressure
+                                            )
 
         self.shoot_exchanges = dict(water_root_shoot_xylem=water_root_shoot_xylem)
 
@@ -59,7 +66,7 @@ class WaterModel:
                 props[name][vid] = value
 
         # Accessing properties once, pointing to g for further modifications
-        self.states += """
+        self.states = """
                                 soil_water_pressure
                                 soil_temperature
                                 C_hexose_soil
@@ -91,7 +98,7 @@ class WaterModel:
 
         # proper initialization of the xylem water content
         self.init_xylem_water(R=8.314)
-
+        self.update_sums()
     def init_xylem_water(self, R):
         for vid in self.vertices:
             # if root segment emerged
@@ -107,13 +114,13 @@ class WaterModel:
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
                         self.soil_water_pressure[vid] - self.xylem_total_pressure) * reflexion_coef * R * \
                                                 self.soil_temperature[vid] * (
-                                                        self.soil_hexose[vid] - self.C_sucrose_root[vid]) * \
+                                                        self.C_hexose_soil[vid] - self.C_sucrose_root[vid]) * \
                                                 self.stele_exchange_surface[vid]
 
         # First balance to compute axial transport
         next_xylem_total_pressure = self.xylem_total_water - self.water_root_shoot_xylem * self.time_step + sum(
             self.radial_import_water.values()) * (
-                                            R * self.soil_temperature[0]) / self.xylem_total_volume
+                                            R * self.soil_temperature[1]) / self.xylem_total_volume
 
         # We define "root" as the starting point of the loop below:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
@@ -131,12 +138,9 @@ class WaterModel:
                     self.axial_import_water_down[vid] = 0
                 # if there are children who actually emerged, there is a down import flux
                 elif 0 not in [self.struct_mass[k] for k in child]:
-                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[
-                        vid] + (
-                                                                (
-                                                                            next_xylem_total_pressure - self.xylem_total_pressure) *
-                                                                self.xylem_volume[vid] / (
-                                                                        R * self.soil_temperature[vid]))
+                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[vid] + (
+                            (next_xylem_total_pressure - self.xylem_total_pressure) *
+                                self.xylem_volume[vid] / (R * self.soil_temperature[vid]))
                 # if there are children who did not emerge, there is no down import flux
                 else:
                     self.axial_import_water_down[vid] = 0
@@ -149,7 +153,7 @@ class WaterModel:
                 else:
                     HP = [0 for k in child]
                     for k in range(len(child)):
-                        if self.struct_mass[k] > 0:
+                        if self.struct_mass[child[k]] > 0:
                             # compute Hagen-Poiseuille coefficient
                             HP[k] = np.pi * self.radius[child[k]] / (8 * sap_viscosity)
                     HP_tot = sum(HP)
@@ -157,7 +161,6 @@ class WaterModel:
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
         self.xylem_total_pressure = next_xylem_total_pressure
-
     def Update_water_local(self, v):
         self.xylem_water[v] += (self.radial_import_water[v]
                                 - self.axial_export_water_up[v]
