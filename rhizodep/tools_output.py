@@ -8,82 +8,74 @@ import numpy as np
 ### Output parameters
 
 
-plot_properties = list = [ 'soil_Nm',                      
+plot_properties = list = [
                     'import_Nm',
                     'export_Nm',
+                    'xylem_Nm',
+                    'axial_advection_Nm_xylem',
+                    'axial_diffusion_Nm_xylem',
                     'Nm']
-
-print_g_all = dict = {"select" : [
-                    'import_Nm',
-                    'export_Nm',
-                    'diffusion_Nm_xylem',
-                    'Nm',
-                    'volume',
-                    'z1',
-                    'struct_mass'
-                    # 'C_hexose_root'
-                    # 'thermal_time_since_emergence'
-                        ],
-                        "vertice" : 0}
 
 print_g_one = dict = {"select" : [
                     'soil_Nm',
                     'import_Nm',
                     'export_Nm',
                     'diffusion_Nm_xylem',
+                    'diffusion_Nm_soil_xylem',
+                    'xylem_struct_mass',
                     'Nm',
-                    'volume',
-                    'z1',
-                    'struct_mass'
+                    'xylem_Nm',
+                    'xylem_water',
+                    'soil_water_pressure',
+                    'radial_import_water',
+                    'axial_export_water_up',
+                    'axial_import_water_down',
+                    'axial_advection_Nm_xylem',
+                    'axial_diffusion_Nm_xylem'
+                    #'volume',
+                    #'z1',
+                    #'struct_mass'
                     # 'C_hexose_root'
                     # 'thermal_time_since_emergence'
                         ],
                     "vertice" : 149}
-    
 
 
-def plot_N(g, range_min, range_max, p):
+def plot_N(g, p, axs, span_slider):
 
-    if range_min[0] == 0 and range_max[0] == 0:
-        plt.ion()
-        fig, axs = plt.subplots(len(p), 1)
-        for k in range(len(p)):
-            # Computing once plot range for the selected property
-            props = g.property(p[k])
-            max_scale = g.max_scale()
-            plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if props[vid] != 0]
-            range_min[k], range_max[k] = min(plot_range), max(plot_range)
-            # Creating a color mesh in a separate window for colormap's interpretation
-            x = np.array([range_min[k], range_max[k]])
-            ax = axs[k]
-            local_plot = ax.pcolormesh([x, x], cmap='jet', vmin=range_min[k], vmax=range_max[k])
-            fig.colorbar(local_plot, ax=ax, location='top')
-            ax.cla()
-            ax.text(0, 1.4, p[k])
-            ax.axis('off')
-
+    range_min, range_max = [0 for k in plot_properties], [0 for k in plot_properties]
     scene = pgl.Scene()
     for k in range(len(p)):
+        # Computing plot ranges for the selected properties
+        props = g.property(p[k])
+        max_scale = g.max_scale()
+        plot_range = [props[vid] for vid in g.vertices(scale=max_scale) if g.property("struct_mass")[vid] != 0]
+        x_span = max(plot_range) - min(plot_range)
+        range_min[k], range_max[k] = np.mean(plot_range) - span_slider*x_span/2, np.mean(plot_range) + span_slider*x_span/2
+        # Creating a color mesh in a separate window for colormap's interpretation
+        cm = plt.cm.get_cmap('jet')
+        ax = axs[k]
+        ax.clear()
+        y,x = np.histogram(plot_range, 20)
+        colors = [cm(((j - range_min[k]) / (range_max[k] - range_min[k]))) for j in x]
+        ax.bar(x[:-1], y, color=colors, width=x[1]-x[0])
 
         scene += plot_mtg(g,
                          prop_cmap=p[k],
                          lognorm=False,  # to avoid issues with negative values
                          vmin=range_min[k],
                          vmax=range_max[k],
-                         k=k
-                         )
+                         k=k)
+
     pgl.Viewer.display(scene)
 
     return range_min, range_max
 
-
 def print_g(g, select, vertice):
-
-    # extract MTG properties only once
-    props = g.properties()
-    extract = [props[k] for k in select]
-
     if vertice != 0:
+        # extract MTG properties only once
+        props = g.properties()
+        extract = [props[k] for k in select]
         # print only selected segment
         print(vertice, end=' ')
         for k in range(len(extract)):
@@ -92,11 +84,5 @@ def print_g(g, select, vertice):
         print('')
 
     else:
-        max_scale = g.max_scale()
-        for vid in g.vertices(scale=max_scale):
-            # print for each segment selected properties in select
-            print(vid, end=' ')
-            for k in range(len(extract)):
-                print(' / ' + select[k] + ' :', end=' ')
-                print("{:e}".format(extract[k][vertice]), end=' ')
-            print('')
+        for k in select:
+            print(k, getattr(g, k))

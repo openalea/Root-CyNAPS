@@ -4,32 +4,32 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class NitrogenComFlows:
-    Nm_root_shoot_xylem:str = "Nm_root_shoot_xylem"
-    AA_root_shoot_xylem:str = "AA_root_shoot_xylem"
-    AA_root_shoot_phloem:str = "AA_root_shoot_phloem"
-    cytokinins_root_shoot_xylem:str = "cytokinins_root_shoot_xylem"
+    Nm_root_shoot_xylem: str = "Nm_root_shoot_xylem"
+    AA_root_shoot_xylem: str = "AA_root_shoot_xylem"
+    AA_root_shoot_phloem: str = "AA_root_shoot_phloem"
+    cytokinins_root_shoot_xylem: str = "cytokinins_root_shoot_xylem"
 
 
 @dataclass
 class WaterComFlows:
-    water_root_shoot_xylem:str = "water_root_shoot_xylem"
+    water_root_shoot_xylem: str = "water_root_shoot_xylem"
 
 
 @dataclass
 class ComState:
-    Nm:str = "root_Nm"
-    xylem_total_pressure:str = "root_xylem_pressure"
-    radius:str = "root_radius"
+    xylem_Nm: str = "root_xylem_Nm"
+    xylem_AA: str = "root_xylem_AA"
+    struct_mass: str = "collar_struct_mass"
+    xylem_water: str = "root_xylem_water"
+    xylem_total_pressure: str = "root_xylem_pressure"
+    radius: str = "root_radius"
 
 
 def apply_root_collar_flows(collar_flows, root_class, key):
-    communication = {"nitrogen":asdict(NitrogenComFlows()),
-        "water":asdict(WaterComFlows())}
-
+    communication = {"nitrogen": asdict(NitrogenComFlows()),
+                     "water": asdict(WaterComFlows())}
     com_table = communication[key]
-    print(collar_flows)
     for name in com_table:
-        print(com_table[name])
         setattr(root_class, name, collar_flows[com_table[name]])
 
 

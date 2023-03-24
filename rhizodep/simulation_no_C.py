@@ -2,6 +2,8 @@
 from time import sleep
 import pickle
 from dataclasses import asdict
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 
 from rhizodep.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from rhizodep.model_topology import InitSurfaces, TissueTopology, RadialTopology
@@ -28,6 +30,9 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
         root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()), **asdict(InitShootNitrogen()))
     shoot = ShootModel(**asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
+    print_g(g, **print_g_one)
+    print_g(root_water, ["xylem_total_pressure", "xylem_total_water"], vertice=0)
+
     for i in range(n):
         soil.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
         root_topo.update_topology(**asdict(TissueTopology()))
@@ -44,15 +49,34 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
         else:
             #WRONG!!
             collar_nitrogen_flows, collar_water_flows = shoot.exchanges_and_balance(root_xylem_pressure=0, **nitrogen_state)
+
         converter.apply_root_collar_flows(collar_nitrogen_flows, root_nitrogen, "nitrogen")
 
         if plotting:
             if i == 0:
-                rng_min, rng_max = [0 for k in plot_properties], [0 for k in plot_properties]
-                rng_min, rng_max = plot_N(g, rng_min, rng_max, plot_properties)
+                plt.ion()
+                # legend plot
+                fig, axs = plt.subplots(len(plot_properties), 1)
+                #fig.subplots_adjust(left=0.25, bottom=0.25)
+
+                ax_slider = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+                span_slider = Slider(
+                    ax=ax_slider,
+                    label='Vmax [umol.s-1.m-2]',
+                    valmin=0,
+                    valmax=1,
+                    valinit=0.1)
+
+                [fig.text(0, 0.85 - 0.1 * k, plot_properties[k]) for k in range(len(plot_properties))]
+                # actual plot
+                plot_N(g, plot_properties, axs, span_slider=0.1)
             else:
-                plot_N(g, rng_min, rng_max, plot_properties)
+                plot_N(g, plot_properties, axs, span_slider=span_slider.val)
+        print(i)
         print_g(g, **print_g_one)
+        print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
+        print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
+
         sleep(0.01)
 
     #print_g(g, **print_g_all)

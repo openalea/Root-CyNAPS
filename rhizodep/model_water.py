@@ -10,17 +10,17 @@ from openalea.mtg.traversal import pre_order
 @dataclass
 class InitWater:
     # Pools
-    xylem_water: float = 0 # (mol) water content
-    xylem_total_pressure: float = 101325  # (Pa) apoplastic pressure in stele
+    xylem_water: float = 0  # (mol) water content
+    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele
     # Water transports
     radial_import_water: float = 0
     axial_export_water_up: float = 0
-    axial_import_water_down:float = 0
+    axial_import_water_down: float = 0
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity : float = 0.01
-    reflexion_coef : float = 0.8
+    radial_water_conductivity : float = 200e-15 # m.s-1.Pa-1
+    reflexion_coef : float = 0.85
     R : float = 8.314
     sap_viscosity : float = 1.3
 
@@ -101,9 +101,11 @@ class WaterModel:
         self.update_sums()
     def init_xylem_water(self, R):
         for vid in self.vertices:
+            volumic_mass = 1e6
+            molar_mass = 18
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                self.xylem_water[vid] = self.xylem_volume[vid] * self.xylem_total_pressure / (R * self.soil_temperature[vid])
+                self.xylem_water[vid] = volumic_mass * self.xylem_volume[vid] / molar_mass
 
     def transport_water(self, radial_water_conductivity, reflexion_coef, R, sap_viscosity):
         # Spatialized for all root segments in MTG...
@@ -111,15 +113,12 @@ class WaterModel:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
                 # Here radial flow if derived from hydraulic potential differencies over the time step
-                self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
-                        self.soil_water_pressure[vid] - self.xylem_total_pressure) * reflexion_coef * R * \
-                                                self.soil_temperature[vid] * (
-                                                        self.C_hexose_soil[vid] - self.C_sucrose_root[vid]) * \
-                                                self.stele_exchange_surface[vid]
+                self.radial_import_water[vid] = self.time_step * radial_water_conductivity * ((self.soil_water_pressure[vid] - self.xylem_total_pressure) \
+                                                + reflexion_coef * R * self.soil_temperature[vid] * (self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) \
+                                                * self.stele_exchange_surface[vid]
 
         # First balance to compute axial transport
-        next_xylem_total_pressure = self.xylem_total_water - self.water_root_shoot_xylem * self.time_step + sum(
-            self.radial_import_water.values()) * (
+        delta_xylem_total_pressure = (sum(self.radial_import_water.values()) - self.water_root_shoot_xylem * self.time_step) * (
                                             R * self.soil_temperature[1]) / self.xylem_total_volume
 
         # We define "root" as the starting point of the loop below:
@@ -138,9 +137,7 @@ class WaterModel:
                     self.axial_import_water_down[vid] = 0
                 # if there are children who actually emerged, there is a down import flux
                 elif 0 not in [self.struct_mass[k] for k in child]:
-                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[vid] + (
-                            (next_xylem_total_pressure - self.xylem_total_pressure) *
-                                self.xylem_volume[vid] / (R * self.soil_temperature[vid]))
+                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[vid]
                 # if there are children who did not emerge, there is no down import flux
                 else:
                     self.axial_import_water_down[vid] = 0
@@ -160,12 +157,12 @@ class WaterModel:
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
-        self.xylem_total_pressure = next_xylem_total_pressure
+        self.xylem_total_pressure += delta_xylem_total_pressure
+
     def Update_water_local(self, v):
         self.xylem_water[v] += (self.radial_import_water[v]
                                 - self.axial_export_water_up[v]
-                                + self.axial_import_water_down[v]
-                                )
+                                + self.axial_import_water_down[v])
 
     def update_sums(self):
         self.xylem_total_water = sum(self.xylem_water.values())
