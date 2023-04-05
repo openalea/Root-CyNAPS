@@ -11,7 +11,7 @@ from openalea.mtg.traversal import pre_order
 class InitWater:
     # Pools
     xylem_water: float = 0  # (mol) water content
-    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele
+    xylem_total_pressure: float = -0.5e6  # (Pa) apoplastic pressure in stele
     # Water transports
     radial_import_water: float = 0
     axial_export_water_up: float = 0
@@ -115,7 +115,7 @@ class WaterModel:
                 # Here radial flow if derived from hydraulic potential differencies over the time step
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * ((self.soil_water_pressure[vid] - self.xylem_total_pressure) \
                                                 + reflexion_coef * R * self.soil_temperature[vid] * (self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) \
-                                                * self.stele_exchange_surface[vid]
+                                                * self.root_exchange_surface[vid]
 
         # First balance to compute axial transport
         delta_xylem_total_pressure = (sum(self.radial_import_water.values()) - self.water_root_shoot_xylem * self.time_step) * (
@@ -137,7 +137,7 @@ class WaterModel:
                     self.axial_import_water_down[vid] = 0
                 # if there are children who actually emerged, there is a down import flux
                 elif 0 not in [self.struct_mass[k] for k in child]:
-                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[vid]
+                    self.axial_import_water_down[vid] = (delta_xylem_total_pressure * self.xylem_volume[vid] / R * self.soil_temperature[vid]) + self.axial_export_water_up[vid] - self.radial_import_water[vid]
                 # if there are children who did not emerge, there is no down import flux
                 else:
                     self.axial_import_water_down[vid] = 0

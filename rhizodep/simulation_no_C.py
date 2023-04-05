@@ -57,7 +57,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
                 plt.ion()
                 # legend plot
                 fig, axs = plt.subplots(len(plot_properties), 1)
-                #fig.subplots_adjust(left=0.25, bottom=0.25)
+                fig.subplots_adjust(left=0.2, bottom=0.2)
 
                 ax_slider = fig.add_axes([0.25, 0.1, 0.65, 0.03])
                 span_slider = Slider(
@@ -72,12 +72,13 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
                 plot_N(g, plot_properties, axs, span_slider=0.1)
             else:
                 plot_N(g, plot_properties, axs, span_slider=span_slider.val)
+            sleep(1e-3)
         print(i)
         print_g(g, **print_g_one)
         print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
         print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
 
-        sleep(0.01)
 
     #print_g(g, **print_g_all)
-    input("end? ")
+    if plotting:
+        input("end? ")

@@ -61,6 +61,7 @@ class InitCommonN:
     storage_synthesis: float = 0    # mol stor.s-1
     AA_catabolism: float = 0    # mol AA.s-1
     storage_catabolism: float = 0    # mol stor.s-1
+    cytokinin_synthesis: float = 0   # mol cytokinin.s-1
 
 
 @dataclass
@@ -148,7 +149,7 @@ class UpdateN:
 class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, struct_protein, storage_protein, import_Nm, export_Nm, export_AA, diffusion_Nm_soil,
                  diffusion_Nm_xylem, diffusion_Nm_soil_xylem, diffusion_AA_soil, diffusion_AA_phloem, diffusion_AA_soil_xylem, AA_synthesis, struct_synthesis,
-                 storage_synthesis, AA_catabolism, storage_catabolism, Nm_root_shoot_xylem, AA_root_shoot_xylem,
+                 storage_synthesis, AA_catabolism, storage_catabolism, cytokinin_synthesis, Nm_root_shoot_xylem, AA_root_shoot_xylem,
                  AA_root_shoot_phloem, cytokinins_root_shoot_xylem):
 
         """
@@ -194,6 +195,7 @@ class CommonNitrogenModel:
                         storage_synthesis=storage_synthesis,
                         AA_catabolism=AA_catabolism,
                         storage_catabolism=storage_catabolism,
+                        cytokinin_synthesis=cytokinin_synthesis
                         ))
 
         # Creating variables for
@@ -245,6 +247,7 @@ class CommonNitrogenModel:
                         storage_synthesis
                         AA_catabolism
                         storage_catabolism
+                        cytokinin_synthesis
                         root_exchange_surface
                         stele_exchange_surface
                         apoplasmic_stele

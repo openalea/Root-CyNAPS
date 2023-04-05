@@ -68,7 +68,7 @@ class ShootModel:
         return N_flows.__dict__
 
     def transportW(self, axial_water_conductivity, root_xylem_pressure, root_radius):
-        shoot_xylem_pressure = -0.7e6  # (Pa)
+        shoot_xylem_pressure = -0.8e6  # (Pa)
         # only hydrostatic for tests
         self.water_root_shoot_xylem = axial_water_conductivity * (root_xylem_pressure - shoot_xylem_pressure) * np.pi * root_radius**2
 
