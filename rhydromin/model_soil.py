@@ -1,7 +1,7 @@
 """
-rhizodep.soil
+rhydromin.soil
 _________________
-This is the boundary soil module for rhizodep.
+This is the boundary soil module for rhydromin.
 
 Documentation and features
 __________________________
@@ -24,17 +24,16 @@ import numpy as np
 
 @dataclass
 class MeanConcentrations:
-    soil_water_pressure: float = 10325 # (Pa) mean soil water pressure
-    soil_temperature: float = 288.15 # (K) mean soil temperature
-    soil_Nm: float = 1e-3
-    soil_AA: float = 1e-3
+    soil_water_pressure: float = -0.1e6  # (Pa) mean soil water pressure
+    soil_temperature: float = 283.15    # (K) mean soil temperature
+    soil_Nm: float = 2e-4 # mol.m-3
+    soil_AA: float = 1e-4 # mol.m-3
 
 # External conditions parameters
 
-
 @dataclass
 class SoilPatch:
-    patch: bool = False
+    patch: bool = False # To set if soil N conditions are patchy or homogeneous (equals soil_Nm_max)
     soil_Nm_max: float = 0.01
     patch_dilution: float = 0
     z_soil_Nm_max: float = 0

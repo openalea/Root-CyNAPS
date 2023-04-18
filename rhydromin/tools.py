@@ -1,10 +1,10 @@
 #  -*- coding: utf-8 -*-
 
 """
-    rhizodep.tools
+    rhydromin.tools
     ~~~~~~~~~~~~~
 
-    The module :mod:`rhizodep.tools` defines useful functions for data preprocessing, graph making...
+    The module :mod:`rhydromin.tools` defines useful functions for data preprocessing, graph making...
 
     :copyright: see AUTHORS.
     :license: see LICENSE for details.
@@ -21,7 +21,6 @@ import pandas as pd
 from openalea.mtg import turtle as turt
 from openalea.mtg.plantframe import color
 import openalea.plantgl.all as pgl
-import rhizodep.parameters as param
 
 
 # FUNCTIONS FOR DATA PREPROCESSING :
@@ -286,7 +285,7 @@ def get_root_visitor():
         # diameter = 2 * n.radius * zoom_factor
         # elong = n.length * zoom_factor
         # alpha = tropism_intensity * diameter * elong
-        turtle.elasticity = param.gravitropism_coefficient * (n.original_radius / g.node(1).original_radius)
+        turtle.elasticity = 0.06 * (n.original_radius / g.node(1).original_radius)
         turtle.tropism = (0, 0, -1)
 
         # The turtle is moved:
