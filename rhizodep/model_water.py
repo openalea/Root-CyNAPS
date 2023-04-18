@@ -19,7 +19,7 @@ class InitWater:
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity : float = 200e-15 # m.s-1.Pa-1
+    radial_water_conductivity : float = 3e-13 # m.s-1.Pa-1
     reflexion_coef : float = 0.85
     R : float = 8.314
     sap_viscosity : float = 1.3
@@ -77,7 +77,6 @@ class WaterModel:
                                 axial_export_water_up
                                 axial_import_water_down
                                 root_exchange_surface
-                                stele_exchange_surface
                                 apoplasmic_stele
                                 length
                                 radius

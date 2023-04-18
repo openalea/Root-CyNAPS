@@ -1,6 +1,8 @@
-# Imports
+'''IMPORTS'''
 from time import sleep
+from datetime import datetime
 import pickle
+import xarray as xr
 from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
@@ -13,13 +15,17 @@ from rhizodep.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVes
 from fakeShoot.model import InitShootNitrogen, InitShootWater, ShootModel
 
 import rhizodep.converter as converter
-from rhizodep.tools_output import plot_properties, print_g_one, plot_N, print_g
+from rhizodep.tools_output import state_extracts, flow_extracts, plot_xr
+from Tools.mtg_dict_to_xarray import output_xarray
 
 
+'''FUNCTIONS'''
 def N_simulation(init, n, time_step, discrete_vessels=False,
-                 plotting=True):
+                 plotting=True, logging=False):
+    # Loading mtg file
     with open(init, 'rb') as f:
         g = pickle.load(f)
+
     # Initialization of state variables
     soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
@@ -30,8 +36,14 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
         root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()), **asdict(InitShootNitrogen()))
     shoot = ShootModel(**asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
-    print_g(g, **print_g_one)
-    print_g(root_water, ["xylem_total_pressure", "xylem_total_water"], vertice=0)
+    # To visualize proper initialization
+    #print_g(g, **print_g_one)
+    #print_g(root_water, ["xylem_total_pressure", "xylem_total_water"], vertice=0)
+
+    if logging:
+        start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
+        xarray_output = [output_xarray(g, time=0)]
+        xarray_output[0].to_netcdf(f"outputs\\xarray_used_input_{start_time}.nc")
 
     for i in range(n):
         soil.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
@@ -51,6 +63,8 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
             collar_nitrogen_flows, collar_water_flows = shoot.exchanges_and_balance(root_xylem_pressure=0, **nitrogen_state)
 
         converter.apply_root_collar_flows(collar_nitrogen_flows, root_nitrogen, "nitrogen")
+
+        print("time step : {}h".format(i))
 
         if plotting:
             if i == 0:
@@ -73,12 +87,31 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
             else:
                 plot_N(g, plot_properties, axs, span_slider=span_slider.val)
             sleep(1e-3)
-        print(i)
-        print_g(g, **print_g_one)
-        print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
-        print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
 
+        if logging:
+            # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
+            # However, it might be necessary to empty this and save .nc files every X time steps for memory management
+            xarray_output += [output_xarray(g, time=i+1)]
 
-    #print_g(g, **print_g_all)
+        # print_g(g, **print_g_one)
+        # print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
+        # print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
+
     if plotting:
         input("end? ")
+
+    if logging:
+        # NOTE : merging is slower but way less space is needed
+        time_dataset = xr.merge(xarray_output)
+        #paths = [f"outputs\\{t}.nc" for t in range(len(xarray_output))]
+        #xr.save_mfdataset(xarray_output, paths=paths)
+        time_dataset.to_netcdf(f"outputs\\{start_time}.nc")
+
+        # saving last mtg status
+        with open(r"outputs\\root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
+            pickle.dump(g, output_file)
+
+        time_dataset = xr.load_dataset(f"outputs\\{start_time}.nc")
+        print(time_dataset)
+        plot_xr(dataset=time_dataset, vertice=149, select_state=state_extracts)
+

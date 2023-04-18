@@ -39,7 +39,7 @@ from dataclasses import dataclass, asdict
 class InitCommonN:
     # Pools initial size
     Nm: float = 1e-4    # mol N.g-1
-    AA: float = 1e-4    # mol AA.g-1
+    AA: float = 9e-4    # mol AA.g-1
     struct_protein: float = 0   # mol prot struct.g-1
     storage_protein: float = 0     # mol prot stor.g-1
     xylem_Nm: float = 1e-4  # mol N.g-1
@@ -81,66 +81,68 @@ class InitDiscreteVesselsN(InitCommonN):
 @dataclass
 class TransportCommonN:
     # kinetic parameters
-    vmax_Nm_root: float = 1e-9     # mol N.s-1.m-2
-    vmax_Nm_xylem: float = 1e-9     # mol N.s-1.m-2
-    Km_Nm_root_LATS: float = 1e-2    # mol N.g-1
-    Km_Nm_root_HATS: float = 1e-4    # mol N.g-1
-    begin_N_regulation: float = 1e-3   # mol N.g-1 value
-    span_N_regulation: float = 1e-3    # mol N.g-1 range
-    Km_Nm_xylem: float = 1e-4   # mol N.g-1
+    vmax_Nm_root: float = 5e-9     # mol N.s-1.m-2
+    vmax_Nm_xylem: float = 5e-9     # mol N.s-1.m-2
+    Km_Nm_root_LATS: float = 8e-5    # mol N.m-3
+    Km_Nm_root_HATS: float = 1e-6    # mol N.m-3
+    begin_N_regulation: float = 2e-5   # mol N.g-1 value
+    span_N_regulation: float = 5e-4    # mol N.g-1 range
+    Km_Nm_xylem: float = 8e-5   # mol N.g-1
     vmax_AA_xylem: float = 1e-9     # mol AA.s-1.m-2
-    Km_AA_xylem: float = 1e-4   # mol AA.g-1
-    diffusion_soil: float = 1e-9
-    diffusion_xylem: float = 1e-8
-    diffusion_phloem: float = 1e-7
-    diffusion_apoplasm: float = 1e-7
+    Km_AA_xylem: float = 1e-3   # mol AA.g-1
+    diffusion_soil: float = 1e-4    # g.m-2.s-1
+    diffusion_xylem: float = 1e-4   # g.m-2.s-1
+    diffusion_phloem: float = 1e-4  # g.m-2.s-1
+    diffusion_apoplasm: float = 2.5e-2  # g.m-2.s-1
     # metabolism-related parameters
-    transport_C_regulation: float = 1e-2
+    transport_C_regulation: float = 7e-3 # mol.g-1
 
 
 @dataclass
 class TransportAxialN(TransportCommonN):
     # architecture parameters
     xylem_cross_area_ratio: float = 0.84*(0.36**2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
-    xylem_to_root_ratio: float = 0.36  # adim
-    phloem_to_root_ratio: float = 0.15    # adim
+    phloem_cross_area_ratio: float = 0.15*(0.36**2) # (adim) phloem cross-section area ratio * stele radius ratio^2
+    # struct mass ratio of vessels is defined from their cross-section areas
+    # xylem_to_root_ratio: float = 0.36**2  # adim xylem struct mass converter, considering whole stele apoplasm as extended xylem
+    # phloem_to_root_ratio: float = 0.15    # adim phloem struct mass converter
     # kinetic parameters
-    axial_diffusion_xylem: float = 1e-7
-    axial_diffusion_phloem: float = 1e-7
+    axial_diffusion_xylem: float = 2.5e-2   # g.m-2.s-1
+    axial_diffusion_phloem: float = 1e-2    # g.m-2.s-1
 
 
 
 @dataclass
 class MetabolismN:
     # kinetic parameters
-    smax_AA: float = 0
-    Km_Nm_AA: float = 0.001
-    Km_C_AA: float = 0.001
-    smax_struct: float = 0
-    Km_AA_struct: float = 0.001
-    smax_stor: float = 0
-    Km_AA_stor: float = 0.001
-    cmax_stor: float = 0
-    Km_stor_catab: float = 0.001
-    cmax_AA: float = 0
-    Km_AA_catab: float = 0.001
-    storage_C_regulation: float = 0.1
+    smax_AA: float = 1e-9   # mol.s-1.g-1 DW
+    Km_Nm_AA: float = 3e-6  # mol.g-1 DW
+    Km_C_AA: float = 350e-6 # mol.g-1 DW
+    smax_struct: float = 4.5e-9 # mol.s-1.g-1 DW
+    Km_AA_struct: float = 250e-6    # mol.g-1 DW
+    smax_stor: float = 4.5e-9 # mol.s-1.g-1 DW
+    Km_AA_stor: float = 250e-6    # mol.g-1 DW
+    cmax_stor: float = 4.5e-9 # mol.s-1.g-1 DW
+    Km_stor_catab: float = 250e-6    # mol.g-1 DW
+    cmax_AA: float = 1.2e-8 # mol.s-1.g-1 DW
+    Km_AA_catab: float = 2.5e-6 # mol.g-1 DW
+    storage_C_regulation: float = 7e-3 # mol.g-1
 
 @dataclass
 class MetabolismHormones:
     # kinetic parameters
-    smax_cytok: float = 0.01
-    Km_C_cytok: float = 0.001
-    Km_N_cytok:float = 0.001
+    smax_cytok: float = 9e-4
+    Km_C_cytok: float = 1.2e-3
+    Km_N_cytok:float = 5e-5
 
 
 @dataclass
 class UpdateN:
-    r_Nm_AA: float = 2
-    r_AA_struct: float = 2
-    r_AA_stor: float = 2
-    xylem_to_root_ratio: float = 0.36
-    phloem_to_root_ratio: float = 0.15
+    r_Nm_AA: float = 1.4
+    r_AA_struct: float = 65
+    r_AA_stor: float = 65
+    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    phloem_cross_area_ratio: float = 0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
 
 
 # Nitrogen Model versions as classes. A version relates to a set of structural assumptions given in the class name.
@@ -250,6 +252,7 @@ class CommonNitrogenModel:
                         cytokinin_synthesis
                         root_exchange_surface
                         stele_exchange_surface
+                        phloem_exchange_surface
                         apoplasmic_stele
                         length
                         radius
@@ -337,8 +340,9 @@ class CommonNitrogenModel:
                                     * self.stele_exchange_surface[v])
         
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+        # Here, surface is not really representative of a structure as everything is apoplasmic
         self.diffusion_Nm_soil_xylem[v] = (diffusion_apoplasm * (self.soil_Nm[v] - self.xylem_Nm[model])
-                                    * 2 * np.pi * self.radius[v] * self.apoplasmic_stele[v])
+                                    * 2 * np.pi * self.radius[v] * self.length[v] * self.apoplasmic_stele[v])
 
         # AMINO ACID TRANSPORT
 
@@ -357,11 +361,11 @@ class CommonNitrogenModel:
 
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         self.diffusion_AA_soil_xylem[v] = (diffusion_apoplasm * (self.soil_AA[v] - self.xylem_AA[model])
-                                    * 2 * np.pi * self.radius[v] * self.apoplasmic_stele[v])
+                                    * 2 * np.pi * self.radius[v] * self.length[v] * self.apoplasmic_stele[v])
 
         # Passive radial diffusion between phloem and cortex through plasmodesmata
         self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.phloem_AA[model] - self.AA[v])
-                                         * (2 * np.pi * self.radius[v]))
+                                       * self.phloem_exchange_surface[v])
 
     def metabolism_N(self, v, smax_AA, Km_Nm_AA, Km_C_AA, smax_struct, Km_AA_struct, smax_stor,
                      Km_AA_stor, cmax_stor, Km_stor_catab, cmax_AA, Km_AA_catab, storage_C_regulation):
@@ -380,7 +384,7 @@ class CommonNitrogenModel:
         """
         # amino acid synthesis
         if self.C_hexose_root[v] > 0:
-            self.AA_synthesis[v] = smax_AA / (
+            self.AA_synthesis[v] = self.struct_mass[v] * smax_AA / (
                 ((1 + Km_Nm_AA) / self.Nm[v])
                 + ((1 + Km_C_AA) / self.C_hexose_root[v])
             )
@@ -388,25 +392,25 @@ class CommonNitrogenModel:
             self.AA_synthesis[v] = 0.0
 
         # Organic structure synthesis
-        self.struct_synthesis[v] = (smax_struct * self.AA[v]
+        self.struct_synthesis[v] = self.struct_mass[v] * (smax_struct * self.AA[v]
                                        / (Km_AA_struct + self.AA[v]))
 
         # Organic storage synthesis (Michaelis-Menten kinetic)
-        self.storage_synthesis[v] = (smax_stor * self.AA[v]
+        self.storage_synthesis[v] = self.struct_mass[v] * (smax_stor * self.AA[v]
                                        /(Km_AA_stor + self.AA[v]))
 
-        # Organic storage catabolism
+        # Organic storage catabolism through proteinase
         Km_stor_root = Km_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
-        self.storage_catabolism[v] = cmax_stor * self.C_hexose_reserve[v] / (
+        self.storage_catabolism[v] = self.struct_mass[v] * cmax_stor * self.C_hexose_reserve[v] / (
                 Km_stor_root + self.C_hexose_reserve[v])
 
-        # AA catabolism
+        # AA catabolism through GDH
         Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
-        self.AA_catabolism[v] = cmax_AA * self.AA[v] / (
+        self.AA_catabolism[v] = self.struct_mass[v] * cmax_AA * self.AA[v] / (
                 Km_stor_root + self.AA[v])
 
     def metabolism_total_hormones(self, smax_cytok, Km_C_cytok, Km_N_cytok):
-        self.cytokinin_synthesis = smax_cytok * (
+        self.cytokinin_synthesis = self.total_struct_mass * smax_cytok * (
                 self.total_hexose/(self.total_hexose + Km_C_cytok)) * (
                 self.total_Nm/(self.total_Nm + Km_N_cytok))
 
@@ -465,12 +469,12 @@ class OnePoolVessels(CommonNitrogenModel):
     def transport_N(self, v, **kwargs):
         self.transport_radial_N(v, model=0, **kwargs)
 
-    def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root_ratio, phloem_to_root_ratio, time_step):
+    def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_cross_area_ratio, phloem_cross_area_ratio, time_step):
         # Get summed root system level properties for outputs
         self.update_sums(time_step)
         # Vessels structural masses, defined as a fixed proportion to be abe to define concentrations
-        self.xylem_total_struct_mass = self.total_struct_mass * xylem_to_root_ratio
-        self.phloem_total_struct_mass = self.total_struct_mass * phloem_to_root_ratio
+        self.xylem_total_struct_mass = self.total_struct_mass * xylem_cross_area_ratio
+        self.phloem_total_struct_mass = self.total_struct_mass * phloem_cross_area_ratio
         # for all root segments in MTG...
         for vid in self.vertices:
             # if root segment emerged
@@ -560,7 +564,8 @@ class DiscreteVessels(CommonNitrogenModel):
 
         super().__init__(g, **kwargs)
 
-    def transport_N(self, v, axial_diffusion_xylem, axial_diffusion_phloem, xylem_cross_area_ratio, xylem_to_root_ratio, phloem_to_root_ratio, **kwargs):
+    def transport_N(self, v, axial_diffusion_xylem, axial_diffusion_phloem, xylem_cross_area_ratio, phloem_cross_area_ratio, **kwargs):
+
         # RADIAL TRANSPORT
 
         self.transport_radial_N(v=v, model=v, **kwargs)
@@ -570,15 +575,15 @@ class DiscreteVessels(CommonNitrogenModel):
         # Advection : (To comment)
 
         if self.axial_export_water_up[v] >= 0:
-            Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_to_root_ratio / self.xylem_water[v]
-            AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_to_root_ratio / self.xylem_water[v]
+            Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+            AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
             advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
             advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
         else:
             up = self.g.parent(v)
             if up != None:
-                Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] * xylem_to_root_ratio / self.xylem_water[up]
-                AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] * xylem_to_root_ratio / self.xylem_water[up]
+                Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] * xylem_cross_area_ratio / self.xylem_water[up]
+                AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] * xylem_cross_area_ratio / self.xylem_water[up]
                 advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
                 advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
             # if this is collar, this flow is handled later by shoot flows
@@ -593,24 +598,24 @@ class DiscreteVessels(CommonNitrogenModel):
             advection_AA_down = 0
         elif len(child) == 1:
             if self.axial_import_water_down[v] >= 0:
-                Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] * xylem_to_root_ratio / self.xylem_water[child[0]]
-                AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] * xylem_to_root_ratio / self.xylem_water[child[0]]
+                Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] * xylem_cross_area_ratio / self.xylem_water[child[0]]
+                AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] * xylem_cross_area_ratio / self.xylem_water[child[0]]
             else:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_to_root_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_to_root_ratio / self.xylem_water[v]
+                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
             advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
             advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
         else:
             if self.axial_import_water_down[v] >= 0:
-                Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] * xylem_to_root_ratio / self.xylem_water[k] for k in child]
-                AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] * xylem_to_root_ratio / self.xylem_water[k] for k in child]
+                Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in child]
+                AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in child]
                 advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
                 advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
                 advection_Nm_down = sum(advection_Nm_down)
                 advection_AA_down = sum(advection_AA_down)
             else:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_to_root_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_to_root_ratio / self.xylem_water[v]
+                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
                 advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
                 advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
 
@@ -638,10 +643,10 @@ class DiscreteVessels(CommonNitrogenModel):
                 self.axial_diffusion_AA_xylem[v] += axial_diffusion_xylem * (self.xylem_AA[k] - self.xylem_AA[v]) * (
                                                     xylem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2) ** 2)
 
-                # self.axial_diffusion_AA_phloem[v] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[v]) * (
-                #                                     np.pi * (phloem_to_root_ratio * (self.radius[v] + self.radius[k]) / 2) ** 2)
+                self.axial_diffusion_AA_phloem[v] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[v]) * (
+                                                    phloem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2) ** 2)
 
-    def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_to_root_ratio, phloem_to_root_ratio, time_step):
+    def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_cross_area_ratio, phloem_cross_area_ratio, time_step):
         """
         Description
         ___________
@@ -661,8 +666,8 @@ class DiscreteVessels(CommonNitrogenModel):
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, time_step)
 
                 # Local vessels' structural mass update
-                self.xylem_struct_mass[vid] = self.struct_mass[vid] * xylem_to_root_ratio
-                self.phloem_struct_mass[vid] = self.struct_mass[vid] * phloem_to_root_ratio
+                self.xylem_struct_mass[vid] = self.struct_mass[vid] * xylem_cross_area_ratio
+                self.phloem_struct_mass[vid] = self.struct_mass[vid] * phloem_cross_area_ratio
 
                 # Global vessel's nitrogen pool update
                 self.xylem_Nm[vid] += time_step / self.xylem_struct_mass[vid] * (
@@ -684,8 +689,8 @@ class DiscreteVessels(CommonNitrogenModel):
         # Update plant-level properties
         self.update_sums(time_step)
         # Vessels structural masses, defined as a fixed proportion to be abe to define concentrations
-        self.xylem_total_struct_mass = self.total_struct_mass * xylem_to_root_ratio
-        self.phloem_total_struct_mass = self.total_struct_mass * phloem_to_root_ratio
+        self.xylem_total_struct_mass = self.total_struct_mass * xylem_cross_area_ratio
+        self.phloem_total_struct_mass = self.total_struct_mass * phloem_cross_area_ratio
         # Global xylem and phloem pools for outputs
         self.xylem_total_Nm = sum(self.xylem_Nm.values())
         self.xylem_total_AA = sum(self.xylem_AA.values())

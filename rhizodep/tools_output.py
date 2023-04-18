@@ -6,39 +6,16 @@ import numpy as np
 
 
 ### Output parameters
+vertices = [149]
 
+state_extracts =  ['Nm',
+                    'AA']
 
-plot_properties = list = [
-                    'import_Nm',
-                    'export_Nm',
-                    'xylem_Nm',
-                    'axial_advection_Nm_xylem',
-                    'axial_diffusion_Nm_xylem',
-                    'Nm']
-
-print_g_one = dict = {"select" : [
-                    'soil_Nm',
-                    'import_Nm',
-                    'export_Nm',
-                    'diffusion_Nm_xylem',
-                    'diffusion_Nm_soil_xylem',
-                    'xylem_struct_mass',
-                    'Nm',
-                    'xylem_Nm',
-                    'xylem_water',
-                    'soil_water_pressure',
-                    'radial_import_water',
-                    'axial_export_water_up',
-                    'axial_import_water_down',
-                    'axial_advection_Nm_xylem',
-                    'axial_diffusion_Nm_xylem'
-                    #'volume',
-                    #'z1',
-                    #'struct_mass'
-                    # 'C_hexose_root'
-                    # 'thermal_time_since_emergence'
-                        ],
-                    "vertice" : 149}
+flow_extracts = ['import_Nm',
+                'export_Nm',
+                'xylem_Nm',
+                'axial_advection_Nm_xylem',
+                'axial_diffusion_Nm_xylem']
 
 
 def plot_N(g, p, axs, span_slider):
@@ -86,3 +63,12 @@ def print_g(g, select, vertice):
     else:
         for k in select:
             print(k, getattr(g, k))
+
+def plot_xr(dataset, vertice, select_state):
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    v_extract = dataset.sel(vid=vertice)
+    for prop in select_state:
+        getattr(v_extract, prop).plot.line(x='t', ax=ax)
+    ax.legend(state_extracts[::-1])
+    plt.show()

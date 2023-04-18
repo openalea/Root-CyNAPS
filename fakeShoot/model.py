@@ -15,7 +15,7 @@ class InitShootWater:
 
 @dataclass
 class WTransport:
-    axial_water_conductivity: float = 200e-10
+    axial_water_conductivity: float = 1e-18 # m4.s-1.Pa-1
 
 
 class ShootModel:
@@ -33,15 +33,15 @@ class ShootModel:
             setattr(self, name, self.keywords[name])
 
     def transportN(self, root_xylem_Nm, root_xylem_AA, collar_struct_mass, root_xylem_water, root_radius):
-        axial_diffusion_xylem = 1e-7
+        axial_diffusion_xylem: float = 2.5e-2   # g.m-2.s-1
         shoot_xylem_Nm = 1e-6
         shoot_xylem_AA = 1e-6
-        xylem_to_root_ratio = 0.36
-        phloem_to_root_ratio = 0.15
+        xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+        phloem_cross_area_ratio: float = 0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
 
         if self.water_root_shoot_xylem >= 0:
-            Nm_water_conc = root_xylem_Nm * collar_struct_mass * xylem_to_root_ratio / root_xylem_water
-            AA_water_conc = root_xylem_AA * collar_struct_mass * phloem_to_root_ratio / root_xylem_water
+            Nm_water_conc = root_xylem_Nm * collar_struct_mass * xylem_cross_area_ratio / root_xylem_water
+            AA_water_conc = root_xylem_AA * collar_struct_mass * phloem_cross_area_ratio / root_xylem_water
 
         else:
             Nm_water_conc = 1e-6
