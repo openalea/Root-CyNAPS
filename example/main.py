@@ -1,4 +1,4 @@
-from rhizodep.simulation_no_C import N_simulation
+from rhydromin.simulation_no_C import N_simulation
 
 
 def main(init, n, time_step):

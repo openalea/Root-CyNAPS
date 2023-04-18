@@ -7,21 +7,22 @@ from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-from rhizodep.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
-from rhizodep.model_topology import InitSurfaces, TissueTopology, RadialTopology
-from rhizodep.model_water import InitWater, WaterModel
-from rhizodep.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
+from rhydromin.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
+from rhydromin.model_topology import InitSurfaces, TissueTopology, RadialTopology
+from rhydromin.model_water import InitWater, WaterModel
+from rhydromin.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
 
 from fakeShoot.model import InitShootNitrogen, InitShootWater, ShootModel
 
-import rhizodep.converter as converter
-from rhizodep.tools_output import state_extracts, flow_extracts, plot_xr
-from Tools.mtg_dict_to_xarray import output_xarray
+import rhydromin.converter as converter
+from rhydromin.tools_output import state_extracts, flow_extracts, plot_xr, plot_N
+from tools.mtg_dict_to_xarray import output_xarray
 
 
 '''FUNCTIONS'''
-def N_simulation(init, n, time_step, discrete_vessels=False,
-                 plotting=True, logging=False):
+
+
+def N_simulation(init, n, time_step, discrete_vessels=False, plotting=True, logging=False):
     # Loading mtg file
     with open(init, 'rb') as f:
         g = pickle.load(f)
@@ -41,10 +42,12 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
     #print_g(root_water, ["xylem_total_pressure", "xylem_total_water"], vertice=0)
 
     if logging:
+        # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
         xarray_output = [output_xarray(g, time=0)]
         xarray_output[0].to_netcdf(f"outputs\\xarray_used_input_{start_time}.nc")
 
+    # actual computation loop
     for i in range(n):
         soil.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
         root_topo.update_topology(**asdict(TissueTopology()))
@@ -70,7 +73,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
             if i == 0:
                 plt.ion()
                 # legend plot
-                fig, axs = plt.subplots(len(plot_properties), 1)
+                fig, axs = plt.subplots(len(flow_extracts), 1)
                 fig.subplots_adjust(left=0.2, bottom=0.2)
 
                 ax_slider = fig.add_axes([0.25, 0.1, 0.65, 0.03])
@@ -81,11 +84,11 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
                     valmax=1,
                     valinit=0.1)
 
-                [fig.text(0, 0.85 - 0.1 * k, plot_properties[k]) for k in range(len(plot_properties))]
+                [fig.text(0, 0.85 - 0.1 * k, flow_extracts[k]) for k in range(len(flow_extracts))]
                 # actual plot
-                plot_N(g, plot_properties, axs, span_slider=0.1)
+                plot_N(g, flow_extracts, axs, span_slider=0.1)
             else:
-                plot_N(g, plot_properties, axs, span_slider=span_slider.val)
+                plot_N(g, flow_extracts, axs, span_slider=span_slider.val)
             sleep(1e-3)
 
         if logging:
@@ -96,9 +99,6 @@ def N_simulation(init, n, time_step, discrete_vessels=False,
         # print_g(g, **print_g_one)
         # print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
         # print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
-
-    if plotting:
-        input("end? ")
 
     if logging:
         # NOTE : merging is slower but way less space is needed

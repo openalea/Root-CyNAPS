@@ -1,7 +1,7 @@
 """
-rhizodep.soil
+rhydromin.soil
 _________________
-This is the boundary soil module for rhizodep.
+This is the boundary soil module for rhydromin.
 
 Documentation and features
 __________________________
@@ -31,10 +31,9 @@ class MeanConcentrations:
 
 # External conditions parameters
 
-
 @dataclass
 class SoilPatch:
-    patch: bool = False
+    patch: bool = False # To set if soil N conditions are patchy or homogeneous (equals soil_Nm_max)
     soil_Nm_max: float = 0.01
     patch_dilution: float = 0
     z_soil_Nm_max: float = 0

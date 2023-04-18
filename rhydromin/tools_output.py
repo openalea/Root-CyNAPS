@@ -1,6 +1,6 @@
 # Import
 import openalea.plantgl.all as pgl
-from rhizodep.tools import plot_mtg
+from rhydromin.tools import plot_mtg
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -20,7 +20,7 @@ flow_extracts = ['import_Nm',
 
 def plot_N(g, p, axs, span_slider):
 
-    range_min, range_max = [0 for k in plot_properties], [0 for k in plot_properties]
+    range_min, range_max = [0 for k in flow_extracts], [0 for k in flow_extracts]
     scene = pgl.Scene()
     for k in range(len(p)):
         # Computing plot ranges for the selected properties

@@ -1,7 +1,7 @@
 """
-rhizodep.topology
+rhydromin.topology
 _________________
-This is the radial root segment topology module for rhizodep exchange surfaces.
+This is the radial root segment topology module for rhydromin exchange surfaces.
 
 Documentation and features
 __________________________

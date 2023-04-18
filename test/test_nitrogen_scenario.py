@@ -1,9 +1,9 @@
 from time import sleep
-from rhizodep.soil import MeanConcentrations, SoilPatch, SoilNitrogen
-from rhizodep.nitrogen import InitCommonN, TransportCommonN, UpdateN, OnePoolVessels
-from rhizodep.topology import InitSurfaces, TissueTopology, RadialTopology
+from rhydromin.soil import MeanConcentrations, SoilPatch, SoilNitrogen
+from rhydromin.nitrogen import InitCommonN, TransportCommonN, UpdateN, OnePoolVessels
+from rhydromin.topology import InitSurfaces, TissueTopology, RadialTopology
 from test_mtg import test_mtg
-from rhizodep.tools_output import plot_properties, print_g_one, plot_N, print_g
+from rhydromin.tools_output import plot_properties, print_g_one, plot_N, print_g
 from dataclasses import asdict
 
 

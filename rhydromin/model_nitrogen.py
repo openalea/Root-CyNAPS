@@ -1,5 +1,5 @@
 """
-rhizodep.nitrogen
+rhydromin.nitrogen
 _________________
 This is the main nitrogen cycle module for roots
 
