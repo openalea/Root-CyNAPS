@@ -8,14 +8,78 @@ import numpy as np
 ### Output parameters
 vertices = [149]
 
-state_extracts =  ['Nm',
-                    'AA']
+state_extracts = dict(
+    # Next nitrogen properties
+    Nm=dict(unit="mol N.g-1", value_example=float(1e-4), description="not provided"),
+    AA=dict(unit="mol N.g-1", value_example=float(9e-4), description="not provided"),
+    struct_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
+    storage_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
+    xylem_Nm=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    xylem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    phloem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    # Water model
+    xylem_water=dict(unit="mol H2O", value_example=float(0), description="not provided"),
+    # Topology model
+    root_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    stele_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    phloem_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    apoplasmic_stele=dict(unit="adim", value_example=float(0.5), description="not provided"),
+    xylem_volume=dict(unit="m3", value_example=float(0), description="not provided"),
+    # Soil boundaries
+    #soil_water_pressure=dict(unit="Pa", value_example=float(-0.1e6), description="not provided"),
+    #soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),
+    #soil_Nm=dict(unit="mol N.m-3", value_example=float(0.5), description="not provided"),
+    #soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
+)
 
-flow_extracts = ['import_Nm',
-                'export_Nm',
-                'xylem_Nm',
-                'axial_advection_Nm_xylem',
-                'axial_diffusion_Nm_xylem']
+flow_extracts = dict(
+    # Next nitrogen properties
+    Nm=dict(unit="mol N.g-1", value_example=float(1e-4), description="not provided"),
+    AA=dict(unit="mol N.g-1", value_example=float(9e-4), description="not provided"),
+    struct_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
+    storage_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
+    xylem_Nm=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    xylem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    phloem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_Nm_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_Nm_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_Nm_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_AA_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_AA_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    cytokinin_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    xylem_struct_mass=dict(unit="g", value_example=float(1e-3), description="not provided"),
+    phloem_struct_mass = dict(unit="g", value_example=float(1e-3), description="not provided"),
+    axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    axial_advection_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
+    axial_diffusion_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    axial_diffusion_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
+    axial_diffusion_AA_phloem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
+    # Water model
+    xylem_water=dict(unit="mol H2O", value_example=float(0), description="not provided"),
+    radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
+    axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
+    axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
+    # Topology model
+    root_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
+    stele_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
+    phloem_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
+    apoplasmic_stele = dict(unit="adim", value_example=float(0.5), description="not provided"),
+    xylem_volume = dict(unit="m3", value_example=float(0), description="not provided"),
+    # Soil boundaries
+    soil_water_pressure=dict(unit="Pa", value_example=float(-0.1e6), description="not provided"),
+    soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),
+    soil_Nm=dict(unit="mol N.m-3", value_example=float(0.5), description="not provided"),
+    soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
+)
 
 
 def plot_N(g, p, axs, span_slider):
@@ -48,6 +112,7 @@ def plot_N(g, p, axs, span_slider):
 
     return range_min, range_max
 
+
 def print_g(g, select, vertice):
     if vertice != 0:
         # extract MTG properties only once
@@ -64,11 +129,43 @@ def print_g(g, select, vertice):
         for k in select:
             print(k, getattr(g, k))
 
-def plot_xr(dataset, vertice, select_state):
-    fig = plt.figure()
-    ax = fig.add_subplot()
-    v_extract = dataset.sel(vid=vertice)
-    for prop in select_state:
-        getattr(v_extract, prop).plot.line(x='t', ax=ax)
-    ax.legend(state_extracts[::-1])
-    plt.show()
+
+def plot_xr(dataset, vertice=[], selection=[]):
+    fig, ax = plt.subplots(len(vertice), 2)
+    # If we plot global properties
+    if len(vertice) == 0:
+        pass
+    # If we plot local properties
+    else:
+        text_annot =[[] for k in range(len(vertice))]
+        for k in range(len(vertice)):
+            if len(vertice) > 1:
+                modified_ax = ax[k]
+            else:
+                modified_ax = ax
+            v_extract = dataset.sel(vid=vertice[k])
+            std_v_extract = (v_extract - np.mean(v_extract))/np.std(v_extract)
+            for prop in selection:
+                getattr(v_extract, prop).plot.line(x='t', ax=modified_ax[0], label=prop)
+                text_annot[k] += [modified_ax[0].text(0, 0, "")]
+                getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1])
+
+    def hover(event):
+        for axe in range(len(ax)):
+            if event.inaxes == ax[axe][0]:
+                for k in text_annot[axe]: k.set_visible(False)
+                for line in ax[axe][0].get_lines():
+                    cont, ind = line.contains(event)
+                    if cont:
+                        posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
+                        label = line.get_label()
+                        text_annot[axe] += [ax[axe][0].text(x=posx, y=posy, s=label)]
+                        fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect("motion_notify_event", hover)
+
+
+# TODO : build coordinates after issue identification
+# TODO : think about relevant exchange surface for water (cylinder + differenciation?)
+# TODO : understand xylem conc explosion with in out flows.
+# TODO : Get globals outputs to understand mainly xylem globals

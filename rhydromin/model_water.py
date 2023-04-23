@@ -19,7 +19,7 @@ class InitWater:
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity : float = 3e-13 # m.s-1.Pa-1
+    radial_water_conductivity : float = 3e-13/30 # m.s-1.Pa-1
     reflexion_coef : float = 0.85
     R : float = 8.314
     sap_viscosity : float = 1.3
@@ -48,8 +48,8 @@ class WaterModel:
 
         # Creating variables for
         self.root_system_totals = dict(xylem_total_water=0,
-                                            xylem_total_volume=0,
-                                            xylem_total_pressure=xylem_total_pressure
+                                       xylem_total_volume=0,
+                                       xylem_total_pressure=xylem_total_pressure
                                             )
 
         self.shoot_exchanges = dict(water_root_shoot_xylem=water_root_shoot_xylem)
