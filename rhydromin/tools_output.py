@@ -137,7 +137,7 @@ def plot_xr(dataset, vertice=[], selection=[]):
         pass
     # If we plot local properties
     else:
-        text_annot =[[] for k in range(len(vertice))]
+        text_annot = [[] for k in range(len(vertice))]
         for k in range(len(vertice)):
             if len(vertice) > 1:
                 modified_ax = ax[k]
@@ -147,20 +147,30 @@ def plot_xr(dataset, vertice=[], selection=[]):
             std_v_extract = (v_extract - np.mean(v_extract))/np.std(v_extract)
             for prop in selection:
                 getattr(v_extract, prop).plot.line(x='t', ax=modified_ax[0], label=prop)
-                text_annot[k] += [modified_ax[0].text(0, 0, "")]
-                getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1])
+                getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1], label=prop)
+                text_annot[k] += [modified_ax[0].text(0, 0, ""), modified_ax[1].text(0, 0, "")]
 
     def hover(event):
+        # for each row
         for axe in range(len(ax)):
-            if event.inaxes == ax[axe][0]:
-                for k in text_annot[axe]: k.set_visible(False)
-                for line in ax[axe][0].get_lines():
-                    cont, ind = line.contains(event)
-                    if cont:
-                        posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
-                        label = line.get_label()
-                        text_annot[axe] += [ax[axe][0].text(x=posx, y=posy, s=label)]
-                        fig.canvas.draw_idle()
+            # for each column
+            for norm in range(2):
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe][norm]:
+                    # At call remove all annotations to prevent overlap
+                    for k in text_annot[axe]: k.set_visible(False)
+                    # for all variables lines in the axe
+                    for line in ax[axe][norm].get_lines():
+                        # if the mouse pointer is on the line
+                        cont, ind = line.contains(event)
+                        if cont:
+                            # get the position
+                            posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
+                            # get variable name
+                            label = line.get_label()
+                            # add text annotation to the axe and refresh
+                            text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
+                            fig.canvas.draw_idle()
 
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
