@@ -205,11 +205,12 @@ props_metadata = dict(
     axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
     # Topology model
-    root_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
-    stele_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
-    phloem_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
-    apoplasmic_stele = dict(unit="adim", value_example=float(0.5), description="not provided"),
-    xylem_volume = dict(unit="m3", value_example=float(0), description="not provided"),
+    root_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    cylinder_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    stele_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    phloem_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    apoplasmic_stele=dict(unit="adim", value_example=float(0.5), description="not provided"),
+    xylem_volume=dict(unit="m3", value_example=float(0), description="not provided"),
     # Soil boundaries
     soil_water_pressure=dict(unit="Pa", value_example=float(-0.1e6), description="not provided"),
     soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),

@@ -17,6 +17,8 @@ state_extracts = dict(
     xylem_Nm=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
     xylem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
     phloem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
+    xylem_struct_mass=dict(unit="g", value_example=float(1e-3), description="not provided"),
+    phloem_struct_mass=dict(unit="g", value_example=float(1e-3), description="not provided"),
     # Water model
     xylem_water=dict(unit="mol H2O", value_example=float(0), description="not provided"),
     # Topology model
@@ -33,14 +35,6 @@ state_extracts = dict(
 )
 
 flow_extracts = dict(
-    # Next nitrogen properties
-    Nm=dict(unit="mol N.g-1", value_example=float(1e-4), description="not provided"),
-    AA=dict(unit="mol N.g-1", value_example=float(9e-4), description="not provided"),
-    struct_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
-    storage_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
-    xylem_Nm=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
-    xylem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
-    phloem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
     import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -56,29 +50,15 @@ flow_extracts = dict(
     AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     cytokinin_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    xylem_struct_mass=dict(unit="g", value_example=float(1e-3), description="not provided"),
-    phloem_struct_mass = dict(unit="g", value_example=float(1e-3), description="not provided"),
     axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     axial_advection_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     axial_diffusion_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     axial_diffusion_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     axial_diffusion_AA_phloem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # Water model
-    xylem_water=dict(unit="mol H2O", value_example=float(0), description="not provided"),
     radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
-    # Topology model
-    root_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
-    stele_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
-    phloem_exchange_surface = dict(unit="m2", value_example=float(0), description="not provided"),
-    apoplasmic_stele = dict(unit="adim", value_example=float(0.5), description="not provided"),
-    xylem_volume = dict(unit="m3", value_example=float(0), description="not provided"),
-    # Soil boundaries
-    soil_water_pressure=dict(unit="Pa", value_example=float(-0.1e6), description="not provided"),
-    soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),
-    soil_Nm=dict(unit="mol N.m-3", value_example=float(0.5), description="not provided"),
-    soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
 )
 
 global_extracts = dict(
@@ -143,10 +123,9 @@ def plot_xr(dataset, vertice=[], selection=[]):
     if len(vertice) == 0:
         ax = [ax]
         text_annot = [[]]
-        ds = dataset #dataset.to_array()
-        std_dataset = (ds - np.mean(ds))/np.std(ds)
+        std_dataset = (dataset - np.mean(dataset))/np.std(dataset)
         for prop in selection:
-            getattr(ds, prop).plot.line(x='t', ax=ax[0][0], label=prop)
+            getattr(dataset, prop).plot.line(x='t', ax=ax[0][0], label=prop)
             getattr(std_dataset, prop).plot.line(x='t', ax=ax[0][1], label=prop)
             text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
     # If we plot local properties
@@ -181,7 +160,7 @@ def plot_xr(dataset, vertice=[], selection=[]):
                             # get the position
                             posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
                             # get variable name
-                            label = line.get_label()
+                            label = "{}:{}, {}".format(line.get_label(), posx, posy)
                             # add text annotation to the axe and refresh
                             text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
                             fig.canvas.draw_idle()
@@ -190,6 +169,4 @@ def plot_xr(dataset, vertice=[], selection=[]):
 
 
 # TODO : build coordinates after issue identification
-# TODO : think about relevant exchange surface for water (cylinder + differenciation?)
 # TODO : understand xylem conc explosion with in out flows.
-# TODO : Get globals outputs to understand mainly xylem globals

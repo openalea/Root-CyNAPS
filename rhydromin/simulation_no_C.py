@@ -88,11 +88,12 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
                     valmax=1,
                     valinit=0.1)
 
-                [fig.text(0, 0.85 - 0.1 * k, flow_extracts[k]) for k in range(len(flow_extracts))]
+                list_flow = list(flow_extracts.keys())
+                [fig.text(0, 0.85 - 0.1 * k, list_flow[k]) for k in range(len(list_flow))]
                 # actual plot
-                plot_N(g, flow_extracts, axs, span_slider=0.1)
+                plot_N(g, list_flow, axs, span_slider=0.1)
             else:
-                plot_N(g, flow_extracts, axs, span_slider=span_slider.val)
+                plot_N(g, list_flow, axs, span_slider=span_slider.val)
 
         if logging:
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
@@ -117,7 +118,10 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         if plotting:
             time_dataset = xr.load_dataset(f"outputs\\{start_time}.nc")
             time_glob_dataset = xr.load_dataset(f"outputs\\{start_time}_glob.nc")
-            plot_xr(dataset=time_dataset, vertice=[1, 49, 149, 249], selection=list(state_extracts.keys()))
-            plot_xr(dataset=time_dataset, vertice=[1, 49, 149, 249], selection=list(flow_extracts.keys()))
+            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(state_extracts.keys()))
+            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(flow_extracts.keys()))
             plot_xr(dataset=time_glob_dataset, selection=list(global_extracts.keys()))
             plt.show()
+
+        if plantgl:
+            input("end?")

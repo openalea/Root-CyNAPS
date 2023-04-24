@@ -11,7 +11,7 @@ from openalea.mtg.traversal import pre_order
 class InitWater:
     # Pools
     xylem_water: float = 0  # (mol) water content
-    xylem_total_pressure: float = -0.5e6  # (Pa) apoplastic pressure in stele
+    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele
     # Water transports
     radial_import_water: float = 0
     axial_export_water_up: float = 0
@@ -19,7 +19,7 @@ class InitWater:
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity : float = 3e-13/30 # m.s-1.Pa-1
+    radial_water_conductivity : float = 3e-13 # m.s-1.Pa-1
     reflexion_coef : float = 0.85
     R : float = 8.314
     sap_viscosity : float = 1.3
@@ -76,7 +76,7 @@ class WaterModel:
                                 radial_import_water
                                 axial_export_water_up
                                 axial_import_water_down
-                                root_exchange_surface
+                                cylinder_exchange_surface
                                 apoplasmic_stele
                                 length
                                 radius
@@ -111,10 +111,11 @@ class WaterModel:
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                # Here radial flow if derived from hydraulic potential differencies over the time step
+                # Here radial flow if derived from hydraulic potential differences over the time step
+                # As a starting point, we only use labile sugars as significative osmolite
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * ((self.soil_water_pressure[vid] - self.xylem_total_pressure) \
                                                 + reflexion_coef * R * self.soil_temperature[vid] * (self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) \
-                                                * self.root_exchange_surface[vid]
+                                                * self.cylinder_exchange_surface[vid]
 
         # First balance to compute axial transport
         delta_xylem_total_pressure = (sum(self.radial_import_water.values()) - self.water_root_shoot_xylem * self.time_step) * (
@@ -124,6 +125,7 @@ class WaterModel:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
         root = next(root_gen)
 
+        # we set collar element the flow provided by shoot model
         self.axial_export_water_up[1] = self.water_root_shoot_xylem * self.time_step
         # We travel in the MTG from the root collar to the tips:
         for vid in pre_order(self.g, root):
@@ -131,15 +133,15 @@ class WaterModel:
             if self.struct_mass[vid] > 0:
 
                 child = self.g.children(vid)
-                # if this is a root tip, there is no down import flux
+                # if this is a root tip, there is no down import flux, just the result of pressure variation
                 if len(child) == 0:
-                    self.axial_import_water_down[vid] = 0
+                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid]))
                 # if there are children who actually emerged, there is a down import flux
-                elif 0 not in [self.struct_mass[k] for k in child]:
-                    self.axial_import_water_down[vid] = (delta_xylem_total_pressure * self.xylem_volume[vid] / R * self.soil_temperature[vid]) + self.axial_export_water_up[vid] - self.radial_import_water[vid]
-                # if there are children who did not emerge, there is no down import flux
+                elif True in [self.struct_mass[k]>0 for k in child]:
+                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid])) + self.axial_export_water_up[vid] - self.radial_import_water[vid]
+                # if no child emerged, there is no down import flux, just the result of pressure variation
                 else:
-                    self.axial_import_water_down[vid] = 0
+                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid]))
 
                 # if there is only one child, the entire flux is applied
                 if len(child) == 1:
@@ -155,10 +157,9 @@ class WaterModel:
                     HP_tot = sum(HP)
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
-
         self.xylem_total_pressure += delta_xylem_total_pressure
 
-    def Update_water_local(self, v):
+    def update_water_local(self, v):
         self.xylem_water[v] += (self.radial_import_water[v]
                                 - self.axial_export_water_up[v]
                                 + self.axial_import_water_down[v])
@@ -178,6 +179,6 @@ class WaterModel:
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                self.Update_water_local(vid)
+                self.update_water_local(vid)
 
         self.update_sums()

@@ -43,8 +43,8 @@ class InitCommonN:
     struct_protein: float = 0   # mol prot struct.g-1
     storage_protein: float = 0     # mol prot stor.g-1
     xylem_Nm: float = 1e-4  # mol N.g-1
-    xylem_AA: float = 1e-4  # mol AA.g-1
-    phloem_AA: float = 1e-4  # mol AA.g-1
+    xylem_AA: float = 9e-4  # mol AA.g-1
+    phloem_AA: float = 9e-4  # mol AA.g-1
     # Transport processes
     import_Nm: float = 0    # mol N.s-1
     export_Nm: float = 0    # mol N.s-1
@@ -90,10 +90,10 @@ class TransportCommonN:
     Km_Nm_xylem: float = 8e-5   # mol N.g-1
     vmax_AA_xylem: float = 1e-9     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-3   # mol AA.g-1
-    diffusion_soil: float = 1e-4    # g.m-2.s-1
+    diffusion_soil: float = 0 #1e-4   # g.m-2.s-1
     diffusion_xylem: float = 1e-4   # g.m-2.s-1
     diffusion_phloem: float = 1e-4  # g.m-2.s-1
-    diffusion_apoplasm: float = 2.5e-2  # g.m-2.s-1
+    diffusion_apoplasm: float = 0 #2.5e-2  # g.m-2.s-1
     # metabolism-related parameters
     transport_C_regulation: float = 7e-3 # mol.g-1
 
@@ -118,13 +118,13 @@ class MetabolismN:
     smax_AA: float = 1e-9   # mol.s-1.g-1 DW
     Km_Nm_AA: float = 3e-6  # mol.g-1 DW
     Km_C_AA: float = 350e-6 # mol.g-1 DW
-    smax_struct: float = 4.5e-9 # mol.s-1.g-1 DW
+    smax_struct: float = 0 #4.5e-9 # mol.s-1.g-1 DW
     Km_AA_struct: float = 250e-6    # mol.g-1 DW
-    smax_stor: float = 4.5e-9 # mol.s-1.g-1 DW
+    smax_stor: float = 0 #4.5e-9 # mol.s-1.g-1 DW
     Km_AA_stor: float = 250e-6    # mol.g-1 DW
     cmax_stor: float = 4.5e-9 # mol.s-1.g-1 DW
     Km_stor_catab: float = 250e-6    # mol.g-1 DW
-    cmax_AA: float = 1.2e-8 # mol.s-1.g-1 DW
+    cmax_AA: float = 0 #1.2e-8 # mol.s-1.g-1 DW
     Km_AA_catab: float = 2.5e-6 # mol.g-1 DW
     storage_C_regulation: float = 7e-3 # mol.g-1
 
@@ -315,7 +315,7 @@ class CommonNitrogenModel:
         Km_Nm_root = (Km_Nm_root_LATS - Km_Nm_root_HATS)/(
                         1 + (precision/((1-precision) * np.exp(-begin_N_regulation))
                         * np.exp(-self.Nm[v]/span_N_regulation))
-                        )
+                        ) + Km_Nm_root_HATS
 
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
@@ -682,9 +682,10 @@ class DiscreteVessels(CommonNitrogenModel):
                         + self.diffusion_AA_soil_xylem[vid]
                         + self.axial_diffusion_AA_xylem[vid])+ (
                         self.axial_advection_AA_xylem[vid] / self.xylem_struct_mass[vid])
+
                 self.phloem_AA[vid] -= time_step / self.phloem_struct_mass[vid] * (
-                        self.diffusion_AA_phloem[vid])
-                        # - self.axial_diffusion_AA_phloem[vid])
+                        self.diffusion_AA_phloem[vid]
+                        - self.axial_diffusion_AA_phloem[vid])
 
         # Update plant-level properties
         self.update_sums(time_step)
