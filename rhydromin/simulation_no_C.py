@@ -15,7 +15,7 @@ from rhydromin.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVe
 from fakeShoot.model import InitShootNitrogen, InitShootWater, ShootModel
 
 import rhydromin.converter as converter
-from rhydromin.tools_output import state_extracts, flow_extracts, plot_xr, plot_N
+from rhydromin.tools_output import state_extracts, flow_extracts, global_extracts, plot_xr, plot_N
 from tools.mtg_dict_to_xarray import mtg_to_dataset, globals_to_dataset
 
 
@@ -119,4 +119,5 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
             time_glob_dataset = xr.load_dataset(f"outputs\\{start_time}_glob.nc")
             plot_xr(dataset=time_dataset, vertice=[1, 49, 149, 249], selection=list(state_extracts.keys()))
             plot_xr(dataset=time_dataset, vertice=[1, 49, 149, 249], selection=list(flow_extracts.keys()))
+            plot_xr(dataset=time_glob_dataset, selection=list(global_extracts.keys()))
             plt.show()

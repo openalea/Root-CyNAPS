@@ -81,6 +81,12 @@ flow_extracts = dict(
     soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
 )
 
+global_extracts = dict(
+    xylem_total_water=dict(unit="mol", value_example="not provided",  description="not provided"),
+    xylem_total_volume=dict(unit="m3", value_example="not provided", description="not provided"),
+    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+)
+
 
 def plot_N(g, p, axs, span_slider):
 
@@ -131,10 +137,18 @@ def print_g(g, select, vertice):
 
 
 def plot_xr(dataset, vertice=[], selection=[]):
-    fig, ax = plt.subplots(len(vertice), 2)
+    L = max(1, len(vertice))
+    fig, ax = plt.subplots(L, 2)
     # If we plot global properties
     if len(vertice) == 0:
-        pass
+        ax = [ax]
+        text_annot = [[]]
+        ds = dataset #dataset.to_array()
+        std_dataset = (ds - np.mean(ds))/np.std(ds)
+        for prop in selection:
+            getattr(ds, prop).plot.line(x='t', ax=ax[0][0], label=prop)
+            getattr(std_dataset, prop).plot.line(x='t', ax=ax[0][1], label=prop)
+            text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
     # If we plot local properties
     else:
         text_annot = [[] for k in range(len(vertice))]
