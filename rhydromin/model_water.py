@@ -19,10 +19,10 @@ class InitWater:
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity : float = 3e-13 # m.s-1.Pa-1
+    radial_water_conductivity : float = 1e-13 # m.s-1.Pa-1
     reflexion_coef : float = 0.85
     R : float = 8.314
-    sap_viscosity : float = 1.3
+    sap_viscosity : float = 1.3e6 # Pa
 
 
 class WaterModel:
@@ -98,6 +98,16 @@ class WaterModel:
         # proper initialization of the xylem water content
         self.init_xylem_water(R=8.314)
         self.update_sums()
+
+        # Select real children for collar element (vid == 1).
+        # This is mandatory for right collar-to-tip Hagen-Poiseuille flow partitioning.
+        self.collar_children, self.collar_skip = [], []
+        for vid in self.vertices:
+            child = self.g.children(vid)
+            if (self.struct_mass[vid] == 0) and (True in [self.struct_mass[k] > 0 for k in child]):
+                self.collar_skip += [vid]
+                self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
+
     def init_xylem_water(self, R):
         for vid in self.vertices:
             volumic_mass = 1e6
@@ -129,25 +139,38 @@ class WaterModel:
         self.axial_export_water_up[1] = self.water_root_shoot_xylem * self.time_step
         # We travel in the MTG from the root collar to the tips:
         for vid in pre_order(self.g, root):
-            # if root segment emerged
-            if self.struct_mass[vid] > 0:
 
-                child = self.g.children(vid)
+            # We apply the following for all structural mass, because null length element can be support for
+            # ramification
+
+            child = self.g.children(vid)
+
+            # if we look at a collar artificial vertex of null lenght, we do nothing
+            if vid not in self.collar_skip:
+                # For current vertex, compute axial down flow from axial upper flow, radial flow and pressure variation
                 # if this is a root tip, there is no down import flux, just the result of pressure variation
-                if len(child) == 0:
+                if (vid != 1) and ((len(child) == 0) or (True not in [self.struct_mass[k]>0 for k in child])):
                     self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid]))
-                # if there are children who actually emerged, there is a down import flux
-                elif True in [self.struct_mass[k]>0 for k in child]:
-                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid])) + self.axial_export_water_up[vid] - self.radial_import_water[vid]
-                # if no child emerged, there is no down import flux, just the result of pressure variation
+                # if there are children, there is a down import flux
                 else:
-                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid]))
+                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid])) + self.axial_export_water_up[vid] - self.radial_import_water[vid]
 
-                # if there is only one child, the entire flux is applied
-                if len(child) == 1:
+                # For current vertex's children, provide previous down flow as axial upper flow for children
+                # if current vertex is collar, we affect down flow at previously computed collar children
+                if vid == 1:
+                    HP = [0 for k in self.collar_children]
+                    for k in range(len(self.collar_children)):
+                        # compute Hagen-Poiseuille coefficient
+                        HP[k] = np.pi * self.radius[self.collar_children[k]] / (8 * sap_viscosity)
+                    HP_tot = sum(HP)
+                    for k in range(len(self.collar_children)):
+                        self.axial_export_water_up[self.collar_children[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
+
+                # else, if there is only one child, the entire flux is applied
+                elif len(child) == 1:
                     self.axial_export_water_up[child[0]] = self.axial_import_water_down[vid]
 
-                # if there are several children, a fraction of the flux is applied according to Hagen-Poiseuille's law
+                # finally, if there are several children, a fraction of the flux is applied according to Hagen-Poiseuille's law
                 else:
                     HP = [0 for k in child]
                     for k in range(len(child)):
@@ -157,6 +180,7 @@ class WaterModel:
                     HP_tot = sum(HP)
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
+
         self.xylem_total_pressure += delta_xylem_total_pressure
 
     def update_water_local(self, v):

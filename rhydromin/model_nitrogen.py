@@ -575,15 +575,15 @@ class DiscreteVessels(CommonNitrogenModel):
         # Advection : (To comment)
 
         if self.axial_export_water_up[v] >= 0:
-            Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-            AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+            Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
+            AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
             advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
             advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
         else:
             up = self.g.parent(v)
             if up != None:
-                Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] * xylem_cross_area_ratio / self.xylem_water[up]
-                AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] * xylem_cross_area_ratio / self.xylem_water[up]
+                Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] / self.xylem_water[up]
+                AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] / self.xylem_water[up]
                 advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
                 advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
             # if this is collar, this flow is handled later by shoot flows
@@ -598,24 +598,24 @@ class DiscreteVessels(CommonNitrogenModel):
             advection_AA_down = 0
         elif len(child) == 1:
             if self.axial_import_water_down[v] >= 0:
-                Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] * xylem_cross_area_ratio / self.xylem_water[child[0]]
-                AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] * xylem_cross_area_ratio / self.xylem_water[child[0]]
+                Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] / self.xylem_water[child[0]]
+                AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] / self.xylem_water[child[0]]
             else:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
+                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
             advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
             advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
         else:
             if self.axial_import_water_down[v] >= 0:
-                Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in child]
-                AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in child]
+                Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
+                AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
                 advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
                 advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
                 advection_Nm_down = sum(advection_Nm_down)
                 advection_AA_down = sum(advection_AA_down)
             else:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
+                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
                 advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
                 advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
 

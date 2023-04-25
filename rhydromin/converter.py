@@ -23,6 +23,7 @@ class ComState:
     xylem_water: str = "root_xylem_water"
     xylem_total_pressure: str = "root_xylem_pressure"
     radius: str = "root_radius"
+    length: str = "segment_length"
 
 
 def apply_root_collar_flows(collar_flows, root_class, key):
