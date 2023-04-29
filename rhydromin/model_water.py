@@ -11,6 +11,8 @@ from openalea.mtg.traversal import pre_order
 class InitWater:
     # Pools
     xylem_water: float = 0  # (mol) water content
+    water_molar_mass: float = 18    # g.mol-1
+    water_volumic_mass: float = 1e6  # g.m-3
     xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele
     # Water transports
     radial_import_water: float = 0
@@ -19,14 +21,16 @@ class InitWater:
 
 @dataclass
 class TransportWater:
-    radial_water_conductivity : float = 1e-13 # m.s-1.Pa-1
-    reflexion_coef : float = 0.85
-    R : float = 8.314
-    sap_viscosity : float = 1.3e6 # Pa
+    xylem_young_modulus: float = 1e6    # (Pa) radial elastic modulus of xylem tissues
+    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    radial_water_conductivity: float = 1e-13    # m.s-1.Pa-1
+    reflexion_coef: float = 0.85    # adim
+    R: float = 8.314
+    sap_viscosity: float = 1.3e6    # Pa
 
 
 class WaterModel:
-    def __init__(self, g, time_step, xylem_water, xylem_total_pressure, radial_import_water, axial_export_water_up,
+    def __init__(self, g, time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure, radial_import_water, axial_export_water_up,
                 axial_import_water_down, water_root_shoot_xylem):
         """
                 Description
@@ -96,7 +100,9 @@ class WaterModel:
             setattr(self, name, self.root_system_totals[name])
 
         # proper initialization of the xylem water content
-        self.init_xylem_water(R=8.314)
+        self.water_molar_mass = water_molar_mass
+        self.water_volumic_mass = water_volumic_mass
+        self.init_xylem_water()
         self.update_sums()
 
         # Select real children for collar element (vid == 1).
@@ -108,28 +114,33 @@ class WaterModel:
                 self.collar_skip += [vid]
                 self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
 
-    def init_xylem_water(self, R):
-        for vid in self.vertices:
-            volumic_mass = 1e6
-            molar_mass = 18
-            # if root segment emerged
-            if self.struct_mass[vid] > 0:
-                self.xylem_water[vid] = volumic_mass * self.xylem_volume[vid] / molar_mass
-
-    def transport_water(self, radial_water_conductivity, reflexion_coef, R, sap_viscosity):
-        # Spatialized for all root segments in MTG...
+    def init_xylem_water(self):
+        # At pressure = soil_pressure, the corresponding xylem volume at rest is filled with water in standard conditions
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                # Here radial flow if derived from hydraulic potential differences over the time step
-                # As a starting point, we only use labile sugars as significative osmolite
-                self.radial_import_water[vid] = self.time_step * radial_water_conductivity * ((self.soil_water_pressure[vid] - self.xylem_total_pressure) \
-                                                + reflexion_coef * R * self.soil_temperature[vid] * (self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) \
-                                                * self.cylinder_exchange_surface[vid]
+                self.xylem_water[vid] = self.water_volumic_mass * self.xylem_volume[vid] / self.water_molar_mass
 
-        # First balance to compute axial transport
-        delta_xylem_total_pressure = (sum(self.radial_import_water.values()) - self.water_root_shoot_xylem * self.time_step) * (
-                                            R * self.soil_temperature[1]) / self.xylem_total_volume
+    def transport_water(self, xylem_young_modulus, xylem_cross_area_ratio, radial_water_conductivity, reflexion_coef, R, sap_viscosity):
+        # Using previous time-step flows, we compute current time-step pressure for flows computation
+
+        pressure_forces_sum, surface_sum = 0, 0
+
+        # for all root segments in MTG...
+        for vid in self.vertices:
+            # if root segment emerged
+            if self.struct_mass[vid] > 0:
+                pressure_forces_sum += self.radius[vid] * self.length[vid] *(
+                    xylem_young_modulus * (((self.xylem_water[vid] * self.water_molar_mass /
+                    (np.pi * (self.radius[vid]**2) * self.length[vid] * xylem_cross_area_ratio * self.water_volumic_mass))**0.5) - 1
+                    ) + self.soil_water_pressure[vid])
+                surface_sum += self.radius[vid] * self.length[vid]
+
+        self.xylem_total_pressure = pressure_forces_sum / surface_sum
+
+        print(self.xylem_total_pressure)
+
+        # self.xylem_total_water += sum(self.radial_import_water.values()) - self.water_root_shoot_xylem
 
         # We define "root" as the starting point of the loop below:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
@@ -139,7 +150,6 @@ class WaterModel:
         self.axial_export_water_up[1] = self.water_root_shoot_xylem * self.time_step
         # We travel in the MTG from the root collar to the tips:
         for vid in pre_order(self.g, root):
-
             # We apply the following for all structural mass, because null length element can be support for
             # ramification
 
@@ -147,13 +157,22 @@ class WaterModel:
 
             # if we look at a collar artificial vertex of null lenght, we do nothing
             if vid not in self.collar_skip:
-                # For current vertex, compute axial down flow from axial upper flow, radial flow and pressure variation
-                # if this is a root tip, there is no down import flux, just the result of pressure variation
-                if (vid != 1) and ((len(child) == 0) or (True not in [self.struct_mass[k]>0 for k in child])):
-                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid]))
+                # First we compute radial flow from hydraulic potential difference with the soil
+                # As a starting point, we only use labile sugars as significative osmolite
+                # These flows are immediately computed as quantity per time step for axial balance
+                self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
+                        (self.soil_water_pressure[vid] - self.xylem_total_pressure) + reflexion_coef * R * self.soil_temperature[vid] * (
+                        self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) * self.cylinder_exchange_surface[vid]
+
+                # For current vertex, compute axial down flow from axial upper flow, radial flow
+                # There is no pressure variation effect as water is incompressible
+                # if this is a root tip, there is no down import flux
+                if (vid != 1) and ((len(child) == 0) or (True not in [self.struct_mass[k] > 0 for k in child])):
+                    self.axial_import_water_down[vid] = 0
+
                 # if there are children, there is a down import flux
                 else:
-                    self.axial_import_water_down[vid] = ((delta_xylem_total_pressure * self.xylem_volume[vid]) / (R * self.soil_temperature[vid])) + self.axial_export_water_up[vid] - self.radial_import_water[vid]
+                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[vid]
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 # if current vertex is collar, we affect down flow at previously computed collar children
@@ -170,7 +189,8 @@ class WaterModel:
                 elif len(child) == 1:
                     self.axial_export_water_up[child[0]] = self.axial_import_water_down[vid]
 
-                # finally, if there are several children, a fraction of the flux is applied according to Hagen-Poiseuille's law
+                # finally, if there are several children, a fraction of the flux is applied
+                # according to Hagen-Poiseuille's law (same as collar)0
                 else:
                     HP = [0 for k in child]
                     for k in range(len(child)):
@@ -181,12 +201,8 @@ class WaterModel:
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
-        self.xylem_total_pressure += delta_xylem_total_pressure
-
-    def update_water_local(self, v):
-        self.xylem_water[v] += (self.radial_import_water[v]
-                                - self.axial_export_water_up[v]
-                                + self.axial_import_water_down[v])
+                # water balance is computed here to prevent another for loop over mtg
+                self.xylem_water[vid] += self.radial_import_water[vid] - self.axial_export_water_up[vid] + self.axial_import_water_down[vid]
 
     def update_sums(self):
         self.xylem_total_water = sum(self.xylem_water.values())
@@ -200,9 +216,4 @@ class WaterModel:
 
         """
         self.transport_water(**asdict(TransportWater()))
-        for vid in self.vertices:
-            # if root segment emerged
-            if self.struct_mass[vid] > 0:
-                self.update_water_local(vid)
-
         self.update_sums()

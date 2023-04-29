@@ -51,8 +51,7 @@ class TissueTopology:
     cortex_ratio: float = 29  # (adim) cortex (+epidermis) surface ratio over root's cylinder surface
     stele_ratio: float = 11  # (adim) stele (+endodermis) surface ratio over root's cylinder surface
     phloem_ratio: float = 2.5  # (adim) phloem surface ratio over root's cylinder surface
-    xylem_cross_area_ratio: float = 0.84 * (
-                0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
 
 
 class RadialTopology:
@@ -99,8 +98,7 @@ class RadialTopology:
         self.update_topology(**asdict(TissueTopology()))
 
     def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate,
-                        cortex_ratio,
-                        stele_ratio, phloem_ratio, xylem_cross_area_ratio):
+                        cortex_ratio, stele_ratio, phloem_ratio, xylem_cross_area_ratio):
         """
         Description :
         This method first compute boundary tissues differenciations relative to the segment structural mass.
