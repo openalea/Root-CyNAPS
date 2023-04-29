@@ -23,6 +23,7 @@ class InitWater:
 class TransportWater:
     xylem_young_modulus: float = 1e6    # (Pa) radial elastic modulus of xylem tissues
     xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    water_molar_mass: float = 18  # g.mol-1
     radial_water_conductivity: float = 1e-13    # m.s-1.Pa-1
     reflexion_coef: float = 0.85    # adim
     R: float = 8.314
@@ -100,9 +101,8 @@ class WaterModel:
             setattr(self, name, self.root_system_totals[name])
 
         # proper initialization of the xylem water content
-        self.water_molar_mass = water_molar_mass
         self.water_volumic_mass = water_volumic_mass
-        self.init_xylem_water()
+        self.init_xylem_water(water_molar_mass)
         self.update_sums()
 
         # Select real children for collar element (vid == 1).
@@ -114,14 +114,14 @@ class WaterModel:
                 self.collar_skip += [vid]
                 self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
 
-    def init_xylem_water(self):
+    def init_xylem_water(self, water_molar_mass=18):
         # At pressure = soil_pressure, the corresponding xylem volume at rest is filled with water in standard conditions
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                self.xylem_water[vid] = self.water_volumic_mass * self.xylem_volume[vid] / self.water_molar_mass
+                self.xylem_water[vid] = self.water_volumic_mass * self.xylem_volume[vid] / water_molar_mass
 
-    def transport_water(self, xylem_young_modulus, xylem_cross_area_ratio, radial_water_conductivity, reflexion_coef, R, sap_viscosity):
+    def transport_water(self, xylem_young_modulus, xylem_cross_area_ratio, water_molar_mass, radial_water_conductivity, reflexion_coef, R, sap_viscosity):
         # Using previous time-step flows, we compute current time-step pressure for flows computation
 
         pressure_forces_sum, surface_sum = 0, 0
@@ -131,7 +131,7 @@ class WaterModel:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
                 pressure_forces_sum += self.radius[vid] * self.length[vid] *(
-                    xylem_young_modulus * (((self.xylem_water[vid] * self.water_molar_mass /
+                    xylem_young_modulus * (((self.xylem_water[vid] * water_molar_mass /
                     (np.pi * (self.radius[vid]**2) * self.length[vid] * xylem_cross_area_ratio * self.water_volumic_mass))**0.5) - 1
                     ) + self.soil_water_pressure[vid])
                 surface_sum += self.radius[vid] * self.length[vid]

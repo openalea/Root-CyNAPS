@@ -525,8 +525,8 @@ class OnePoolVessels(CommonNitrogenModel):
 
 class DiscreteVessels(CommonNitrogenModel):
 
-    def __init__(self, g, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA,
-                 phloem_struct_mass, axial_advection_Nm_xylem, axial_advection_AA_xylem, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem,
+    def __init__(self, g, xylem_Nm, xylem_AA, xylem_struct_mass, phloem_AA, phloem_struct_mass,
+                 axial_advection_Nm_xylem, axial_advection_AA_xylem, axial_diffusion_Nm_xylem, axial_diffusion_AA_xylem,
                  axial_diffusion_AA_phloem, **kwargs):
 
         self.g = g
@@ -564,6 +564,15 @@ class DiscreteVessels(CommonNitrogenModel):
 
         super().__init__(g, **kwargs)
 
+        # Select real children for collar element (vid == 1).
+        # This is mandatory for right axial flow partitioning.
+        self.collar_children, self.collar_skip = [], []
+        for vid in self.vertices:
+            child = self.g.children(vid)
+            if (self.struct_mass[vid] == 0) and (True in [self.struct_mass[k] > 0 for k in child]):
+                self.collar_skip += [vid]
+                self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
+
     def transport_N(self, v, axial_diffusion_xylem, axial_diffusion_phloem, xylem_cross_area_ratio, phloem_cross_area_ratio, **kwargs):
 
         # RADIAL TRANSPORT
@@ -572,61 +581,107 @@ class DiscreteVessels(CommonNitrogenModel):
 
         # AXIAL TRANSPORT
 
-        # Advection : (To comment)
+        # AXIAL ADVECTION
+        # Compute segment upper advection flow to upper segment
 
+        # if this is an upper flow, take concentrations from the considered segment
         if self.axial_export_water_up[v] >= 0:
             Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
             AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
             advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
             advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
+        # if this is a down flow, take concentrations from the parent segment
         else:
             up = self.g.parent(v)
+            # if this isn't the collar, we compute the flow from upper concentration
             if up != None:
-                Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] / self.xylem_water[up]
-                AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] / self.xylem_water[up]
+                # if parent is a fake collar segment, refer directly to collar
+                if up in self.collar_skip:
+                    Nm_water_conc = self.xylem_Nm[1] * self.struct_mass[1] / self.xylem_water[1]
+                    AA_water_conc = self.xylem_AA[1] * self.struct_mass[1] / self.xylem_water[1]
+                # else refer directly to parent segment
+                else:
+                    Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] / self.xylem_water[up]
+                    AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] / self.xylem_water[up]
                 advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
                 advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
-            # if this is collar, this flow is handled later by shoot flows
+            # if this is collar, this flow is handled separately by shoot model flows
             else:
                 advection_Nm_up = self.Nm_root_shoot_xylem
                 advection_AA_up = self.AA_root_shoot_xylem
 
-        potential_child = self.g.children(v)
-        child = [k for k in potential_child if self.struct_mass[k] > 0]
+        # Compute segment lower advection flow from lower segment(s)
+
+        # Retrieve children
+        child = [k for k in self.g.children(v) if self.struct_mass[k]>0]
+
+        # if this is a root tip (no children or child didn't emerge), no down axial flow
         if len(child) == 0:
             advection_Nm_down = 0
             advection_AA_down = 0
+        # if there is only one emerged child (segment line-up)
         elif len(child) == 1:
+            # if this is an up flow, take concentrations from the child
             if self.axial_import_water_down[v] >= 0:
-                Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] / self.xylem_water[child[0]]
-                AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] / self.xylem_water[child[0]]
+                # if collar is considered, use precomputed list of real children
+                # here case with only 1 artificial child
+                if v == 1:
+                    Nm_water_conc = self.xylem_Nm[self.collar_children[0]] * self.struct_mass[self.collar_children[0]] / self.xylem_water[self.collar_children[0]]
+                    AA_water_conc = self.xylem_AA[self.collar_children[0]] * self.struct_mass[self.collar_children[0]] / self.xylem_water[self.collar_children[0]]
+                # else use the child in direct contact with segment
+                else:
+                    Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] / self.xylem_water[child[0]]
+                    AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] / self.xylem_water[child[0]]
+            # if this is a down flow, take concentrations from the considered segment
             else:
                 Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
                 AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
             advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
             advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
+        # if there are several children, sum their respective contributions
         else:
+            # if this is an up flow, take concentrations from the children
             if self.axial_import_water_down[v] >= 0:
-                Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
-                AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
-                advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
-                advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
+                # if collar is considered, use precomputed list of real children
+                if v == 1:
+                    Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] / self.xylem_water[k] for k in self.collar_children]
+                    AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] / self.xylem_water[k] for k in self.collar_children]
+                    advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))]
+                    advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))]
+                # else use the children in direct contact with segment
+                else:
+                    Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
+                    AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
+                    advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
+                    advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
                 advection_Nm_down = sum(advection_Nm_down)
                 advection_AA_down = sum(advection_AA_down)
+            # if this is a down flow, take concentrations from the considered segment
             else:
                 Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
                 AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
                 advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
                 advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
 
+        # sum upward and downward advection contributions to compute overall advection flow for each labile element
         self.axial_advection_Nm_xylem[v] = advection_Nm_down - advection_Nm_up
         self.axial_advection_AA_xylem[v] = advection_AA_down - advection_AA_up
 
-        # Diffusion :
+        # AXIAL DIFFUSION
 
         neighbor = [self.g.parent(v)] + self.g.children(v)
+        # to handle collar or root tip up and down exception
         if None in neighbor:
             neighbor.remove(None)
+
+        # if this is a collar child, add collar as parent
+        if v in self.collar_children:
+            neighbor += [1]
+
+        # if this is the collar, add the precomputed collar children
+        # Note : fake children with null mass will not be accounted for in the for loop
+        elif v == 1:
+            neighbor += self.collar_children
 
         # Reinitialization before computing for each neighbor
         self.axial_diffusion_Nm_xylem[v] = 0.0
