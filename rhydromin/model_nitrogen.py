@@ -90,10 +90,10 @@ class TransportCommonN:
     Km_Nm_xylem: float = 8e-5   # mol N.g-1
     vmax_AA_xylem: float = 1e-9     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-3   # mol AA.g-1
-    diffusion_soil: float = 0 #1e-4   # g.m-2.s-1
-    diffusion_xylem: float = 1e-4   # g.m-2.s-1
-    diffusion_phloem: float = 1e-4  # g.m-2.s-1
-    diffusion_apoplasm: float = 0 #2.5e-2  # g.m-2.s-1
+    diffusion_soil: float = 0   #1e-4   # g.m-2.s-1 different soil and root concentration units
+    diffusion_xylem: float = 1e-6   # g.m-2.s-1
+    diffusion_phloem: float = 1e-5  # g.m-2.s-1
+    diffusion_apoplasm: float = 0   #2.5e-2  # g.m-2.s-1 different soil and root concentration units
     # metabolism-related parameters
     transport_C_regulation: float = 7e-3 # mol.g-1
 
@@ -103,12 +103,9 @@ class TransportAxialN(TransportCommonN):
     # architecture parameters
     xylem_cross_area_ratio: float = 0.84*(0.36**2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
     phloem_cross_area_ratio: float = 0.15*(0.36**2) # (adim) phloem cross-section area ratio * stele radius ratio^2
-    # struct mass ratio of vessels is defined from their cross-section areas
-    # xylem_to_root_ratio: float = 0.36**2  # adim xylem struct mass converter, considering whole stele apoplasm as extended xylem
-    # phloem_to_root_ratio: float = 0.15    # adim phloem struct mass converter
     # kinetic parameters
-    axial_diffusion_xylem: float = 2.5e-2   # g.m-2.s-1
-    axial_diffusion_phloem: float = 1e-2    # g.m-2.s-1
+    axial_diffusion_xylem: float = 2.5e-5   # g.m-2.s-1
+    axial_diffusion_phloem: float = 1e-5    # g.m-2.s-1
 
 
 
@@ -118,13 +115,13 @@ class MetabolismN:
     smax_AA: float = 1e-9   # mol.s-1.g-1 DW
     Km_Nm_AA: float = 3e-6  # mol.g-1 DW
     Km_C_AA: float = 350e-6 # mol.g-1 DW
-    smax_struct: float = 0 #4.5e-9 # mol.s-1.g-1 DW
+    smax_struct: float = 4.5e-10 # mol.s-1.g-1 DW
     Km_AA_struct: float = 250e-6    # mol.g-1 DW
-    smax_stor: float = 0 #4.5e-9 # mol.s-1.g-1 DW
+    smax_stor: float = 4.5e-10  # mol.s-1.g-1 DW
     Km_AA_stor: float = 250e-6    # mol.g-1 DW
-    cmax_stor: float = 4.5e-9 # mol.s-1.g-1 DW
+    cmax_stor: float = 4.5e-10   # mol.s-1.g-1 DW
     Km_stor_catab: float = 250e-6    # mol.g-1 DW
-    cmax_AA: float = 0 #1.2e-8 # mol.s-1.g-1 DW
+    cmax_AA: float = 1.2e-10 # mol.s-1.g-1 DW
     Km_AA_catab: float = 2.5e-6 # mol.g-1 DW
     storage_C_regulation: float = 7e-3 # mol.g-1
 
@@ -416,7 +413,7 @@ class CommonNitrogenModel:
 
     def update_N_local(self, v, r_Nm_AA, r_AA_struct, r_AA_stor, time_step):
 
-        self.Nm[v] += time_step / self.struct_mass[v] * (
+        self.Nm[v] += (time_step / self.struct_mass[v]) * (
                 self.import_Nm[v]
                 - self.diffusion_Nm_soil[v]
                 + self.diffusion_Nm_xylem[v]
@@ -424,7 +421,7 @@ class CommonNitrogenModel:
                 - self.AA_synthesis[v] * r_Nm_AA
                 + self.AA_catabolism[v] / r_Nm_AA)
 
-        self.AA[v] += time_step / self.struct_mass[v] * (
+        self.AA[v] += (time_step / self.struct_mass[v]) * (
                 self.diffusion_AA_phloem[v]
                 - self.diffusion_AA_soil[v]
                 - self.export_AA[v]
@@ -435,11 +432,11 @@ class CommonNitrogenModel:
                 - self.AA_catabolism[v]
                 )
 
-        self.struct_protein[v] += time_step/ self.struct_mass[v] * (
+        self.struct_protein[v] += (time_step / self.struct_mass[v]) * (
                 self.struct_synthesis[v]
                 )
 
-        self.storage_protein[v] += time_step / self.struct_mass[v] * (
+        self.storage_protein[v] += (time_step / self.struct_mass[v]) * (
                 self.storage_synthesis[v]
                 - self.storage_catabolism[v]
                 )
@@ -584,17 +581,22 @@ class DiscreteVessels(CommonNitrogenModel):
         # AXIAL ADVECTION
         # Compute segment upper advection flow to upper segment
 
-        # if this is an upper flow, take concentrations from the considered segment
-        if self.axial_export_water_up[v] >= 0:
-            Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
-            AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
-            advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
-            advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
-        # if this is a down flow, take concentrations from the parent segment
+        # if this is collar, this flow is handled separately by shoot model flows (both advection and diffusion)
+        if v == 1:
+            advection_Nm_up = self.Nm_root_shoot_xylem
+            advection_AA_up = self.AA_root_shoot_xylem
+            print("test")
+        # for every other segment :
         else:
-            up = self.g.parent(v)
-            # if this isn't the collar, we compute the flow from upper concentration
-            if up != None:
+            # if this is an upper flow, take concentrations from the considered segment
+            if self.axial_export_water_up[v] >= 0:
+                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
+                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] / self.xylem_water[v]
+                advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
+                advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
+            # if this is a down flow, take concentrations from the parent segment
+            else:
+                up = self.g.parent(v)
                 # if parent is a fake collar segment, refer directly to collar
                 if up in self.collar_skip:
                     Nm_water_conc = self.xylem_Nm[1] * self.struct_mass[1] / self.xylem_water[1]
@@ -605,15 +607,14 @@ class DiscreteVessels(CommonNitrogenModel):
                     AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] / self.xylem_water[up]
                 advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
                 advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
-            # if this is collar, this flow is handled separately by shoot model flows
-            else:
-                advection_Nm_up = self.Nm_root_shoot_xylem
-                advection_AA_up = self.AA_root_shoot_xylem
 
         # Compute segment lower advection flow from lower segment(s)
 
         # Retrieve children
-        child = [k for k in self.g.children(v) if self.struct_mass[k]>0]
+        if v == 1:
+            child = self.collar_children
+        else:
+            child = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
 
         # if this is a root tip (no children or child didn't emerge), no down axial flow
         if len(child) == 0:
@@ -646,16 +647,16 @@ class DiscreteVessels(CommonNitrogenModel):
                 if v == 1:
                     Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] / self.xylem_water[k] for k in self.collar_children]
                     AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] / self.xylem_water[k] for k in self.collar_children]
-                    advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))]
-                    advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))]
+                    advection_Nm_down = sum([Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))])
+                    advection_AA_down = sum([AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))])
+
                 # else use the children in direct contact with segment
                 else:
                     Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
                     AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] / self.xylem_water[k] for k in child]
-                    advection_Nm_down = [Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
-                    advection_AA_down = [AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))]
-                advection_Nm_down = sum(advection_Nm_down)
-                advection_AA_down = sum(advection_AA_down)
+                    advection_Nm_down = sum([Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))])
+                    advection_AA_down = sum([AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))])
+
             # if this is a down flow, take concentrations from the considered segment
             else:
                 Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] / self.xylem_water[v]
@@ -673,6 +674,8 @@ class DiscreteVessels(CommonNitrogenModel):
         # to handle collar or root tip up and down exception
         if None in neighbor:
             neighbor.remove(None)
+        # Note : here, shoot will never be a neighbor so xylem diffusion with shoot is computed
+        # at the same time as advection above (around line 606)
 
         # if this is a collar child, add collar as parent
         if v in self.collar_children:
@@ -686,7 +689,11 @@ class DiscreteVessels(CommonNitrogenModel):
         # Reinitialization before computing for each neighbor
         self.axial_diffusion_Nm_xylem[v] = 0.0
         self.axial_diffusion_AA_xylem[v] = 0.0
-        self.axial_diffusion_AA_phloem[v] = 0.0
+        # if this is collar, account for diffusion-only exchanges with shoot
+        if v == 1:
+            self.axial_diffusion_AA_phloem[v] = self.AA_root_shoot_phloem
+        else:
+            self.axial_diffusion_AA_phloem[v] = 0.0
 
         for k in neighbor:
             if self.struct_mass[k] > 0:
@@ -725,22 +732,22 @@ class DiscreteVessels(CommonNitrogenModel):
                 self.phloem_struct_mass[vid] = self.struct_mass[vid] * phloem_cross_area_ratio
 
                 # Global vessel's nitrogen pool update
-                self.xylem_Nm[vid] += time_step / self.xylem_struct_mass[vid] * (
+                self.xylem_Nm[vid] += (time_step / self.xylem_struct_mass[vid]) * (
                         self.export_Nm[vid]
                         + self.diffusion_Nm_soil_xylem[vid]
                         - self.diffusion_Nm_xylem[vid]
                         + self.axial_diffusion_Nm_xylem[vid]) + (
                         self.axial_advection_Nm_xylem[vid] / self.xylem_struct_mass[vid])
 
-                self.xylem_AA[vid] += time_step / self.xylem_struct_mass[vid] * (
+                self.xylem_AA[vid] += (time_step / self.xylem_struct_mass[vid]) * (
                         self.export_AA[vid]
                         + self.diffusion_AA_soil_xylem[vid]
-                        + self.axial_diffusion_AA_xylem[vid])+ (
+                        + self.axial_diffusion_AA_xylem[vid]) + (
                         self.axial_advection_AA_xylem[vid] / self.xylem_struct_mass[vid])
 
-                self.phloem_AA[vid] -= time_step / self.phloem_struct_mass[vid] * (
-                        self.diffusion_AA_phloem[vid]
-                        - self.axial_diffusion_AA_phloem[vid])
+                self.phloem_AA[vid] += (time_step / self.phloem_struct_mass[vid]) * (
+                        - self.diffusion_AA_phloem[vid]
+                        + self.axial_diffusion_AA_phloem[vid])
 
         # Update plant-level properties
         self.update_sums(time_step)

@@ -22,6 +22,7 @@ class ComState:
     struct_mass: str = "collar_struct_mass"
     xylem_water: str = "root_xylem_water"
     xylem_total_pressure: str = "root_xylem_pressure"
+    phloem_AA: str = "root_phloem_AA"
     radius: str = "root_radius"
     length: str = "segment_length"
 

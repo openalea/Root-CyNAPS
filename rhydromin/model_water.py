@@ -138,8 +138,6 @@ class WaterModel:
 
         self.xylem_total_pressure = pressure_forces_sum / surface_sum
 
-        print(self.xylem_total_pressure)
-
         # self.xylem_total_water += sum(self.radial_import_water.values()) - self.water_root_shoot_xylem
 
         # We define "root" as the starting point of the loop below:
