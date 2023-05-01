@@ -31,8 +31,8 @@ class TransportWater:
 
 
 class WaterModel:
-    def __init__(self, g, time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure, radial_import_water, axial_export_water_up,
-                axial_import_water_down, water_root_shoot_xylem):
+    def __init__(self, g, time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure,
+                 radial_import_water, axial_export_water_up, axial_import_water_down, water_root_shoot_xylem):
         """
                 Description
 
@@ -54,8 +54,7 @@ class WaterModel:
         # Creating variables for
         self.root_system_totals = dict(xylem_total_water=0,
                                        xylem_total_volume=0,
-                                       xylem_total_pressure=xylem_total_pressure
-                                            )
+                                       xylem_total_pressure=xylem_total_pressure)
 
         self.shoot_exchanges = dict(water_root_shoot_xylem=water_root_shoot_xylem)
 
@@ -115,7 +114,8 @@ class WaterModel:
                 self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
 
     def init_xylem_water(self, water_molar_mass=18):
-        # At pressure = soil_pressure, the corresponding xylem volume at rest is filled with water in standard conditions
+        # At pressure = soil_pressure, the corresponding xylem volume at rest is
+        # filled with water in standard conditions
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
@@ -130,15 +130,13 @@ class WaterModel:
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                pressure_forces_sum += self.radius[vid] * self.length[vid] *(
+                pressure_forces_sum += self.radius[vid] * self.length[vid] * (
                     xylem_young_modulus * (((self.xylem_water[vid] * water_molar_mass /
                     (np.pi * (self.radius[vid]**2) * self.length[vid] * xylem_cross_area_ratio * self.water_volumic_mass))**0.5) - 1
                     ) + self.soil_water_pressure[vid])
                 surface_sum += self.radius[vid] * self.length[vid]
 
         self.xylem_total_pressure = pressure_forces_sum / surface_sum
-
-        # self.xylem_total_water += sum(self.radial_import_water.values()) - self.water_root_shoot_xylem
 
         # We define "root" as the starting point of the loop below:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
@@ -170,7 +168,7 @@ class WaterModel:
 
                 # if there are children, there is a down import flux
                 else:
-                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.radial_import_water[vid]
+                    self.axial_import_water_down[vid] = (1 - ((self.xylem_total_pressure - self.soil_water_pressure[vid]) / self.xylem_total_pressure)) * (self.axial_export_water_up[vid] - self.radial_import_water[vid])
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 # if current vertex is collar, we affect down flow at previously computed collar children
@@ -194,7 +192,7 @@ class WaterModel:
                     for k in range(len(child)):
                         if self.struct_mass[child[k]] > 0:
                             # compute Hagen-Poiseuille coefficient
-                            HP[k] = np.pi * self.radius[child[k]] / (8 * sap_viscosity)
+                            HP[k] = np.pi * (self.radius[child[k]]**4) / (8 * sap_viscosity)
                     HP_tot = sum(HP)
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]

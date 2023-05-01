@@ -25,7 +25,7 @@ state_extracts = dict(
     root_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     stele_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     phloem_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
-    apoplasmic_stele=dict(unit="adim", value_example=float(0.5), description="not provided"),
+    #apoplasmic_stele=dict(unit="adim", value_example=float(0.5), description="not provided"),
     xylem_volume=dict(unit="m3", value_example=float(0), description="not provided"),
     # Soil boundaries
     #soil_water_pressure=dict(unit="Pa", value_example=float(-0.1e6), description="not provided"),
