@@ -32,32 +32,36 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class InitSurfaces:
-    root_exchange_surface: float = 0    # (m2)
-    stele_exchange_surface: float = 0   # (m2)
+    root_exchange_surface: float = 0  # (m2)
+    cylinder_exchange_surface: float = 0  # (m2)
+    stele_exchange_surface: float = 0  # (m2)
     phloem_exchange_surface: float = 0  # (m2)
-    apoplasmic_stele: float = 0     # (adim)
+    apoplasmic_stele: float = 0  # (adim)
     xylem_volume: float = 0  # (m3)
+
 
 # Parameters' default value
 
 @dataclass
 class TissueTopology:
-    begin_xylem_diff: float = 0     # (g) structural mass at which xylem differentiation begins
-    span_xylem_diff: float = 2.8e-4   # (g) structural mass range width during which xylem differentiation occurs
-    endodermis_diff_rate: float = 1.2e4     # (g-1) endodermis suberisation rate
-    epidermis_diff_rate: float = 1.8e3     # (g-1) epidermis suberisation rate
-    cortex_ratio: float = 29    # (adim) cortex (+epidermis) surface ratio over root's cylinder surface
-    stele_ratio: float = 11     # (adim) stele (+endodermis) surface ratio over root's cylinder surface
-    phloem_ratio: float = 2.5    # (adim) phloem surface ratio over root's cylinder surface
-    xylem_cross_area_ratio: float = 0.84*(0.36**2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    begin_xylem_diff: float = 0  # (g) structural mass at which xylem differentiation begins
+    span_xylem_diff: float = 2.8e-4  # (g) structural mass range width during which xylem differentiation occurs
+    endodermis_diff_rate: float = 1.2e4  # (g-1) endodermis suberisation rate
+    epidermis_diff_rate: float = 1.8e3  # (g-1) epidermis suberisation rate
+    cortex_ratio: float = 29  # (adim) cortex (+epidermis) surface ratio over root's cylinder surface
+    stele_ratio: float = 11  # (adim) stele (+endodermis) surface ratio over root's cylinder surface
+    phloem_ratio: float = 2.5  # (adim) phloem surface ratio over root's cylinder surface
+    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
 
 
 class RadialTopology:
-    def __init__(self, g, root_exchange_surface, stele_exchange_surface, phloem_exchange_surface, apoplasmic_stele, xylem_volume):
+    def __init__(self, g, root_exchange_surface, cylinder_exchange_surface, stele_exchange_surface,
+                 phloem_exchange_surface, apoplasmic_stele, xylem_volume):
 
         # New properties' creation in MTG
         keywords = dict(
             root_exchange_surface=root_exchange_surface,
+            cylinder_exchange_surface=cylinder_exchange_surface,
             stele_exchange_surface=stele_exchange_surface,
             phloem_exchange_surface=phloem_exchange_surface,
             apoplasmic_stele=apoplasmic_stele,
@@ -73,10 +77,11 @@ class RadialTopology:
             for name, value in keywords.items():
                 # Effectively creates the new property
                 props[name][vid] = value
-        
+
         # Accessing properties once, pointing to g for further modifications
         states = """
                         root_exchange_surface
+                        cylinder_exchange_surface
                         stele_exchange_surface
                         phloem_exchange_surface
                         apoplasmic_stele
@@ -86,14 +91,14 @@ class RadialTopology:
                         struct_mass
                         """.split()
         # NO ROOT HAIR PROPERTY
-        
+
         for name in states:
             setattr(self, name, props[name])
 
         self.update_topology(**asdict(TissueTopology()))
 
-    def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate, cortex_ratio,
-                        stele_ratio, phloem_ratio, xylem_cross_area_ratio):
+    def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate,
+                        cortex_ratio, stele_ratio, phloem_ratio, xylem_cross_area_ratio):
         """
         Description :
         This method first compute boundary tissues differenciations relative to the segment structural mass.
@@ -120,28 +125,30 @@ class RadialTopology:
 
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-        
                 # Update boundary layers' differentiation
                 precision = 0.99
 
-                xylem_differentiation = 1 / (1 + (precision/((1-precision) * np.exp(-begin_xylem_diff))
-                        * np.exp(-self.struct_mass[vid] / span_xylem_diff)))
+                xylem_differentiation = 1 / (1 + (precision / ((1 - precision) * np.exp(-begin_xylem_diff))
+                                                  * np.exp(-self.struct_mass[vid] / span_xylem_diff)))
 
                 endodermis_differentiation = np.exp(-endodermis_diff_rate * self.struct_mass[vid])
 
                 epidermis_differentiation = np.exp(-epidermis_diff_rate * self.struct_mass[vid])
-                
+
                 # Update exchange surfaces
 
                 # Exchanges between soil and symplasmic parenchyma
-                self.root_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] *(
-                    cortex_ratio * epidermis_differentiation +
-                    stele_ratio * endodermis_differentiation
-                ) # + self.root_hairs_external_surface[vid]
+                self.root_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * (
+                        cortex_ratio * epidermis_differentiation +
+                        stele_ratio * endodermis_differentiation
+                )  # + self.root_hairs_external_surface[vid]
                 # NO ROOT HAIR PROPERTY
+                self.cylinder_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * \
+                                                      epidermis_differentiation
 
                 # Exchanges between symplamic parenchyma and xylem
-                self.stele_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * stele_ratio * xylem_differentiation
+                self.stele_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[
+                    vid] * stele_ratio * xylem_differentiation
 
                 # Phloem exchangee surface, accessible from start
                 self.phloem_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * phloem_ratio
@@ -150,6 +157,4 @@ class RadialTopology:
                 self.apoplasmic_stele[vid] = xylem_differentiation * endodermis_differentiation
 
                 # Conductive apoplasmic volume
-                self.xylem_volume[vid] = np.pi * (self.radius[vid]**2) * xylem_cross_area_ratio * self.length[vid]
-
-        
+                self.xylem_volume[vid] = np.pi * (self.radius[vid] ** 2) * xylem_cross_area_ratio * self.length[vid]
