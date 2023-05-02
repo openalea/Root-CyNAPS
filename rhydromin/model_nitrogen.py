@@ -411,7 +411,7 @@ class CommonNitrogenModel:
                 Km_stor_root + self.AA[v])
 
     def metabolism_total_hormones(self, smax_cytok, Km_C_cytok, Km_N_cytok):
-        self.cytokinin_synthesis = self.total_struct_mass * smax_cytok * (
+        self.cytokinin_synthesis[0] = self.total_struct_mass * smax_cytok * (
                 self.total_hexose/(self.total_hexose + Km_C_cytok)) * (
                 self.total_Nm/(self.total_Nm + Km_N_cytok))
 
@@ -450,7 +450,7 @@ class CommonNitrogenModel:
         self.total_Nm = sum([x*y for x,y in zip(self.Nm.values(),self.struct_mass.values())])/self.total_struct_mass
         self.total_hexose = sum([x*y for x,y in zip(self.C_hexose_root.values(),self.struct_mass.values())])/self.total_struct_mass
         self.total_cytokinins += time_step / self.total_struct_mass * (
-                self.cytokinin_synthesis
+                self.cytokinin_synthesis[0]
                 - self.cytokinins_root_shoot_xylem
                 )
 

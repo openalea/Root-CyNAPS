@@ -130,10 +130,12 @@ class WaterModel:
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
+                #print(self.xylem_water[vid])
                 pressure_forces_sum += self.radius[vid] * self.length[vid] * (
-                    xylem_young_modulus * (((self.xylem_water[vid] * water_molar_mass /
-                    (np.pi * (self.radius[vid]**2) * self.length[vid] * xylem_cross_area_ratio * self.water_volumic_mass))**0.5) - 1
-                    ) + self.soil_water_pressure[vid])
+                    xylem_young_modulus * ((((self.xylem_water[vid] * water_molar_mass) / (np.pi * (self.radius[vid]**2)
+                                            * self.length[vid] * xylem_cross_area_ratio * self.water_volumic_mass))**0.5)
+                                           - 1) + self.soil_water_pressure[vid])
+
                 surface_sum += self.radius[vid] * self.length[vid]
 
         self.xylem_total_pressure = pressure_forces_sum / surface_sum
@@ -168,7 +170,9 @@ class WaterModel:
 
                 # if there are children, there is a down import flux
                 else:
-                    self.axial_import_water_down[vid] = (1 - ((self.xylem_total_pressure - self.soil_water_pressure[vid]) / self.xylem_total_pressure)) * (self.axial_export_water_up[vid] - self.radial_import_water[vid])
+                    self.axial_import_water_down[vid] = (
+                            (1 - 10*(self.xylem_total_pressure - self.soil_water_pressure[vid]) / self.xylem_total_pressure)
+                            * (self.axial_export_water_up[vid] - self.radial_import_water[vid]))
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 # if current vertex is collar, we affect down flow at previously computed collar children
@@ -176,7 +180,7 @@ class WaterModel:
                     HP = [0 for k in self.collar_children]
                     for k in range(len(self.collar_children)):
                         # compute Hagen-Poiseuille coefficient
-                        HP[k] = np.pi * self.radius[self.collar_children[k]] / (8 * sap_viscosity)
+                        HP[k] = np.pi * (self.radius[self.collar_children[k]]**4) / (8 * sap_viscosity)
                     HP_tot = sum(HP)
                     for k in range(len(self.collar_children)):
                         self.axial_export_water_up[self.collar_children[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
@@ -193,6 +197,7 @@ class WaterModel:
                         if self.struct_mass[child[k]] > 0:
                             # compute Hagen-Poiseuille coefficient
                             HP[k] = np.pi * (self.radius[child[k]]**4) / (8 * sap_viscosity)
+
                     HP_tot = sum(HP)
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]

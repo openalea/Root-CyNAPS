@@ -161,6 +161,7 @@ def plot_xr(dataset, vertice=[], selection=[]):
                             posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
                             # get variable name
                             label = "{}:{}, {}".format(line.get_label(), posx, posy)
+                            print(label)
                             # add text annotation to the axe and refresh
                             text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
                             fig.canvas.draw_idle()
