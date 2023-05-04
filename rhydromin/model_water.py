@@ -85,6 +85,7 @@ class WaterModel:
                                 length
                                 radius
                                 struct_mass
+                                living_root_hairs_external_surface
                                 """.split()
 
         # Declare MTG properties in self
@@ -160,7 +161,7 @@ class WaterModel:
                 # These flows are immediately computed as quantity per time step for axial balance
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
                         (self.soil_water_pressure[vid] - self.xylem_total_pressure) + reflexion_coef * R * self.soil_temperature[vid] * (
-                        self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) * self.cylinder_exchange_surface[vid]
+                        self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) * (self.cylinder_exchange_surface[vid] + self.living_root_hairs_external_surface[vid])
 
                 # For current vertex, compute axial down flow from axial upper flow, radial flow
                 # There is no pressure variation effect as water is incompressible

@@ -219,9 +219,13 @@ props_metadata = dict(
 )
 
 glob_metadata = dict(
-    xylem_total_water=dict(unit="mol", value_example="not provided",  description="not provided"),
-    xylem_total_volume=dict(unit="m3", value_example="not provided", description="not provided"),
-    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+    total_Nm=dict(unit="mol", value_example="not provided",  description="not provided"),
+    total_hexose=dict(unit="mol", value_example="not provided", description="not provided"),
+    total_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
+    total_struct_mass=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
+    phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided")
 )
 
 

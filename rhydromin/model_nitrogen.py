@@ -257,6 +257,7 @@ class CommonNitrogenModel:
                         C_hexose_root
                         C_hexose_reserve
                         C_hexose_reserve
+                        living_root_hairs_external_surface
                         thermal_time_since_emergence
                         """.split()
 
@@ -317,14 +318,14 @@ class CommonNitrogenModel:
 
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
-                            * (self.root_exchange_surface[v])
+                            * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v])
                             * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
 
         # Passive radial diffusion between soil and cortex.
         # It happens only through root segment external surface.
         # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
         self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] - self.soil_Nm[v])
-                            * self.root_exchange_surface[v])
+                            * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v]))
 
         # We define active export to xylem from root segment
 
@@ -346,7 +347,7 @@ class CommonNitrogenModel:
 
         # We define amino acid passive diffusion to soil
         self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v] - self.soil_AA[v])
-                                    * self.root_exchange_surface[v])
+                                    * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v]))
 
         # We define active export to xylem from root segment
 

@@ -44,7 +44,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
         xarray_output = [mtg_to_dataset(g, time=0)]
-        xarray_glob_output = [globals_to_dataset(root_water, time=0)]
+        xarray_glob_output = [globals_to_dataset(root_nitrogen, time=0)]
         xarray_output[0].to_netcdf(f"outputs\\xarray_used_input_{start_time}.nc")
 
     # actual computation loop
@@ -99,7 +99,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
             # However, it might be necessary to empty this and save .nc files every X time steps for memory management
             xarray_output += [mtg_to_dataset(g, time=i+1)]
-            xarray_glob_output += [globals_to_dataset(root_water, time=i+1)]
+            xarray_glob_output += [globals_to_dataset(root_nitrogen, time=i+1)]
 
         # print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
         # print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
