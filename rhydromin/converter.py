@@ -26,6 +26,15 @@ class ComState:
     radius: str = "root_radius"
     length: str = "segment_length"
 
+def link_mtg(reciever, applier, category, translator={}, same_team=True):
+    if same_team:
+        for link in getattr(reciever, "inputs")[category]:
+            setattr(reciever, link, getattr(applier, link))
+    else:
+        for link in getattr(reciever, "inputs"):
+            setattr(reciever, link, getattr(applier, translator[link]))
+
+
 
 def apply_root_collar_flows(collar_flows, root_class, key):
     communication = {"nitrogen": asdict(NitrogenComFlows()),

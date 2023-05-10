@@ -225,8 +225,6 @@ class CommonNitrogenModel:
 
         # Accessing properties once, pointing to g for further modifications
         self.states += """
-                        soil_Nm
-                        soil_AA
                         Nm
                         AA
                         struct_protein
@@ -247,10 +245,6 @@ class CommonNitrogenModel:
                         AA_catabolism
                         storage_catabolism
                         cytokinin_synthesis
-                        root_exchange_surface
-                        stele_exchange_surface
-                        phloem_exchange_surface
-                        apoplasmic_stele
                         length
                         radius
                         struct_mass
@@ -272,6 +266,26 @@ class CommonNitrogenModel:
         # Declare totals computed for global model's outputs
         for name in self.root_system_totals:
             setattr(self, name, self.root_system_totals[name])
+
+        # Declare to outside modules which variables are needed
+        # TODO : convert to dict of dict for the builder to print variable expertise informations
+        self.inputs.update({
+            # Common
+            "soil":[
+                "soil_Nm",
+                "soil_AA"
+            ],
+            "structure":[
+                "root_exchange_surface",
+                "stele_exchange_surface",
+                "phloem_exchange_surface",
+                "apoplasmic_stele"
+            ],
+            "carbon":[
+
+            ]
+        })
+
 
 
     def transport_radial_N(self, v, model, vmax_Nm_root, vmax_Nm_xylem, Km_Nm_root_LATS, Km_Nm_root_HATS, begin_N_regulation, span_N_regulation,
@@ -564,6 +578,16 @@ class DiscreteVessels(CommonNitrogenModel):
                 axial_import_water_down
                 
                 """.split()
+
+        self.inputs = {
+            "water":[
+
+            ],
+            "shoot_nitrogen": [
+
+            ]
+        }
+
 
         super().__init__(g, **kwargs)
 

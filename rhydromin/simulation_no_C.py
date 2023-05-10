@@ -27,7 +27,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     with open(init, 'rb') as f:
         g = pickle.load(f)
 
-    # Initialization of state variables
+    # Initialization of modules
     soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
     if not discrete_vessels:
@@ -37,8 +37,10 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()), **asdict(InitShootNitrogen()))
     shoot = ShootModel(**asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
-    # To visualize proper initialization
-    #print_g(root_water, ["xylem_total_pressure", "xylem_total_water"], vertice=0)
+    # Linking modules
+    converter.link_mtg(root_nitrogen, soil, category="soil", same_team=True)
+    converter.link_mtg(root_nitrogen, root_topo, category="structure", same_team=True)
+
 
     if logging:
         # If logging, we start by storing start time and state for later reference during output file analysis
@@ -47,7 +49,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         xarray_glob_output = [globals_to_dataset(root_nitrogen, time=0)]
         xarray_output[0].to_netcdf(f"outputs\\xarray_used_input_{start_time}.nc")
 
-    # actual computation loop
+    # Scheduler : actual computation loop
     for i in range(n):
         # Update soil state
         soil.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
