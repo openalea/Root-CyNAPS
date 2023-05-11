@@ -32,7 +32,7 @@ class TransportWater:
 
 class WaterModel:
     def __init__(self, g, time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure,
-                 radial_import_water, axial_export_water_up, axial_import_water_down, water_root_shoot_xylem):
+                 radial_import_water, axial_export_water_up, axial_import_water_down):
         """
                 Description
 
@@ -56,8 +56,6 @@ class WaterModel:
                                        xylem_total_volume=0,
                                        xylem_total_pressure=xylem_total_pressure)
 
-        self.shoot_exchanges = dict(water_root_shoot_xylem=water_root_shoot_xylem)
-
         props = self.g.properties()
         for name in self.keywords:
             props.setdefault(name, {})
@@ -71,30 +69,22 @@ class WaterModel:
 
         # Accessing properties once, pointing to g for further modifications
         self.states = """
-                                soil_water_pressure
-                                soil_temperature
                                 C_hexose_soil
                                 xylem_water
-                                xylem_volume
                                 C_sucrose_root
                                 radial_import_water
                                 axial_export_water_up
                                 axial_import_water_down
-                                cylinder_exchange_surface
-                                apoplasmic_stele
                                 length
                                 radius
                                 struct_mass
                                 living_root_hairs_external_surface
+                                xylem_volume
                                 """.split()
 
         # Declare MTG properties in self
         for name in self.states:
             setattr(self, name, props[name])
-
-        # Declare exchanges with flow retreived from the shoot model
-        for name in self.shoot_exchanges:
-            setattr(self, name, self.shoot_exchanges[name])
 
         # Declare totals computed for global model's outputs
         for name in self.root_system_totals:
@@ -104,6 +94,23 @@ class WaterModel:
         self.water_volumic_mass = water_volumic_mass
         self.init_xylem_water(water_molar_mass)
         self.update_sums()
+
+        # Declare to outside modules which variables are needed
+        # TODO : convert to dict of dict for the builder to print variable expertise informations
+        self.inputs = {
+            "soil": [
+                "soil_water_pressure",
+                "soil_temperature"
+            ],
+            "structure": [
+                "xylem_volume",
+                "cylinder_exchange_surface",
+                "apoplasmic_stele"
+            ],
+            "shoot_water": [
+                "water_root_shoot_xylem"
+            ]
+        }
 
         # Select real children for collar element (vid == 1).
         # This is mandatory for right collar-to-tip Hagen-Poiseuille flow partitioning.

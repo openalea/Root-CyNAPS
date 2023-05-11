@@ -31,17 +31,30 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
     if not discrete_vessels:
-        root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()), **asdict(InitShootNitrogen()))
+        root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()))
     else:
-        root_water = WaterModel(g, time_step, **asdict(InitWater()), **asdict(InitShootWater()))
-        root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()), **asdict(InitShootNitrogen()))
+        root_water = WaterModel(g, time_step, **asdict(InitWater()))
+        root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()))
     shoot = ShootModel(**asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
     # Linking modules
-    converter.link_mtg(root_nitrogen, soil, category="soil", same_team=True)
-    converter.link_mtg(root_nitrogen, root_topo, category="structure", same_team=True)
+    # Spatialized root MTG interactions between soil, structure, nitrogen and water
+    converter.link_mtg(root_nitrogen, soil, category="soil", same_names=True)
+    converter.link_mtg(root_nitrogen, root_topo, category="structure", same_names=True)
 
+    converter.link_mtg(root_water, soil, category="soil", same_names=True)
+    converter.link_mtg(root_water, root_topo, category="structure", same_names=True)
 
+    converter.link_mtg(root_nitrogen, root_water, category="water", same_names=True)
+
+    # 1 point collar interactions between shoot CN, root nitrogen and root water
+    converter.link_collar(shoot, root_nitrogen, category="root_nitrogen", translator=converter.nitrogen_state, same_names=False)
+    converter.link_collar(root_nitrogen, shoot, category="shoot_nitrogen", translator=converter.nitrogen_flows, same_names=False)
+
+    converter.link_collar(shoot, root_water, category="root_water", translator=converter.water_state, same_names=False)
+    converter.link_collar(root_water, shoot, category="shoot_water", translator=converter.water_flows, same_names=False)
+
+    # Init output xarray list
     if logging:
         # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
@@ -60,18 +73,13 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
             root_water.exchanges_and_balance()
         root_nitrogen.exchanges_and_balance(time_step=time_step)
 
-        # to be retrieved by the shoot model
-        nitrogen_state = converter.get_root_collar_state(root_nitrogen)
-        if discrete_vessels:
-            water_state = converter.get_root_collar_state(root_water)
-            collar_nitrogen_flows, collar_water_flows = shoot.exchanges_and_balance(**{**nitrogen_state, **water_state})
-            # apply computed water flow for next time step to root model
-            converter.apply_root_collar_flows(collar_water_flows, root_water, "water")
-        else:
-            # Here only nitrogen flows are retrieved
-            collar_nitrogen_flows = shoot.exchanges_and_balance(root_xylem_pressure=0, **nitrogen_state)[0]
-        # apply computed nitrogen flow for next time step to root model
-        converter.apply_root_collar_flows(collar_nitrogen_flows, root_nitrogen, "nitrogen")
+        shoot.exchanges_and_balance()
+
+        print(root_water.axial_export_water_up)
+        print(root_nitrogen.axial_export_water_up)
+
+        print(root_water.xylem_total_pressure)
+        print(shoot.root_xylem_pressure)
 
         print("time step : {}h".format(i))
 

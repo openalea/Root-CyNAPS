@@ -15,7 +15,7 @@ class InitShootWater:
 
 @dataclass
 class WTransport:
-    axial_water_conductivity: float = 1e-18     # m4.s-1.Pa-1
+    pass
 
 
 class ShootModel:
@@ -31,6 +31,20 @@ class ShootModel:
 
         for name in self.keywords:
             setattr(self, name, self.keywords[name])
+
+        self.inputs = {
+            "root_nitrogen":[
+                "root_xylem_Nm",
+                "root_xylem_AA",
+                "collar_struct_mass",
+                "root_phloem_AA",
+                "root_radius",
+                "segment_length"],
+            "root_water":[
+                "root_xylem_water",
+                "root_xylem_pressure"
+            ]
+        }
 
     def transportN(self, root_xylem_Nm, root_xylem_AA, collar_struct_mass, root_xylem_water, root_phloem_AA, root_radius):
         axial_diffusion_xylem: float = 2.5e-4   # g.m-2.s-1
@@ -64,31 +78,15 @@ class ShootModel:
 
         self.cytokinins_root_shoot_xylem = 0
 
-        # Output flows
-        class NFlows(object): pass
-        N_flows = NFlows()
-        N_flows.Nm_root_shoot_xylem = self.Nm_root_shoot_xylem
-        N_flows.AA_root_shoot_xylem = self.AA_root_shoot_xylem
-        N_flows.AA_root_shoot_phloem = self.AA_root_shoot_phloem
-        N_flows.cytokinins_root_shoot_xylem = self.cytokinins_root_shoot_xylem
-        return N_flows.__dict__
-
-    def transportW(self, axial_water_conductivity, root_xylem_pressure, root_radius, segment_length):
+    def transportW(self, root_xylem_pressure, root_radius, segment_length):
         shoot_xylem_pressure = -2e6  # (Pa)
         sap_viscosity = 1.3e6
         # only hydrostatic for tests
         self.water_root_shoot_xylem = ((np.pi * (root_radius**4))/(8*sap_viscosity)) * (root_xylem_pressure - shoot_xylem_pressure) / segment_length
-        # Output flows
-        class WFlows(object): pass
-        W_flows = WFlows()
-        W_flows.water_root_shoot_xylem = self.water_root_shoot_xylem
-        return W_flows.__dict__
 
-    def exchanges_and_balance(self, root_xylem_Nm, root_xylem_AA, collar_struct_mass, root_xylem_water,
-                              root_xylem_pressure, root_phloem_AA, root_radius, segment_length):
+    def exchanges_and_balance(self):
         # Water flow first for advection computation
-        W_flows = self.transportW(root_xylem_pressure=root_xylem_pressure, root_radius=root_radius, segment_length=segment_length,
+        self.transportW(root_xylem_pressure=self.root_xylem_pressure, root_radius=self.root_radius, segment_length=self.segment_length,
                                   **asdict(WTransport()))
-        N_flows = self.transportN(root_xylem_Nm=root_xylem_Nm, root_xylem_AA=root_xylem_AA, collar_struct_mass=collar_struct_mass,
-                                  root_xylem_water=root_xylem_water, root_phloem_AA=root_phloem_AA, root_radius=root_radius)
-        return N_flows, W_flows
+        self.transportN(root_xylem_Nm=self.root_xylem_Nm, root_xylem_AA=self.root_xylem_AA, collar_struct_mass=self.collar_struct_mass,
+                                  root_xylem_water=self.root_xylem_water, root_phloem_AA=self.root_phloem_AA, root_radius=self.root_radius)

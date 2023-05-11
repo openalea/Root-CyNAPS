@@ -148,8 +148,7 @@ class UpdateN:
 class CommonNitrogenModel:
     def __init__(self, g, Nm, AA, struct_protein, storage_protein, import_Nm, export_Nm, export_AA, diffusion_Nm_soil,
                  diffusion_Nm_xylem, diffusion_Nm_soil_xylem, diffusion_AA_soil, diffusion_AA_phloem, diffusion_AA_soil_xylem, AA_synthesis, struct_synthesis,
-                 storage_synthesis, AA_catabolism, storage_catabolism, cytokinin_synthesis, Nm_root_shoot_xylem, AA_root_shoot_xylem,
-                 AA_root_shoot_phloem, cytokinins_root_shoot_xylem):
+                 storage_synthesis, AA_catabolism, storage_catabolism, cytokinin_synthesis):
 
         """
         Description
@@ -206,12 +205,6 @@ class CommonNitrogenModel:
                                     xylem_total_AA=0,
                                     phloem_total_AA=0))
 
-        self.shoot_exchanges = dict(Nm_root_shoot_xylem=Nm_root_shoot_xylem,
-                                         AA_root_shoot_xylem=AA_root_shoot_xylem,
-                                         AA_root_shoot_phloem=AA_root_shoot_phloem,
-                                         cytokinins_root_shoot_xylem=cytokinins_root_shoot_xylem
-                                         )
-
         props = self.g.properties()
         for name in self.keywords:
             props.setdefault(name, {})
@@ -259,10 +252,6 @@ class CommonNitrogenModel:
         for name in self.states:
             setattr(self, name, props[name])
 
-        # Declare exchanges with flow retreived from the shoot model
-        for name in self.shoot_exchanges:
-            setattr(self, name, self.shoot_exchanges[name])
-
         # Declare totals computed for global model's outputs
         for name in self.root_system_totals:
             setattr(self, name, self.root_system_totals[name])
@@ -282,7 +271,12 @@ class CommonNitrogenModel:
                 "apoplasmic_stele"
             ],
             "carbon":[
-
+            ],
+            "shoot_nitrogen":[
+                "Nm_root_shoot_xylem",
+                "AA_root_shoot_xylem",
+                "AA_root_shoot_phloem",
+                "cytokinins_root_shoot_xylem"
             ]
         })
 
@@ -565,7 +559,6 @@ class DiscreteVessels(CommonNitrogenModel):
         self.states = """
                 xylem_Nm
                 xylem_AA
-                xylem_water
                 xylem_struct_mass
                 phloem_AA
                 phloem_struct_mass
@@ -574,14 +567,13 @@ class DiscreteVessels(CommonNitrogenModel):
                 axial_diffusion_Nm_xylem
                 axial_diffusion_AA_xylem
                 axial_diffusion_AA_phloem
-                axial_export_water_up
-                axial_import_water_down
-                
                 """.split()
 
         self.inputs = {
             "water":[
-
+                "xylem_water",
+                "axial_export_water_up",
+                "axial_import_water_down"
             ],
             "shoot_nitrogen": [
 
