@@ -40,13 +40,13 @@ def link_collar(reciever, applier, category, translator={}, same_names=True):
         for link in getattr(reciever, "inputs")[category]:
             source = getattr(applier, link)
             if isinstance(source, dict):
-                setattr(reciever, link, source.get(1))
+                setattr(reciever, link, source)
             else:
                 setattr(reciever, link, source)
     else:
         for link in getattr(reciever, "inputs")[category]:
             source = getattr(applier, translator[link])
             if isinstance(source, dict):
-                setattr(reciever, link, source.get(1))
+                setattr(reciever, link, source)
             else:
                 setattr(reciever, link, source)

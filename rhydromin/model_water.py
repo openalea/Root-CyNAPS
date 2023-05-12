@@ -54,7 +54,7 @@ class WaterModel:
         # Creating variables for
         self.root_system_totals = dict(xylem_total_water=0,
                                        xylem_total_volume=0,
-                                       xylem_total_pressure=xylem_total_pressure)
+                                       xylem_total_pressure=[xylem_total_pressure])
 
         props = self.g.properties()
         for name in self.keywords:
@@ -146,14 +146,14 @@ class WaterModel:
 
                 surface_sum += self.radius[vid] * self.length[vid]
 
-        self.xylem_total_pressure = pressure_forces_sum / surface_sum
+        self.xylem_total_pressure[0] = pressure_forces_sum / surface_sum
 
         # We define "root" as the starting point of the loop below:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
         root = next(root_gen)
 
         # we set collar element the flow provided by shoot model
-        self.axial_export_water_up[1] = self.water_root_shoot_xylem * self.time_step
+        self.axial_export_water_up[1] = self.water_root_shoot_xylem[0] * self.time_step
         # We travel in the MTG from the root collar to the tips:
         for vid in pre_order(self.g, root):
             # We apply the following for all structural mass, because null length element can be support for
@@ -167,7 +167,7 @@ class WaterModel:
                 # As a starting point, we only use labile sugars as significative osmolite
                 # These flows are immediately computed as quantity per time step for axial balance
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
-                        (self.soil_water_pressure[vid] - self.xylem_total_pressure) + reflexion_coef * R * self.soil_temperature[vid] * (
+                        (self.soil_water_pressure[vid] - self.xylem_total_pressure[0]) + reflexion_coef * R * self.soil_temperature[vid] * (
                         self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) * (self.cylinder_exchange_surface[vid] + self.living_root_hairs_external_surface[vid])
 
                 # For current vertex, compute axial down flow from axial upper flow, radial flow
@@ -179,7 +179,7 @@ class WaterModel:
                 # if there are children, there is a down import flux
                 else:
                     self.axial_import_water_down[vid] = (
-                            (1 - 10*(self.xylem_total_pressure - self.soil_water_pressure[vid]) / self.xylem_total_pressure)
+                            (1 - 10*(self.xylem_total_pressure[0] - self.soil_water_pressure[vid]) / self.xylem_total_pressure[0])
                             * (self.axial_export_water_up[vid] - self.radial_import_water[vid]))
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children

@@ -13,20 +13,16 @@ class InitShootNitrogen:
 class InitShootWater:
     water_root_shoot_xylem: float = 0
 
-@dataclass
-class WTransport:
-    pass
-
 
 class ShootModel:
     def __init__(self, Nm_root_shoot_xylem, AA_root_shoot_xylem, AA_root_shoot_phloem, cytokinins_root_shoot_xylem,
                  water_root_shoot_xylem):
         self.keywords = dict(
-            Nm_root_shoot_xylem=Nm_root_shoot_xylem,
-            AA_root_shoot_xylem=AA_root_shoot_xylem,
-            AA_root_shoot_phloem=AA_root_shoot_phloem,
-            cytokinins_root_shoot_xylem=cytokinins_root_shoot_xylem,
-            water_root_shoot_xylem=water_root_shoot_xylem
+            Nm_root_shoot_xylem=[Nm_root_shoot_xylem],
+            AA_root_shoot_xylem=[AA_root_shoot_xylem],
+            AA_root_shoot_phloem=[AA_root_shoot_phloem],
+            cytokinins_root_shoot_xylem=[cytokinins_root_shoot_xylem],
+            water_root_shoot_xylem=[water_root_shoot_xylem]
         )
 
         for name in self.keywords:
@@ -46,7 +42,7 @@ class ShootModel:
             ]
         }
 
-    def transportN(self, root_xylem_Nm, root_xylem_AA, collar_struct_mass, root_xylem_water, root_phloem_AA, root_radius):
+    def transportN(self):
         axial_diffusion_xylem: float = 2.5e-4   # g.m-2.s-1
         axial_diffusion_phloem: float = 1e-4  # g.m-2.s-1
         shoot_xylem_Nm = 1e-5   # mol.g-1 DW
@@ -54,39 +50,37 @@ class ShootModel:
         shoot_phloem_AA = 2e-3  # mol.g-1 DW
         xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
 
-        if self.water_root_shoot_xylem >= 0:
-            Nm_water_conc = root_xylem_Nm * collar_struct_mass * xylem_cross_area_ratio / root_xylem_water
-            AA_water_conc = root_xylem_AA * collar_struct_mass * xylem_cross_area_ratio / root_xylem_water
+        if self.water_root_shoot_xylem[0] >= 0:
+            Nm_water_conc = self.root_xylem_Nm[1] * self.collar_struct_mass[1] * xylem_cross_area_ratio / self.root_xylem_water[1]
+            AA_water_conc = self.root_xylem_AA[1] * self.collar_struct_mass[1] * xylem_cross_area_ratio / self.root_xylem_water[1]
 
         else:
             Nm_water_conc = 1e-6
             AA_water_conc = 1e-6
 
-        Nm_collar_advection = Nm_water_conc * self.water_root_shoot_xylem
-        AA_collar_advection = AA_water_conc * self.water_root_shoot_xylem
+        Nm_collar_advection = Nm_water_conc * self.water_root_shoot_xylem[0]
+        AA_collar_advection = AA_water_conc * self.water_root_shoot_xylem[0]
 
         # note, gradients are not computed in the same way for xylem and phloem, we have an a priori on flow directions
-        Nm_collar_xylem_diffusion = axial_diffusion_xylem * (root_xylem_Nm - shoot_xylem_Nm) * np.pi * root_radius**2
-        AA_collar_xylem_diffusion = axial_diffusion_xylem * (root_xylem_AA - shoot_xylem_AA) * np.pi * root_radius**2
+        Nm_collar_xylem_diffusion = axial_diffusion_xylem * (self.root_xylem_Nm[1] - shoot_xylem_Nm) * np.pi * self.root_radius[1]**2
+        AA_collar_xylem_diffusion = axial_diffusion_xylem * (self.root_xylem_AA[1] - shoot_xylem_AA) * np.pi * self.root_radius[1]**2
 
-        AA_collar_phloem_diffusion = axial_diffusion_phloem * (shoot_phloem_AA - root_phloem_AA) * np.pi * root_radius ** 2
+        AA_collar_phloem_diffusion = axial_diffusion_phloem * (shoot_phloem_AA - self.root_phloem_AA[1]) * np.pi * self.root_radius[1] ** 2
 
-        self.Nm_root_shoot_xylem = Nm_collar_advection + Nm_collar_xylem_diffusion
-        self.AA_root_shoot_xylem = AA_collar_advection + AA_collar_xylem_diffusion
+        self.Nm_root_shoot_xylem[0] = Nm_collar_advection + Nm_collar_xylem_diffusion
+        self.AA_root_shoot_xylem[0] = AA_collar_advection + AA_collar_xylem_diffusion
 
-        self.AA_root_shoot_phloem = AA_collar_phloem_diffusion
+        self.AA_root_shoot_phloem[0] = AA_collar_phloem_diffusion
 
-        self.cytokinins_root_shoot_xylem = 0
+        self.cytokinins_root_shoot_xylem[0] = 0
 
-    def transportW(self, root_xylem_pressure, root_radius, segment_length):
+    def transportW(self):
         shoot_xylem_pressure = -2e6  # (Pa)
         sap_viscosity = 1.3e6
         # only hydrostatic for tests
-        self.water_root_shoot_xylem = ((np.pi * (root_radius**4))/(8*sap_viscosity)) * (root_xylem_pressure - shoot_xylem_pressure) / segment_length
+        self.water_root_shoot_xylem[0] = ((np.pi * (self.root_radius[1]**4))/(8*sap_viscosity)) * (self.root_xylem_pressure[0] - shoot_xylem_pressure) / self.segment_length[1]
 
     def exchanges_and_balance(self):
         # Water flow first for advection computation
-        self.transportW(root_xylem_pressure=self.root_xylem_pressure, root_radius=self.root_radius, segment_length=self.segment_length,
-                                  **asdict(WTransport()))
-        self.transportN(root_xylem_Nm=self.root_xylem_Nm, root_xylem_AA=self.root_xylem_AA, collar_struct_mass=self.collar_struct_mass,
-                                  root_xylem_water=self.root_xylem_water, root_phloem_AA=self.root_phloem_AA, root_radius=self.root_radius)
+        self.transportW()
+        self.transportN()

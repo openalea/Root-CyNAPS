@@ -460,7 +460,7 @@ class CommonNitrogenModel:
         self.total_hexose = sum([x*y for x,y in zip(self.C_hexose_root.values(),self.struct_mass.values())])/self.total_struct_mass
         self.total_cytokinins += time_step / self.total_struct_mass * (
                 self.cytokinin_synthesis[0]
-                - self.cytokinins_root_shoot_xylem
+                - self.cytokinins_root_shoot_xylem[0]
                 )
 
 
@@ -501,9 +501,9 @@ class OnePoolVessels(CommonNitrogenModel):
                 self.phloem_AA[0] -= time_step * self.diffusion_AA_phloem[vid] / self.phloem_total_struct_mass
 
         # Update vessels according to exchanges with shoot
-        self.xylem_Nm[0] -= time_step * self.Nm_root_shoot_xylem / self.xylem_total_struct_mass
-        self.xylem_AA[0] -= time_step * self.AA_root_shoot_xylem / self.xylem_total_struct_mass
-        self.phloem_AA[0] += time_step * self.AA_root_shoot_phloem / self.phloem_total_struct_mass
+        self.xylem_Nm[0] -= time_step * self.Nm_root_shoot_xylem[0] / self.xylem_total_struct_mass
+        self.xylem_AA[0] -= time_step * self.AA_root_shoot_xylem[0] / self.xylem_total_struct_mass
+        self.phloem_AA[0] += time_step * self.AA_root_shoot_phloem[0] / self.phloem_total_struct_mass
 
 
         # Global xylem and phloem pools for outputs
@@ -604,8 +604,8 @@ class DiscreteVessels(CommonNitrogenModel):
         # Compute segment upper advection flow to upper segment
         # if this is collar, this flow is handled separately by shoot model flows (both advection and diffusion)
         if v == 1:
-            advection_Nm_up = self.Nm_root_shoot_xylem * time_step
-            advection_AA_up = self.AA_root_shoot_xylem * time_step
+            advection_Nm_up = self.Nm_root_shoot_xylem[0] * time_step
+            advection_AA_up = self.AA_root_shoot_xylem[0] * time_step
 
         # for every other segment :
         else:
@@ -712,7 +712,7 @@ class DiscreteVessels(CommonNitrogenModel):
         self.axial_diffusion_AA_xylem[v] = 0.0
         # if this is collar, account for diffusion-only exchanges with shoot
         if v == 1:
-            self.axial_diffusion_AA_phloem[v] = self.AA_root_shoot_phloem
+            self.axial_diffusion_AA_phloem[v] = self.AA_root_shoot_phloem[0]
         else:
             self.axial_diffusion_AA_phloem[v] = 0.0
 
