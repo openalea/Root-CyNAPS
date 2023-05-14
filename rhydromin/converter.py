@@ -3,14 +3,14 @@ from dataclasses import dataclass, asdict
 
 
 nitrogen_flows = {
-    "Nm_root_shoot_xylem": "Nm_root_shoot_xylem",
-    "AA_root_shoot_xylem": "AA_root_shoot_xylem",
-    "AA_root_shoot_phloem": "AA_root_shoot_phloem",
-    "cytokinins_root_shoot_xylem": "cytokinins_root_shoot_xylem"
+    "Nm_root_shoot_xylem": "Export_Nitrates",
+    "AA_root_shoot_xylem": "Export_Amino_Acids",
+    "AA_root_shoot_phloem": "Unloading_Amino_Acids",
+    "cytokinins_root_shoot_xylem": "Export_cytokinins"
 }
 
 water_flows = {
-    "water_root_shoot_xylem": "water_root_shoot_xylem"
+    "water_root_shoot_xylem": "Total_Transpiration"
 }
 
 nitrogen_state = {

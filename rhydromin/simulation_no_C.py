@@ -11,7 +11,7 @@ from rhydromin.model_topology import InitSurfaces, TissueTopology, RadialTopolog
 from rhydromin.model_water import InitWater, WaterModel
 from rhydromin.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
 
-from fakeShoot.model import InitShootNitrogen, InitShootWater, ShootModel
+from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
 
 import rhydromin.converter as converter
 from rhydromin.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
@@ -71,7 +71,10 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
             root_water.exchanges_and_balance()
         root_nitrogen.exchanges_and_balance(time_step=time_step)
 
-        shoot.exchanges_and_balance()
+        shoot.exchanges_and_balance(time=i)
+
+        print(shoot.Export_Nitrates)
+        print(root_nitrogen.Nm_root_shoot_xylem)
 
         print("time step : {}h".format(i))
 

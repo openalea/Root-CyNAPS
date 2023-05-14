@@ -73,12 +73,12 @@ global_state_extracts = dict(
 )
 
 global_flow_extracts = dict(
-    Nm_root_shoot_xylem=dict(unit="mol", value_example="not provided",  description="not provided"),
-    AA_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided"),
-    AA_root_shoot_phloem=dict(unit="mol", value_example="not provided", description="not provided"),
-    cytokinins_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided"),
+    Export_Nitrates=dict(unit="mol", value_example="not provided",  description="not provided"),
+    Export_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
+    Unloading_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
+    Export_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
     cytokinin_synthesis=dict(unit="mol", value_example="not provided", description="not provided"),
-    #water_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided")
+    Total_Transpiration=dict(unit="mol", value_example="not provided", description="not provided")
 )
 
 

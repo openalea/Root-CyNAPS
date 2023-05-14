@@ -228,12 +228,12 @@ props_metadata = dict(
     xylem_total_volume=dict(unit="m3", value_example="not provided", description="not provided"),
     xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided"),
     # Flows
-    Nm_root_shoot_xylem=dict(unit="mol", value_example="not provided",  description="not provided"),
-    AA_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided"),
-    AA_root_shoot_phloem=dict(unit="mol", value_example="not provided", description="not provided"),
-    cytokinins_root_shoot_xylem=dict(unit="mol.s-1", value_example="not provided", description="not provided"),
+    Export_Nitrates=dict(unit="mol", value_example="not provided",  description="not provided"),
+    Export_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
+    Unloading_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
+    Export_cytokinins=dict(unit="mol.s-1", value_example="not provided", description="not provided"),
     cytokinin_synthesis=dict(unit="mol.s-1", value_example="not provided", description="not provided"),
-    water_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided")
+    Total_Transpiration=dict(unit="mol", value_example="not provided", description="not provided")
 )
 
 
