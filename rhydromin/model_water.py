@@ -44,17 +44,12 @@ class WaterModel:
         self.g = g
         self.time_step = time_step
 
-        # New properties' creation in MTG
+        # New spatialized properties' creation in MTG
         self.keywords = dict(
             xylem_water=xylem_water,
             radial_import_water=radial_import_water,
             axial_export_water_up=axial_export_water_up,
             axial_import_water_down=axial_import_water_down)
-
-        # Creating variables for
-        self.root_system_totals = dict(xylem_total_water=0,
-                                       xylem_total_volume=0,
-                                       xylem_total_pressure=[xylem_total_pressure])
 
         props = self.g.properties()
         for name in self.keywords:
@@ -69,26 +64,44 @@ class WaterModel:
 
         # Accessing properties once, pointing to g for further modifications
         self.states = """
-                                C_hexose_soil
-                                xylem_water
-                                C_sucrose_root
-                                radial_import_water
-                                axial_export_water_up
-                                axial_import_water_down
-                                length
-                                radius
-                                struct_mass
-                                living_root_hairs_external_surface
-                                xylem_volume
-                                """.split()
+                        C_hexose_soil
+                        xylem_water
+                        C_sucrose_root
+                        radial_import_water
+                        axial_export_water_up
+                        axial_import_water_down
+                        length
+                        radius
+                        struct_mass
+                        living_root_hairs_external_surface
+                        xylem_volume
+                        """.split()
 
         # Declare MTG properties in self
         for name in self.states:
             setattr(self, name, props[name])
 
-        # Declare totals computed for global model's outputs
-        for name in self.root_system_totals:
-            setattr(self, name, self.root_system_totals[name])
+        # Repeat the same process for total root system properties
+
+        # Creating variables for
+        self.totals_keywords = dict(xylem_total_water=0,
+                                    xylem_total_volume=0,
+                                    xylem_total_pressure=xylem_total_pressure)
+
+        for name, value in self.totals_keywords.items():
+            props.setdefault(name, {})
+            props[name][1] = value
+
+        # Accessing properties once, pointing to g for further modifications
+        self.totals_states = """
+                                xylem_total_water
+                                xylem_total_volume
+                                xylem_total_pressure
+                                """.split()
+
+        # Declare MTG properties in self
+        for name in self.totals_states:
+            setattr(self, name, props[name])
 
         # proper initialization of the xylem water content
         self.water_volumic_mass = water_volumic_mass
@@ -138,7 +151,6 @@ class WaterModel:
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                #print(self.xylem_water[vid])
                 pressure_forces_sum += self.radius[vid] * self.length[vid] * (
                     xylem_young_modulus * ((((self.xylem_water[vid] * water_molar_mass) / (np.pi * (self.radius[vid]**2)
                                             * self.length[vid] * xylem_cross_area_ratio * self.water_volumic_mass))**0.5)
@@ -146,14 +158,14 @@ class WaterModel:
 
                 surface_sum += self.radius[vid] * self.length[vid]
 
-        self.xylem_total_pressure[0] = pressure_forces_sum / surface_sum
+        self.xylem_total_pressure[1] = pressure_forces_sum / surface_sum
 
         # We define "root" as the starting point of the loop below:
         root_gen = self.g.component_roots_at_scale_iter(self.g.root, scale=1)
         root = next(root_gen)
 
         # we set collar element the flow provided by shoot model
-        self.axial_export_water_up[1] = self.water_root_shoot_xylem[0] * self.time_step
+        self.axial_export_water_up[1] = self.water_root_shoot_xylem[1] * self.time_step
         # We travel in the MTG from the root collar to the tips:
         for vid in pre_order(self.g, root):
             # We apply the following for all structural mass, because null length element can be support for
@@ -167,7 +179,7 @@ class WaterModel:
                 # As a starting point, we only use labile sugars as significative osmolite
                 # These flows are immediately computed as quantity per time step for axial balance
                 self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
-                        (self.soil_water_pressure[vid] - self.xylem_total_pressure[0]) + reflexion_coef * R * self.soil_temperature[vid] * (
+                        (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) + reflexion_coef * R * self.soil_temperature[vid] * (
                         self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) * (self.cylinder_exchange_surface[vid] + self.living_root_hairs_external_surface[vid])
 
                 # For current vertex, compute axial down flow from axial upper flow, radial flow
@@ -179,7 +191,7 @@ class WaterModel:
                 # if there are children, there is a down import flux
                 else:
                     self.axial_import_water_down[vid] = (
-                            (1 - 10*(self.xylem_total_pressure[0] - self.soil_water_pressure[vid]) / self.xylem_total_pressure[0])
+                            (1 - 10*(self.xylem_total_pressure[1] - self.soil_water_pressure[vid]) / self.xylem_total_pressure[1])
                             * (self.axial_export_water_up[vid] - self.radial_import_water[vid]))
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children

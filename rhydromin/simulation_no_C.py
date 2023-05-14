@@ -1,5 +1,4 @@
 '''IMPORTS'''
-from time import sleep
 from datetime import datetime
 import pickle
 import xarray as xr
@@ -35,7 +34,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     else:
         root_water = WaterModel(g, time_step, **asdict(InitWater()))
         root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()))
-    shoot = ShootModel(**asdict(InitShootNitrogen()), **asdict(InitShootWater()))
+    shoot = ShootModel(g, **asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
     # Linking modules
     # Spatialized root MTG interactions between soil, structure, nitrogen and water
@@ -74,12 +73,6 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         root_nitrogen.exchanges_and_balance(time_step=time_step)
 
         shoot.exchanges_and_balance()
-
-        print(root_nitrogen.Nm_root_shoot_xylem)
-        print(shoot.Nm_root_shoot_xylem)
-
-        print(root_water.water_root_shoot_xylem)
-        print(shoot.water_root_shoot_xylem)
 
         print("time step : {}h".format(i))
 
