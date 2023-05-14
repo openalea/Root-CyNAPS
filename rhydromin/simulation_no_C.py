@@ -14,8 +14,8 @@ from rhydromin.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVe
 from fakeShoot.model import InitShootNitrogen, InitShootWater, ShootModel
 
 import rhydromin.converter as converter
-from rhydromin.tools_output import state_extracts, flow_extracts, global_extracts, plot_xr, plot_N
-from tools.mtg_dict_to_xarray import mtg_to_dataset, globals_to_dataset
+from rhydromin.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
+from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 
 
 '''FUNCTIONS'''
@@ -57,8 +57,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     if logging:
         # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
-        xarray_output = [mtg_to_dataset(g, time=0)]
-        xarray_glob_output = [globals_to_dataset(root_nitrogen, time=0)]
+        xarray_output = [mtg_to_dataset(g, variables=props_metadata, time=0)]
         xarray_output[0].to_netcdf(f"outputs\\xarray_used_input_{start_time}.nc")
 
     # Scheduler : actual computation loop
@@ -101,18 +100,12 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         if logging:
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
             # However, it might be necessary to empty this and save .nc files every X time steps for memory management
-            xarray_output += [mtg_to_dataset(g, time=i+1)]
-            xarray_glob_output += [globals_to_dataset(root_nitrogen, time=i+1)]
-
-        # print_g(root_water, ["xylem_total_pressure", "xylem_total_water", "water_root_shoot_xylem"], vertice=0)
-        # print_g(root_nitrogen, ["Nm_root_shoot_xylem"], vertice=0)
+            xarray_output += [mtg_to_dataset(g, variables=props_metadata, time=i+1)]
 
     if logging:
         # NOTE : merging is slower but way less space is needed
         time_dataset = xr.concat(xarray_output, dim="t")
-        time_glob_dataset = xr.concat(xarray_glob_output, dim="t")
         time_dataset.to_netcdf(f"outputs\\{start_time}.nc")
-        time_glob_dataset.to_netcdf(f"outputs\\{start_time}_glob.nc")
 
         # saving last mtg status
         with open(r"outputs\\root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
@@ -120,10 +113,10 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
 
         if plotting:
             time_dataset = xr.load_dataset(f"outputs\\{start_time}.nc")
-            time_glob_dataset = xr.load_dataset(f"outputs\\{start_time}_glob.nc")
             plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(state_extracts.keys()))
             plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(flow_extracts.keys()))
-            plot_xr(dataset=time_glob_dataset, selection=list(global_extracts.keys()))
+            plot_xr(dataset=time_dataset, selection=list(global_state_extracts.keys()))
+            plot_xr(dataset=time_dataset, selection=list(global_flow_extracts.keys()))
             plt.show()
 
         if plantgl:

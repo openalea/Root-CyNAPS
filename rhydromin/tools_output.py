@@ -6,7 +6,6 @@ import numpy as np
 
 
 ### Output parameters
-vertices = [149]
 
 state_extracts = dict(
     # Next nitrogen properties
@@ -49,7 +48,6 @@ flow_extracts = dict(
     storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    cytokinin_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     axial_advection_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     axial_diffusion_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -61,14 +59,26 @@ flow_extracts = dict(
     axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
 )
 
-global_extracts = dict(
+global_state_extracts = dict(
     total_Nm=dict(unit="mol", value_example="not provided",  description="not provided"),
     total_hexose=dict(unit="mol", value_example="not provided", description="not provided"),
     total_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
     total_struct_mass=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
-    phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided")
+    phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_volume=dict(unit="m3", value_example="not provided", description="not provided"),
+    #xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+)
+
+global_flow_extracts = dict(
+    Nm_root_shoot_xylem=dict(unit="mol", value_example="not provided",  description="not provided"),
+    AA_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided"),
+    AA_root_shoot_phloem=dict(unit="mol", value_example="not provided", description="not provided"),
+    cytokinins_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided"),
+    cytokinin_synthesis=dict(unit="mol", value_example="not provided", description="not provided"),
+    #water_root_shoot_xylem=dict(unit="mol", value_example="not provided", description="not provided")
 )
 
 
@@ -129,8 +139,8 @@ def plot_xr(dataset, vertice=[], selection=[]):
         text_annot = [[]]
         std_dataset = (dataset - np.mean(dataset))/np.std(dataset)
         for prop in selection:
-            getattr(dataset, prop).plot.line(x='t', ax=ax[0][0], label=prop)
-            getattr(std_dataset, prop).plot.line(x='t', ax=ax[0][1], label=prop)
+            getattr(dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][0], label=prop)
+            getattr(std_dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][1], label=prop)
             text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
     # If we plot local properties
     else:
