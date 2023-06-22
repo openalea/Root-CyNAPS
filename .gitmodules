@@ -1,0 +1,4 @@
+[submodule "STM_statistics"]
+	path = STM_statistics
+	url = https://github.com/MTreestanG/STM_statistics
+	branch = master

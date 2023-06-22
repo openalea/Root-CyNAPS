@@ -21,7 +21,7 @@ from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 '''FUNCTIONS'''
 
 
-def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plotting=True, logging=False):
+def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plotting_2D=True, plotting_STM=False, logging=False):
     # Loading mtg file
     with open(init, 'rb') as f:
         g = pickle.load(f)
@@ -58,7 +58,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
         xarray_output = [mtg_to_dataset(g, variables=props_metadata, time=0)]
-        xarray_output[0].to_netcdf(f"outputs\\xarray_used_input_{start_time}.nc")
+        xarray_output[0].to_netcdf(f"example\\outputs\\xarray_used_input_{start_time}.nc")
 
     # Scheduler : actual computation loop
     for i in range(n):
@@ -72,9 +72,6 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         root_nitrogen.exchanges_and_balance(time_step=time_step)
 
         shoot.exchanges_and_balance(time=i)
-
-        print(shoot.Export_Nitrates)
-        print(root_nitrogen.Nm_root_shoot_xylem)
 
         print("time step : {}h".format(i))
 
@@ -108,19 +105,23 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     if logging:
         # NOTE : merging is slower but way less space is needed
         time_dataset = xr.concat(xarray_output, dim="t")
-        time_dataset.to_netcdf(f"outputs\\{start_time}.nc")
+        time_dataset.to_netcdf(f"example\\outputs\\{start_time}.nc")
 
         # saving last mtg status
-        with open(r"outputs\\root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
+        with open(r"example\\outputs\\root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
             pickle.dump(g, output_file)
 
-        if plotting:
-            time_dataset = xr.load_dataset(f"outputs\\{start_time}.nc")
+        if plotting_2D:
+            time_dataset = xr.load_dataset(f"example\\outputs\\{start_time}.nc")
             plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(state_extracts.keys()))
             plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(flow_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_state_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_flow_extracts.keys()))
             plt.show()
+
+        if plotting_STM:
+            from STM_statistics import STM_analysis
+            STM_analysis.run(path=f"example\\outputs\\{start_time}.nc")
 
         if plantgl:
             input("end?")
