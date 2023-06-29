@@ -21,7 +21,7 @@ class ShootModel:
 
         self.g = g
 
-        self.dataset = pd.read_csv("C:\\Users\\tigerault\\PythonProjects\\RHydroMin\\Data_enforcer\\inputs\\cnwheat_outputs.csv", sep=";")
+        self.dataset = pd.read_csv("Data_enforcer\\inputs\\cnwheat_outputs.csv", sep=";")
         self.dataset = self.dataset.set_index("t")
 
         props = self.g.properties()
