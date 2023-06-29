@@ -1,0 +1,4 @@
+[submodule "STM_statistics"]
+	path = STM_statistics
+	url = https://forgemia.inra.fr/tristan.gerault/stm_statistics
+	branch = master

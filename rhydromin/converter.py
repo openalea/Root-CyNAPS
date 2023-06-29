@@ -2,52 +2,51 @@
 from dataclasses import dataclass, asdict
 
 
-@dataclass
-class NitrogenComFlows:
-    Nm_root_shoot_xylem: str = "Nm_root_shoot_xylem"
-    AA_root_shoot_xylem: str = "AA_root_shoot_xylem"
-    AA_root_shoot_phloem: str = "AA_root_shoot_phloem"
-    cytokinins_root_shoot_xylem: str = "cytokinins_root_shoot_xylem"
+nitrogen_flows = {
+    "Nm_root_shoot_xylem": "Export_Nitrates",
+    "AA_root_shoot_xylem": "Export_Amino_Acids",
+    "AA_root_shoot_phloem": "Unloading_Amino_Acids",
+    "cytokinins_root_shoot_xylem": "Export_cytokinins"
+}
+
+water_flows = {
+    "water_root_shoot_xylem": "Total_Transpiration"
+}
+
+nitrogen_state = {
+    "root_xylem_Nm": "xylem_Nm",
+    "root_xylem_AA": "xylem_AA",
+    "collar_struct_mass": "struct_mass",
+    "root_phloem_AA": "phloem_AA",
+    "root_radius": "radius",
+    "segment_length": "radius"
+}
+
+water_state = {
+    "root_xylem_water": "xylem_water",
+    "root_xylem_pressure": "xylem_total_pressure"
+}
 
 
-@dataclass
-class WaterComFlows:
-    water_root_shoot_xylem: str = "water_root_shoot_xylem"
+def link_mtg(receiver, applier, category, translator={}, same_names=True):
+    """
+    Description : linker function that will enable properties sharing through MTG.
 
+    Parameters :
+    :param receiver: (class) model class whose inputs should be provided with the applier class.
+    :param applier: (class) model class whose properties are used to provide inputs to the receiver class.
+    :param category: (sting) word to specify which inputs are to be considered in the receiver model class.
+    :param translator: (dict) translation dict used when receiver and applier properties do not have the same names.
+    :param same_names: (bool) boolean value to be used if a model was developped by another team with different names.
 
-@dataclass
-class ComState:
-    xylem_Nm: str = "root_xylem_Nm"
-    xylem_AA: str = "root_xylem_AA"
-    struct_mass: str = "collar_struct_mass"
-    xylem_water: str = "root_xylem_water"
-    xylem_total_pressure: str = "root_xylem_pressure"
-    phloem_AA: str = "root_phloem_AA"
-    radius: str = "root_radius"
-    length: str = "segment_length"
+    Note :  The whole property is transfered, so if only the collar value of a spatial property is needed,
+    it will be accessed through the first vertice with the [1] indice. Not spatialized properties like xylem pressure or
+    single point properties like collar flows are only stored in the indice [1] vertice.
+    """
+    if same_names:
+        for link in getattr(receiver, "inputs")[category]:
+            setattr(receiver, link, getattr(applier, link))
+    else:
+        for link in getattr(receiver, "inputs")[category]:
+            setattr(receiver, link, getattr(applier, translator[link]))
 
-
-def apply_root_collar_flows(collar_flows, root_class, key):
-    communication = {"nitrogen": asdict(NitrogenComFlows()),
-                     "water": asdict(WaterComFlows())}
-    com_table = communication[key]
-    for name in com_table:
-        setattr(root_class, name, collar_flows[com_table[name]])
-
-
-def get_root_collar_state(root_class):
-    class CollarState(object): pass
-    collar_state = CollarState()
-    communication = asdict(ComState())
-    # get attribute names from the root class
-    var = root_class.__dict__.keys()
-    for name in communication:
-        if name in var:
-            target = getattr(root_class, name)
-            # if it is a regular MTG property
-            if isinstance(target, dict):
-                setattr(collar_state, communication[name], target.get(1))
-            # if it is an attribute summed over MTG
-            else:
-                setattr(collar_state, communication[name], target)
-    return collar_state.__dict__

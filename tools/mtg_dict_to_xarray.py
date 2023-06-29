@@ -191,7 +191,6 @@ props_metadata = dict(
     storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    cytokinin_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     xylem_struct_mass=dict(unit="g", value_example=float(1e-3), description="not provided"),
     phloem_struct_mass = dict(unit="g", value_example=float(1e-3), description="not provided"),
     axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -215,17 +214,30 @@ props_metadata = dict(
     soil_water_pressure=dict(unit="Pa", value_example=float(-0.1e6), description="not provided"),
     soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),
     soil_Nm=dict(unit="mol N.m-3", value_example=float(0.5), description="not provided"),
-    soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
-)
-
-glob_metadata = dict(
-    xylem_total_water=dict(unit="mol", value_example="not provided",  description="not provided"),
+    soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided"),
+    # Total properties
+    # States
+    total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
+    total_hexose=dict(unit="mol", value_example="not provided", description="not provided"),
+    total_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
+    total_struct_mass=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
+    phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_volume=dict(unit="m3", value_example="not provided", description="not provided"),
-    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided"),
+    # Flows
+    Export_Nitrates=dict(unit="mol", value_example="not provided",  description="not provided"),
+    Export_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
+    Unloading_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
+    Export_cytokinins=dict(unit="mol.s-1", value_example="not provided", description="not provided"),
+    cytokinin_synthesis=dict(unit="mol.s-1", value_example="not provided", description="not provided"),
+    Total_Transpiration=dict(unit="mol", value_example="not provided", description="not provided")
 )
 
 
-def mtg_to_dataset(mtg, coordinates=mtg_coordinates, variables=props_metadata, description=description, time=0):
+def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=description, time=0):
     # convert dict to dataframe with index corresponding to coordinates in topology space
     # (not just x, y, z, t thanks to MTG structure)
     props_df = pd.DataFrame.from_dict(mtg.properties())
@@ -248,32 +260,6 @@ def mtg_to_dataset(mtg, coordinates=mtg_coordinates, variables=props_metadata, d
     # Dataset coordinates' attribute metadata
     for k, v in coordinates.items():
         getattr(props_ds, k).attrs.update(v)
-
-    # Dataset variables' attribute metadata
-    for k, v in variables.items():
-        getattr(props_ds, k).attrs.update(v)
-
-    return props_ds
-
-
-def globals_to_dataset(model_class, variables=glob_metadata, description=description_glob, time=0):
-    # Building a dict from targeted globals
-    glob = {}
-    for name in variables:
-        glob.update({name: [getattr(model_class, name)]})
-    # convert to dataframe for good index management
-    props_df = pd.DataFrame.from_dict(glob)
-    props_df["t"] = [time]
-    props_df = props_df.set_index("t")
-
-    # Convert to xarray with given dimensions
-    props_ds = props_df.to_xarray()
-
-    # Dataset global attributes
-    props_ds.attrs["description"] = description
-
-    # Dataset coordinates' attribute metadata
-    props_ds.t.attrs.update(dict(unit="h", value_example=1, description="Model time step"))
 
     # Dataset variables' attribute metadata
     for k, v in variables.items():

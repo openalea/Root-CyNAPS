@@ -65,6 +65,9 @@ class HydroMinSoil:
         # Accessing properties once, pointing to g for further modifications
         states = """
                     soil_Nm
+                    soil_AA
+                    soil_water_pressure
+                    soil_temperature
                     z1
                     """.split()
         # soil water pressure, temperature and AA are not imported here because we keep it constant for now

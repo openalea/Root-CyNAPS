@@ -1,5 +1,6 @@
 import numpy as np
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
+import pandas as pd
 
 
 @dataclass
@@ -20,30 +21,13 @@ class ShootModel:
 
         self.g = g
 
-        self.totals_keywords = dict(
-            Nm_root_shoot_xylem=Nm_root_shoot_xylem,
-            AA_root_shoot_xylem=AA_root_shoot_xylem,
-            AA_root_shoot_phloem=AA_root_shoot_phloem,
-            cytokinins_root_shoot_xylem=cytokinins_root_shoot_xylem,
-            water_root_shoot_xylem=water_root_shoot_xylem
-        )
+        self.dataset = pd.read_csv("C:\\Users\\tigerault\\PythonProjects\\RHydroMin\\Data_enforcer\\inputs\\cnwheat_outputs.csv", sep=";")
+        self.dataset = self.dataset.set_index("t")
 
         props = self.g.properties()
-        for name, value in self.totals_keywords.items():
+        for name in self.dataset.columns:
             props.setdefault(name, {})
-            props[name][1] = value
-
-        # Accessing properties once, pointing to g for further modifications
-        self.totals_states = """
-                            Nm_root_shoot_xylem
-                            AA_root_shoot_xylem
-                            AA_root_shoot_phloem
-                            cytokinins_root_shoot_xylem
-                            water_root_shoot_xylem
-                            """.split()
-
-        # Declare MTG properties in self
-        for name in self.totals_states:
+            props[name][1] = self.dataset[name][0]
             setattr(self, name, props[name])
 
         self.inputs = {
@@ -60,7 +44,10 @@ class ShootModel:
             ]
         }
 
-    def transportN(self):
+    def transportW(self, time):
+        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)
+
+    def transportN(self, time):
         axial_diffusion_xylem: float = 2.5e-4   # g.m-2.s-1
         axial_diffusion_phloem: float = 1e-4  # g.m-2.s-1
         shoot_xylem_Nm = 1e-5   # mol.g-1 DW
@@ -68,7 +55,7 @@ class ShootModel:
         shoot_phloem_AA = 2e-3  # mol.g-1 DW
         xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
 
-        if self.water_root_shoot_xylem[1] >= 0:
+        if self.Total_Transpiration[1] >= 0:
             Nm_water_conc = self.root_xylem_Nm[1] * self.collar_struct_mass[1] * xylem_cross_area_ratio / self.root_xylem_water[1]
             AA_water_conc = self.root_xylem_AA[1] * self.collar_struct_mass[1] * xylem_cross_area_ratio / self.root_xylem_water[1]
 
@@ -76,8 +63,8 @@ class ShootModel:
             Nm_water_conc = 1e-6
             AA_water_conc = 1e-6
 
-        Nm_collar_advection = Nm_water_conc * self.water_root_shoot_xylem[1]
-        AA_collar_advection = AA_water_conc * self.water_root_shoot_xylem[1]
+        Nm_collar_advection = Nm_water_conc * self.Total_Transpiration[1]
+        AA_collar_advection = AA_water_conc * self.Total_Transpiration[1]
 
         # note, gradients are not computed in the same way for xylem and phloem, we have an a priori on flow directions
         Nm_collar_xylem_diffusion = axial_diffusion_xylem * (self.root_xylem_Nm[1] - shoot_xylem_Nm) * np.pi * self.root_radius[1]**2
@@ -85,20 +72,14 @@ class ShootModel:
 
         AA_collar_phloem_diffusion = axial_diffusion_phloem * (shoot_phloem_AA - self.root_phloem_AA[1]) * np.pi * self.root_radius[1] ** 2
 
-        self.Nm_root_shoot_xylem[1] = Nm_collar_advection + Nm_collar_xylem_diffusion
-        self.AA_root_shoot_xylem[1] = AA_collar_advection + AA_collar_xylem_diffusion
+        self.Export_Nitrates[1] = Nm_collar_advection + Nm_collar_xylem_diffusion
+        self.Export_Amino_Acids[1] = AA_collar_advection + AA_collar_xylem_diffusion
 
-        self.AA_root_shoot_phloem[1] = AA_collar_phloem_diffusion
+        self.Unloading_Amino_Acids[1] = AA_collar_phloem_diffusion
 
-        self.cytokinins_root_shoot_xylem[1] = 0
+        self.Export_cytokinins[1] = self.dataset["Export_cytokinins"][time]
 
-    def transportW(self):
-        shoot_xylem_pressure = -2e6  # (Pa)
-        sap_viscosity = 1.3e6   # (unit)
-        # only hydrostatic for tests
-        self.water_root_shoot_xylem[1] = ((np.pi * (self.root_radius[1]**4))/(8*sap_viscosity)) * (self.root_xylem_pressure[1] - shoot_xylem_pressure) / self.segment_length[1]
-
-    def exchanges_and_balance(self):
+    def exchanges_and_balance(self, time):
         # Water flow first for advection computation
-        self.transportW()
-        self.transportN()
+        self.transportW(time)
+        self.transportN(time)

@@ -8,7 +8,7 @@ from os.path import join as pj
 
 from setuptools import setup, find_packages
 
-short_descr = "FSPM Root nitrogen cycle"
+short_descr = "Root Cycling Nitrogen Across Plant Scales : a FSPM root nitrogen cycle model"
 readme = open('README.md').read()
 #history = open('HISTORY.rst').read()
 
@@ -29,8 +29,8 @@ for root, dnames, fnames in walk("rhydromin"):
 pkg_data['rhydromin'] = data_files
 
 setup_kwds = dict(
-    name='rhydromin',
-    version="0.0.2",
+    name='Root-CyNAPS',
+    version="0.0.1",
     description=short_descr,
     long_description=readme + '\n\n', # + history,
     author="Tristan Gérault",
