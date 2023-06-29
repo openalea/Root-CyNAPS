@@ -1,4 +1,4 @@
 [submodule "STM_statistics"]
 	path = STM_statistics
-	url = https://github.com/MTreestanG/STM_statistics
+	url = https://forgemia.inra.fr/tristan.gerault/root_cynaps
 	branch = master
