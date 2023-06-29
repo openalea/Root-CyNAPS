@@ -9,6 +9,8 @@ from openalea.mtg.traversal import pre_order
 
 @dataclass
 class InitWater:
+    # time resolution
+    sub_time_step: int = 3600 # (second) MUST be a multiple of base time_step
     # Pools
     xylem_water: float = 0  # (mol) water content
     water_molar_mass: float = 18    # g.mol-1
@@ -24,14 +26,14 @@ class TransportWater:
     xylem_young_modulus: float = 1e6    # (Pa) radial elastic modulus of xylem tissues
     xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
     water_molar_mass: float = 18  # g.mol-1
-    radial_water_conductivity: float = 1e-13    # m.s-1.Pa-1
+    radial_water_conductivity: float = 1e-14    # m.s-1.Pa-1
     reflexion_coef: float = 0.85    # adim
     R: float = 8.314
     sap_viscosity: float = 1.3e6    # Pa
 
 
 class WaterModel:
-    def __init__(self, g, time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure,
+    def __init__(self, g, time_step, sub_time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure,
                  radial_import_water, axial_export_water_up, axial_import_water_down):
         """
                 Description
@@ -43,6 +45,7 @@ class WaterModel:
 
         self.g = g
         self.time_step = time_step
+        self.sub_time_step = sub_time_step
 
         # New spatialized properties' creation in MTG
         self.keywords = dict(
@@ -165,7 +168,7 @@ class WaterModel:
         root = next(root_gen)
 
         # we set collar element the flow provided by shoot model
-        self.axial_export_water_up[1] = self.water_root_shoot_xylem[1] * self.time_step
+        self.axial_export_water_up[1] = self.water_root_shoot_xylem[1] * self.sub_time_step
         # We travel in the MTG from the root collar to the tips:
         for vid in pre_order(self.g, root):
             # We apply the following for all structural mass, because null length element can be support for
@@ -178,7 +181,7 @@ class WaterModel:
                 # First we compute radial flow from hydraulic potential difference with the soil
                 # As a starting point, we only use labile sugars as significative osmolite
                 # These flows are immediately computed as quantity per time step for axial balance
-                self.radial_import_water[vid] = self.time_step * radial_water_conductivity * (
+                self.radial_import_water[vid] = self.sub_time_step * radial_water_conductivity * (
                         (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) + reflexion_coef * R * self.soil_temperature[vid] * (
                         self.C_hexose_soil[vid] - self.C_sucrose_root[vid])) * (self.cylinder_exchange_surface[vid] + self.living_root_hairs_external_surface[vid])
 
@@ -236,5 +239,6 @@ class WaterModel:
         Model processes and balance for water to be called by simulation files.
 
         """
-        self.transport_water(**asdict(TransportWater()))
-        self.update_sums()
+        for k in range(int(self.time_step/self.sub_time_step)):
+            self.transport_water(**asdict(TransportWater()))
+            self.update_sums()

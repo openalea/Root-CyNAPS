@@ -1,4 +1,5 @@
 # This file may be used to create an environment using:
+# created with conda list -e > requirements.txt
 # conda create --name <env> --file <this file>
 # conda install --file requirements.txt
 # platform: win-64
