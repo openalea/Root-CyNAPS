@@ -251,6 +251,9 @@ def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=desc
     # Filter duplicated indexes
     props_df = props_df[~props_df.index.duplicated()]
 
+    # Remove false root segments created just for branching regularity issues (vid 0, 2, 4, etc)
+    props_df = props_df[props_df["struct_mass"] > 0]
+
     # Convert to xarray with given dimensions to spatialize selected properties
     props_ds = props_df.to_xarray()
 
