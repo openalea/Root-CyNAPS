@@ -45,7 +45,8 @@ class ShootModel:
         }
 
     def transportW(self, time):
-        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)*1e-4
+        # +1 because 0 or very high initialisation raises problems in pressure
+        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)
 
     def transportN(self, time):
         axial_diffusion_xylem: float = 2.5e-4   # g.m-2.s-1

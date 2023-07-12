@@ -34,16 +34,16 @@ def update(val):
 
 # Script
 
-Nm_soil = np.linspace(0, 1, 1000)
-Nm = np.linspace(0, 1, 1000)
+Nm_soil = np.linspace(0, 0.5, 1000)
+Nm = np.linspace(0, 1e-3)
 
 
-init_vmax = 1
-init_Nm = 0.1
-init_high = 0.95
-init_low = 0.1
-init_span = 0.03
-init_begin = 6
+init_vmax = 5e-9
+init_Nm = 1e-4
+init_high = 4e-3
+init_low = 5e-5
+init_span = 5e-5
+init_begin = 2e-5
 init_km = Km(init_Nm, init_high, init_low, init_span, init_begin)
 
 
@@ -62,7 +62,7 @@ vmax_slider = Slider(
     ax=axvmax,
     label='Vmax [umol.s-1.m-2]',
     valmin=0,
-    valmax=10,
+    valmax=1e-8,
     valinit=init_vmax,
 )
 
@@ -70,8 +70,8 @@ axspan = fig.add_axes([0.25, 0.05, 0.65, 0.03])
 span_slider = Slider(
     ax=axspan,
     label='Affinity transition span',
-    valmin=0.001,
-    valmax=1,
+    valmin=0,
+    valmax=1e-4,
     valinit=init_span,
 )
 
@@ -80,7 +80,7 @@ begin_slider = Slider(
     ax=axbegin,
     label='Transition location',
     valmin=0,
-    valmax=10,
+    valmax=1e-4,
     valinit=init_span,
 )
 
@@ -89,8 +89,8 @@ axNm = fig.add_axes([0.05, 0.32, 0.0225, 0.63])
 Nm_slider = Slider(
     ax=axNm,
     label="Nm [mol.g-1]",
-    valmin=0,
-    valmax=1,
+    valmin=1e-5,
+    valmax=1e-3,
     valinit=init_Nm,
     orientation='vertical'
 )
@@ -100,7 +100,7 @@ low_slider = Slider(
     ax=axlow,
     label="HATS [mol.g-1]",
     valmin=0,
-    valmax=1,
+    valmax=1e-4,
     valinit=init_low,
     orientation='vertical'
 )
@@ -110,7 +110,7 @@ high_slider = Slider(
     ax=axhigh,
     label='LATS [mol.g-1]',
     valmin=0,
-    valmax=1,
+    valmax=1e-2,
     valinit=init_high,
     orientation='vertical'
 )

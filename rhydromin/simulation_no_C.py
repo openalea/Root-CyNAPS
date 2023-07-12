@@ -60,6 +60,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         xarray_output = [mtg_to_dataset(g, variables=props_metadata, time=0)]
         xarray_output[0].to_netcdf(f"example/outputs/xarray_used_input_{start_time}.nc")
 
+    root_water.init_xylem_water()
     # Scheduler : actual computation loop
     for i in range(n):
         # Update soil state

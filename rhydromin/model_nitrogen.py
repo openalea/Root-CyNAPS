@@ -81,19 +81,19 @@ class InitDiscreteVesselsN(InitCommonN):
 @dataclass
 class TransportCommonN:
     # kinetic parameters
-    vmax_Nm_root: float = 5e-9     # mol N.s-1.m-2
+    vmax_Nm_root: float = 1e-7     # mol N.s-1.m-2
     vmax_Nm_xylem: float = 1e-7     # mol N.s-1.m-2
-    Km_Nm_root_LATS: float = 8e-5    # mol N.m-3 # change according to soil values?
-    Km_Nm_root_HATS: float = 1e-6    # mol N.m-3
+    Km_Nm_root_LATS: float = 4e-3    # mol N.m-3 # change according to soil values?
+    Km_Nm_root_HATS: float = 5e-5    # mol N.m-3
     begin_N_regulation: float = 2e-5   # mol N.g-1 value
     span_N_regulation: float = 5e-4    # mol N.g-1 range
     Km_Nm_xylem: float = 8e-5   # mol N.g-1
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-3   # mol AA.g-1
-    diffusion_soil: float = 0   #1e-4   # g.m-2.s-1 different soil and root concentration units
+    diffusion_soil: float = 1e-14   # Artif. g.m-2.s-1 different soil and root concentration units
     diffusion_xylem: float = 1e-6   # g.m-2.s-1
     diffusion_phloem: float = 1e-6  # g.m-2.s-1
-    diffusion_apoplasm: float = 0   #2.5e-2  # g.m-2.s-1 different soil and root concentration units
+    diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 different soil and root concentration units
     # metabolism-related parameters
     transport_C_regulation: float = 7e-3    # mol.g-1
 
@@ -348,7 +348,7 @@ class CommonNitrogenModel:
         # Passive radial diffusion between soil and cortex.
         # It happens only through root segment external surface.
         # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-        self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] - self.soil_Nm[v])
+        self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v]*10e5 - self.soil_Nm[v])
                             * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v]))
 
         # We define active export to xylem from root segment
@@ -364,13 +364,13 @@ class CommonNitrogenModel:
         
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         # Here, surface is not really representative of a structure as everything is apoplasmic
-        self.diffusion_Nm_soil_xylem[v] = (diffusion_apoplasm * (self.soil_Nm[v] - self.xylem_Nm[model])
+        self.diffusion_Nm_soil_xylem[v] = (diffusion_apoplasm * (self.soil_Nm[v] - self.xylem_Nm[model]*10e5)
                                     * 2 * np.pi * self.radius[v] * self.length[v] * self.apoplasmic_stele[v])
 
         # AMINO ACID TRANSPORT
 
         # We define amino acid passive diffusion to soil
-        self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v] - self.soil_AA[v])
+        self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v]*10e5 - self.soil_AA[v])
                                     * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v]))
 
         # We define active export to xylem from root segment
@@ -383,7 +383,7 @@ class CommonNitrogenModel:
                         self.C_hexose_root[v] + transport_C_regulation)))
 
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        self.diffusion_AA_soil_xylem[v] = (diffusion_apoplasm * (self.soil_AA[v] - self.xylem_AA[model])
+        self.diffusion_AA_soil_xylem[v] = (diffusion_apoplasm * (self.soil_AA[v] - self.xylem_AA[model]*10e5)
                                     * 2 * np.pi * self.radius[v] * self.length[v] * self.apoplasmic_stele[v])
 
         # Passive radial diffusion between phloem and cortex through plasmodesmata
