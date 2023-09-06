@@ -1,9 +1,9 @@
 from time import sleep
-from rhydromin.soil import MeanConcentrations, SoilPatch, SoilNitrogen
-from rhydromin.nitrogen import InitCommonN, TransportCommonN, UpdateN, OnePoolVessels
-from rhydromin.topology import InitSurfaces, TissueTopology, RadialTopology
+from root_cynaps.soil import MeanConcentrations, SoilPatch, SoilNitrogen
+from root_cynaps.nitrogen import InitCommonN, TransportCommonN, UpdateN, OnePoolVessels
+from root_cynaps.topology import InitSurfaces, TissueTopology, RadialTopology
 from test_mtg import test_mtg
-from rhydromin.tools_output import plot_properties, print_g_one, plot_N, print_g
+from root_cynaps.tools_output import plot_properties, print_g_one, plot_N, print_g
 from dataclasses import asdict
 
 

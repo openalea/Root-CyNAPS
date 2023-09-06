@@ -1,6 +1,6 @@
 # Import
 import openalea.plantgl.all as pgl
-from rhydromin.tools import plot_mtg
+from root_cynaps.tools import plot_mtg
 import matplotlib.pyplot as plt
 import numpy as np
 

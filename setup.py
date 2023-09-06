@@ -37,7 +37,7 @@ if sys.version_info < (3, 9):
 setup(
     name="Root-CyNAPS",
     version="0.1.0",
-    packages=["Data_enforcer", "rhydromin", "STM_statistics"],
+    packages=["Data_enforcer", "root_cynaps", "STM_statistics"],
     include_package_data=True,
     author="T.Gérault, F.Rees, R.Barillot and C.Pradal",
     author_email="tristan.gerault@inrae.fr, frederic.rees@inrae.fr, romain.barillot@inrae.fr, christophe.pradal@cirad.fr",

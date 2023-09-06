@@ -6,15 +6,15 @@ from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-from rhydromin.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
-from rhydromin.model_topology import InitSurfaces, TissueTopology, RadialTopology
-from rhydromin.model_water import InitWater, WaterModel
-from rhydromin.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
+from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
+from root_cynaps.model_water import InitWater, WaterModel
+from root_cynaps.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
 
 from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
 
-import rhydromin.converter as converter
-from rhydromin.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
+import root_cynaps.converter as converter
+from root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
 from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 
 

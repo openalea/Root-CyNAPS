@@ -1,10 +1,10 @@
 #  -*- coding: utf-8 -*-
 
 """
-    rhydromin.tools
+    root_cynaps.tools
     ~~~~~~~~~~~~~
 
-    The module :mod:`rhydromin.tools` defines useful functions for data preprocessing, graph making...
+    The module :mod:`root_cynaps.tools` defines useful functions for data preprocessing, graph making...
 
     :copyright: see AUTHORS.
     :license: see LICENSE for details.

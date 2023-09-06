@@ -1,5 +1,5 @@
 """
-rhydromin.nitrogen
+root_cynaps.nitrogen
 _________________
 This is the main nitrogen cycle module for roots
 

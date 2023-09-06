@@ -1,7 +1,7 @@
 """
-rhydromin.soil
+root_cynaps.soil
 _________________
-This is the boundary soil module for rhydromin.
+This is the boundary soil module for root_cynaps.
 
 Documentation and features
 __________________________

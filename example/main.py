@@ -1,7 +1,7 @@
 import os
 import timeit
 
-from rhydromin.simulation_no_C import N_simulation
+from root_cynaps.simulation_no_C import N_simulation
 
 
 def main(init, n, time_step):

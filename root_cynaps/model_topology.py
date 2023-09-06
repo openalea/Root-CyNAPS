@@ -1,7 +1,7 @@
 """
-rhydromin.topology
+root_cynaps.topology
 _________________
-This is the radial root segment topology module for rhydromin exchange surfaces.
+This is the radial root segment topology module for root_cynaps exchange surfaces.
 
 Documentation and features
 __________________________

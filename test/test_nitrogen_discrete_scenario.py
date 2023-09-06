@@ -1,9 +1,9 @@
 import numpy as np
 from time import sleep
-from rhydromin.nitrogen import InitDiscreteVesselsN, TransportAxialN, UpdateN, DiscreteVessels
-import rhydromin.parameters_nitrogen as Nparam
+from root_cynaps.nitrogen import InitDiscreteVesselsN, TransportAxialN, UpdateN, DiscreteVessels
+import root_cynaps.parameters_nitrogen as Nparam
 from test_mtg import test_mtg
-from rhydromin.tools_output import plot_N, print_g
+from root_cynaps.tools_output import plot_N, print_g
 from dataclasses import asdict
 
 
