@@ -1,7 +1,7 @@
 # Model packages
 conda install -c openalea3 -c conda-forge openalea.plantgl openalea.mtg
 
-# Visualisation packages
+# Data analysis and result visualisation packages
 conda install -c conda-forge xarray==2023.3.0 dask==2023.3.2 bottleneck==1.3.7
 python -m pip install netcdf4==1.6.3
 python -m pip install --force-reinstall charset-normalizer==3.1.0
