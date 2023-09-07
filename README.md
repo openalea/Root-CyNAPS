@@ -16,7 +16,7 @@ Intall the lastest version of conda : https://docs.conda.io/projects/miniconda/e
 
 Then, create a new repository in your command prompt
 ```
-conda create -n root_cynaps python=3.10
+conda create -n root_cynaps python=3.9
 ```
 
 Finally, install necessary packages with the following requirements files. cd to the root_cynaps directory, then :
