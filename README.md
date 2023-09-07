@@ -3,7 +3,7 @@
 
 ## Overview
 
-This module aims at simulating explicit processes of root nitrogen uptake and rhizodeposition by agregating a segment scale nutrient balance to root an architectured root system scale
+This module aims at simulating explicit processes of root nitrogen uptake and rhizodeposition by aggregating a segment-scale nutrient balance model over the root system architecture.
 
 ## Installation
 
