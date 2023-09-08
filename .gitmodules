@@ -1,0 +1,4 @@
+[submodule "stm_statistics"]
+	path = stm_statistics
+	url = git@forgemia.inra.fr:tristan.gerault/stm_statistics.git
+	branch = master
