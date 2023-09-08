@@ -1,4 +1,4 @@
-from STM_statistics.analysis import main_workflow
+from tools.analysis import main_workflow
 
 def run(path):
     """

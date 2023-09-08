@@ -121,7 +121,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
             plt.show()
 
         if plotting_STM:
-            from STM_statistics import STM_analysis
+            from tools import STM_analysis
             STM_analysis.run(path=f"example/outputs/{start_time}.nc")
 
         if plantgl:

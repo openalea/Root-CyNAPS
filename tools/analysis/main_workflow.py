@@ -5,8 +5,8 @@ from keras.models import Model, load_model
 import umap
 import hdbscan
 
-import STM_statistics.analysis.time_series_projection
-from STM_statistics.analysis.time_series_projection import Preprocessing, DCAE
+import tools.analysis.time_series_projection
+from tools.analysis.time_series_projection import Preprocessing, DCAE
 
 '''SCRIPT'''
 input_type = "mtg"
@@ -151,8 +151,8 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
     # Using this loop to be able to implement visualization without re-running UMAP each time
     while dev:
         # If re-running, reload the local plotting library
-        importlib.reload(STM_statistics.analysis.time_series_projection)
-        from STM_statistics.analysis.time_series_projection import MainMenu
+        importlib.reload(tools.analysis.time_series_projection)
+        from tools.analysis.time_series_projection import MainMenu
 
         main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
                              sliced_windows=stacked_dataset, original_unorm_dataframe=stacked_unorm_dataframe,
