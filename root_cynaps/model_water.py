@@ -246,8 +246,6 @@ class WaterModel:
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
-        print(1)
-
     def update_sums(self):
         #self.xylem_total_water = sum(self.xylem_water.values())
         self.xylem_total_volume = sum(self.xylem_volume.values())
