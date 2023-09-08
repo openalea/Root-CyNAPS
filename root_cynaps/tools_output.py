@@ -207,4 +207,4 @@ def export_nextcloud(link='https://nextcloud.inrae.fr', user='tigerault', passwo
 
     nc.login(user_id=user, password=password)
 
-    nc.put_file('Dossier_Thèse_Tristan_Gérault/' + file, 'C:\\Users\\V\\pp\\root_cynaps\\example\\outputs\\' + file)
+    nc.put_file('Dossier_Thèse_Tristan_Gérault/' + file, file)

@@ -337,7 +337,7 @@ class MainMenu:
                                             s=str(len(self.label)), fontweight='bold')]
                 for k in T:
                     self.layer_colors[k] = color
-        self.pts.set_color(self.layer_colors)
+        #self.pts.set_color(self.layer_colors)
         plt.draw()
 
     def remove_annotations(self):
