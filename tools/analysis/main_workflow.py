@@ -73,7 +73,7 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
 
     if import_model:
         print("[INFO] loading autoencoder...")
-        autoencoder = load_model("STM_statistics\\analysis\\saved_model\\autoencoder")
+        autoencoder = load_model("tools/analysis/saved_model/autoencoder")
     else:
         # Build the convolutional autoencoder
         print("[INFO] building autoencoder...")
@@ -86,7 +86,7 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
                                  epochs=EPOCHS, batch_size=BS)
 
         if input("Save autoencoder? WARNING Overwrite (y/n) : ") == 'y':
-            folder = "STM_statistics\\analysis\\saved_model\\autoencoder"
+            folder = "tools\\analysis\\saved_model\\autoencoder"
             for filename in os.listdir(folder):
                 file_path = os.path.join(folder, filename)
                 try:

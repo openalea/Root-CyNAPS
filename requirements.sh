@@ -12,5 +12,5 @@ python -m pip install numpy==1.22.4
 conda install -c conda-forge umap-learn==0.5.3
 conda install -c conda-forge hdbscan==0.8.29
 python -m pip install tensorflow==2.12.0
-
+python -m pip install pyncclient
 
