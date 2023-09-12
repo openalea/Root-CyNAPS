@@ -45,7 +45,7 @@ class ShootModel:
         }
 
     def transportW(self, time):
-        # +1 because 0 or very high initialisation raises problems in pressure
+        # At each time step, we set the transpiration value from the csv file
         self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)
 
     def transportN(self, time):

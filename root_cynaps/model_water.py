@@ -112,7 +112,6 @@ class WaterModel:
         # proper initialization of the xylem water content
         self.water_volumic_mass = water_volumic_mass
 
-
         # Declare to outside modules which variables are needed
         # TODO : convert to dict of dict for the builder to print variable expertise informations
         self.inputs = {
