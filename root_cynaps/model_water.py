@@ -15,7 +15,7 @@ class InitWater:
     xylem_water: float = 0  # (mol) water content
     water_molar_mass: float = 18    # g.mol-1
     water_volumic_mass: float = 1e6  # g.m-3
-    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele
+    xylem_total_pressure: float = -0.5e6  # (Pa) apoplastic pressure in stele
     # Water transports
     radial_import_water: float = 0
     axial_export_water_up: float = 0
@@ -27,7 +27,7 @@ class InitWater:
 @dataclass
 class TransportWater:
     water_molar_mass: float = 18  # g.mol-1
-    radial_water_conductivity: float = 1e-14  # m.s-1.Pa-1
+    radial_water_conductivity: float = 1e-14 * 1e3  # m.s-1.Pa-1
     reflexion_coef: float = 0.85    # adim
     R: float = 8.314
     sap_viscosity: float = 1.3e6    # Pa
@@ -37,11 +37,15 @@ class WaterModel:
     def __init__(self, g, time_step, sub_time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure,
                  radial_import_water, axial_export_water_up, axial_import_water_down, xylem_young_modulus, xylem_cross_area_ratio):
         """
-                Description
+                Description :
+    	        
+                This root water model discretized at root segment's scale intends to account for heterogeneous axial and radial water flows observed in the roots (Bauget et al. 2022).
 
                 Parameters
 
-                Hypothesis
+                Hypothesis :
+                
+                Accounting for heterogeneous water flows would improbe the overall nutrient balance for root hydromineral uptake.
                 """
 
         self.g = g
@@ -158,7 +162,7 @@ class WaterModel:
 
         # radial exchanges are only hydrostatic-driven for now
         for vid in self.vertices:
-            self.radial_import_water[vid] = radial_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cylinder_exchange_surface[vid]
+            self.radial_import_water[vid] = radial_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cylinder_exchange_surface[vid] * self.sub_time_step
             self.xylem_water[vid] += self.radial_import_water[vid]
 
         # First we limit collar transpiration if the result exceeds xylem shear strength
@@ -177,11 +181,13 @@ class WaterModel:
             self.xylem_total_pressure[1] = min(actual_pressure)
             self.axial_export_water_up[1] = self.xylem_total_water + sum(self.radial_import_water.values()) - ((((actual_pressure - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus + 1)**2) * (
                 (np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / water_molar_mass))
+            
         else:
-            self.xylem_total_pressure[1] = potential_pressure
+            self.xylem_total_pressure[1] = -0.5e6 # potential_pressure
             self.axial_export_water_up[1] = potential_transpiration
 
         self.xylem_total_water += sum(self.radial_import_water.values()) - self.axial_export_water_up[1]
+        print(sum(self.radial_import_water.values()), self.axial_export_water_up[1])
 
         # Finally we compute the axial result of these transpiration and radial uptake
         # We define "root" as the starting point of the loop below:
@@ -198,24 +204,25 @@ class WaterModel:
             # if we look at a collar artificial vertex of null lenght, we do nothing
             if vid not in self.collar_skip:
 
-                # For current vertex, compute axial down flow from axial upper flow, radial flow and volume considered pressure
+                # For current vertex, compute axial down flow from axial upper flow, radial flow and volume at considered pressure
                 # There is no pressure variation effect as water is incompressible
                 # if this is a root tip, there is no down import flux
 
-                # Assuming pressure homogeneity, we know segment's final water content
+                # Assuming pressure homogeneity, we compute segment's final water content from Young's elastic modulus theory
 
-                nf = ((((self.xylem_total_pressure[1] - self.soil_water_pressure[vid]) / self.xylem_young_modulus + 1)) ** 2) * (
+                final_xylem_water = ((((self.xylem_total_pressure[1] - self.soil_water_pressure[vid]) / self.xylem_young_modulus + 1)) ** 2) * (
                         np.pi * self.length[vid] * (self.radius[vid]**2) * self.xylem_cross_area_ratio *
                         self.water_volumic_mass) / water_molar_mass
 
+                # If this is a root tip or a non-emerged root segment, there is no down import flux.
                 if (vid != 1) and ((len(child) == 0) or (True not in [self.struct_mass[k] > 0 for k in child])):
                     self.axial_import_water_down[vid] = 0
 
                 # if there are children, there is a down import flux
                 else:
-                    self.axial_import_water_down[vid] = nf - self.xylem_water[vid] + self.axial_export_water_up[vid]
+                    self.axial_import_water_down[vid] = final_xylem_water - self.xylem_water[vid] + self.axial_export_water_up[vid]
                     # water balance is computed here to prevent another for loop over mtg
-                self.xylem_water[vid] = nf
+                self.xylem_water[vid] = final_xylem_water
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 # if current vertex is collar, we affect down flow at previously computed collar children

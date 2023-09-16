@@ -33,7 +33,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()))
     else:
         root_water = WaterModel(g, time_step, **asdict(InitWater()))
-        root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()))
+        root_nitrogen = DiscreteVessels(g, time_step, **asdict(InitDiscreteVesselsN()))
     shoot = ShootModel(g, **asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
     # Linking modules
@@ -70,7 +70,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         # Compute state variations for water (if selected) and then nitrogen
         if discrete_vessels:
             root_water.exchanges_and_balance()
-        root_nitrogen.exchanges_and_balance(time_step=time_step)
+        root_nitrogen.exchanges_and_balance()
 
         shoot.exchanges_and_balance(time=i)
 
@@ -114,8 +114,8 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
 
         if plotting_2D:
             time_dataset = xr.load_dataset(f"example/outputs/{start_time}.nc")
-            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(state_extracts.keys()))
-            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(flow_extracts.keys()))
+            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
+            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_state_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_flow_extracts.keys()))
             plt.show()

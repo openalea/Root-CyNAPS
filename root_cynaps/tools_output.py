@@ -57,9 +57,9 @@ flow_extracts = dict(
     axial_diffusion_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     axial_diffusion_AA_phloem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # Water model
-    #radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    #axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    #axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
+    radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
+    axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
+    axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
 )
 
 global_state_extracts = dict(
