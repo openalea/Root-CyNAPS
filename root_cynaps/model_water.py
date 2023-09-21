@@ -224,6 +224,9 @@ class WaterModel:
                     # water balance is computed here to prevent another for loop over mtg
                 self.xylem_water[vid] = final_xylem_water
 
+                #if vid == 193 :
+                #    print(self.xylem_water[vid], self.axial_export_water_up[vid], self.radial_import_water[vid], self.axial_import_water_down[vid])
+
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 # if current vertex is collar, we affect down flow at previously computed collar children
                 if vid == 1:

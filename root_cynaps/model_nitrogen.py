@@ -667,8 +667,11 @@ class DiscreteVessels(CommonNitrogenModel):
         if len(child) == 0:
             advection_Nm_down = 0
             advection_AA_down = 0
+            
         # if there is only one emerged child (segment line-up)
         elif len(child) == 1:
+            # To check if children is a root-tip
+            grand_child = [k for k in self.g.children(child[0]) if self.struct_mass[k] > 0]
             # if this is an up flow, take concentrations from the child
             if self.axial_import_water_down[v] >= 0:
                 # if collar is considered, use precomputed list of real children
@@ -684,8 +687,14 @@ class DiscreteVessels(CommonNitrogenModel):
             else:
                 Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
                 AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-            advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
-            advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
+
+            # If children is a root_tip, flows have to be restricted to avoid negative pools.    
+            if len(grand_child) == 0:
+                advection_Nm_down = min(0.9*self.xylem_Nm[child[0]], Nm_water_conc * self.axial_import_water_down[v])
+                advection_AA_down = min(0.9*self.xylem_AA[child[0]], AA_water_conc * self.axial_import_water_down[v])
+            else :
+                advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
+                advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
             
         # if there are several children, sum their respective contributions
         else:
@@ -713,8 +722,14 @@ class DiscreteVessels(CommonNitrogenModel):
                 advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
 
         # sum upward and downward advection contributions to compute overall advection flow for each labile element
-        self.axial_advection_Nm_xylem[v] = advection_Nm_down - advection_Nm_up
-        self.axial_advection_AA_xylem[v] = advection_AA_down - advection_AA_up
+        # If this is an apex, if flows exceed pool size, the flow is topped as apex can have large water absorption contribution but dilluted export.
+        if len(child) == 0:
+            self.axial_advection_Nm_xylem[v] = advection_Nm_down - min(advection_Nm_up, 0.9*self.xylem_Nm[v])
+            self.axial_advection_AA_xylem[v] = advection_AA_down - min(advection_AA_up, 0.9*self.xylem_AA[v])
+        # Anticipate when children is an apex
+        else:
+            self.axial_advection_Nm_xylem[v] = advection_Nm_down - advection_Nm_up
+            self.axial_advection_AA_xylem[v] = advection_AA_down - advection_AA_up
 
         # AXIAL DIFFUSION
 
@@ -793,8 +808,8 @@ class DiscreteVessels(CommonNitrogenModel):
                         + self.axial_diffusion_AA_xylem[vid]) + (
                         self.axial_advection_AA_xylem[vid] / self.xylem_struct_mass[vid])
                 
-                if self.axial_export_water_up[vid] / self.xylem_water[vid] > 1:
-                    print(vid, self.axial_export_water_up[vid] / self.xylem_water[vid], self.axial_export_water_up[vid], self.xylem_water[vid], self.length[vid], self.radius[vid])
+                #if self.axial_export_water_up[vid] / self.xylem_water[vid] > 1:
+                #    print(vid, self.axial_export_water_up[vid] / self.xylem_water[vid], self.axial_export_water_up[vid], self.axial_import_water_down[vid], self.length[vid], self.radius[vid])
 
                 self.phloem_AA[vid] += (self.sub_time_step / self.phloem_struct_mass[vid]) * (
                         - self.diffusion_AA_phloem[vid]
