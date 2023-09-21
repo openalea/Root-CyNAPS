@@ -103,8 +103,8 @@ class TransportCommonN:
 @dataclass
 class TransportAxialN(TransportCommonN):
     # architecture parameters
-    xylem_cross_area_ratio: float = 0.84*(0.36**2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
-    phloem_cross_area_ratio: float = 0.15*(0.36**2)     # (adim) phloem cross-section area ratio * stele radius ratio^2
+    xylem_cross_area_ratio: float = 1 # 0.84*(0.36**2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    phloem_cross_area_ratio: float = 1 # 0.15*(0.36**2)     # (adim) phloem cross-section area ratio * stele radius ratio^2
     # kinetic parameters
     axial_diffusion_xylem: float = 0 # 2.5e-4   # g.m-2.s-1
     axial_diffusion_phloem: float = 1e-4    # g.m-2.s-1
@@ -140,8 +140,8 @@ class UpdateN:
     r_Nm_AA: float = 1.4
     r_AA_struct: float = 65
     r_AA_stor: float = 65
-    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
-    phloem_cross_area_ratio: float = 0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
+    xylem_cross_area_ratio: float = 1 #0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    phloem_cross_area_ratio: float = 1 #0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
 
 
 # Nitrogen Model versions as classes. A version relates to a set of structural assumptions given in the class name.
@@ -625,151 +625,264 @@ class DiscreteVessels(CommonNitrogenModel):
         self.transport_radial_N(v=v, model=v, **kwargs)
 
         # AXIAL TRANSPORT
+        
+        # Hypothesis : we suppose a constitutive homogeneisation of xylem concentrations if no flow or loading occurs
+        # Mean concentrations by dividing total content by total mass
+        self.xylem_total_Nm[1] = sum([self.xylem_Nm[k] * self.xylem_struct_mass[k] for k in self.vertices]) / sum(self.xylem_struct_mass.values())
+        self.xylem_total_AA[1] = sum([self.xylem_AA[k] * self.xylem_struct_mass[k] for k in self.vertices]) / sum(self.xylem_struct_mass.values())
 
-        # AXIAL ADVECTION
-        # Compute segment upper advection flow to upper segment
-        # if this is collar, this flow is handled separately by shoot model flows (both advection and diffusion)
-        if v == 1:
-            advection_Nm_up = self.Nm_root_shoot_xylem[1] * self.sub_time_step
-            advection_AA_up = self.AA_root_shoot_xylem[1] * self.sub_time_step
+        # For collar exports, we take the mean concentration
+        Nm_water_conc = self.xylem_total_Nm[1] * self.xylem_struct_mass[v] / self.xylem_total_water
+        AA_water_conc = self.xylem_total_AA[1] * self.xylem_struct_mass[v] / self.xylem_total_water
+        Export_Nm_Shoot = Nm_water_conc * self.axial_export_water_up[1]
+        Export_AA_Shoot = AA_water_conc * self.axial_export_water_up[1]
 
-        # for every other segment :
-        else:
-            # if this is an upper flow, take concentrations from the considered segment
-            if self.axial_export_water_up[v] >= 0:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
-                advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
-            # if this is a down flow, take concentrations from the parent segment
-            else:
-                up = self.g.parent(v)
-                # if parent is a fake collar segment, refer directly to collar
-                if up in self.collar_skip:
-                    Nm_water_conc = self.xylem_Nm[1] * self.struct_mass[1] * xylem_cross_area_ratio / self.xylem_water[1]
-                    AA_water_conc = self.xylem_AA[1] * self.struct_mass[1] * xylem_cross_area_ratio / self.xylem_water[1]
-                # else refer directly to parent segment
+        cumulated_exports_Nm = [0 for k in range(len(self.vertices))]
+        cumulated_exports_AA = [0 for k in range(len(self.vertices))]
+
+        for vid in self.vertices:
+            # If this is only an up flow to parents
+            if self.axial_export_water_up[vid] > 0 and self.axial_import_water_down[vid] > 0:
+                print("Up flow")
+                turnover = self.axial_export_water_up[vid] / self.xylem_water[vid]
+                if turnover <= 1:
+                    cumulated_exports_Nm[vid] += self.export_Nm[vid] * self.sub_time_step
+                    cumulated_exports_AA[vid] += self.export_AA[vid] * self.sub_time_step
                 else:
-                    Nm_water_conc = self.xylem_Nm[up] * self.struct_mass[up] * xylem_cross_area_ratio / self.xylem_water[up]
-                    AA_water_conc = self.xylem_AA[up] * self.struct_mass[up] * xylem_cross_area_ratio / self.xylem_water[up]
-                advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
-                advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
+                    water_exchange_time = self.sub_time_step / turnover
+                    # Loading of the current vertex into the current vertex
+                    cumulated_exports_Nm[vid] += self.export_Nm[vid] * water_exchange_time
+                    cumulated_exports_AA[vid] += self.export_AA[vid] * water_exchange_time
 
-        # Compute segment lower advection flow from lower segment(s)
+                    exported_water = self.axial_export_water_up[vid]
+                    child = vid
+                    # Loading of the current vertex into the vertices who have recieved water from it
+                    while exported_water > 0:
+                        # We remove the amount of water which has already recieved loading
+                        exported_water -= self.xylem_water[child]
+                        up_parent = self.g.parent(child)
+                        # If we reached collar, this amount is being exported
+                        if up_parent == None:
+                            Export_Nm_Shoot += self.export_Nm[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                            Export_Nm_Shoot += self.export_AA[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                            # Break the loop
+                            exported_water = 0
+                        else:
+                            # If the considered parent have been completly filled with water from the child
+                            if exported_water - self.xylem_water[up_parent] > 0:
+                                # The exposition time is longer if the water content of the target neighbour is more important.
+                                cumulated_exports_Nm[up_parent] += self.export_Nm[vid] * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[vid]
+                                cumulated_exports_AA[up_parent] += self.export_AA[vid] * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[vid]
+                            # If it's only partial, we account only for the exceeding amount
+                            else:
+                                cumulated_exports_Nm[up_parent] += self.export_Nm[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                cumulated_exports_AA[up_parent] += self.export_AA[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                # Break the loop
+                                exported_water = 0
+                            child = up_parent
 
-        # Retrieve children
-        if v == 1:
-            child = self.collar_children
-        else:
-            child = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
+            # If this is only a down flow to children
+            elif self.axial_export_water_up[vid] < 0 and self.axial_import_water_down[vid] < 0:
+                print("Down flow")
+                turnover = - self.axial_import_water_down[vid] / self.xylem_water[vid]
+                if turnover <= 1:
+                    cumulated_exports_Nm[vid] += self.export_Nm[vid] * self.sub_time_step
+                    cumulated_exports_AA[vid] += self.export_AA[vid] * self.sub_time_step
+                else:
+                    water_exchange_time = self.sub_time_step / turnover
+                    # Loading of the current vertex into the current vertex
+                    cumulated_exports_Nm[vid] += self.export_Nm[vid] * water_exchange_time
+                    cumulated_exports_AA[vid] += self.export_AA[vid] * water_exchange_time
 
-        # if this is a root tip (no children or child didn't emerge), no down axial flow
-        if len(child) == 0:
-            advection_Nm_down = 0
-            advection_AA_down = 0
+                    exported_water =  -self.axial_import_water_down[vid]
+                    parent = [vid]
+                    # Loading of the current vertex into the vertices who have recieved water from it
+                    while exported_water > 0:
+                        children_list = []
+                        exported_water -= self.xylem_water[parent]
+                        for p in parent:
+                            # We remove the amount of water which has already recieved loading
+                            
+                            down_children = [k for k in self.g.children(parent) if self.struct_mass[k] > 0]
+                            # If there is only 1 children (root line)
+                            if len(down_children) == 0:
+                                # The previous parent shoul be loaded more
+                                up_parent = self.g.parent(down_children)
+                                # Break the loop
+                                exported_water = 0
+                            elif len(down_children) == 1:
+
+                            else:
+                            # If we reached collar, this amount is being exported
+                            if up_parent == None:
+                                Export_Nm_Shoot += self.export_Nm[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                Export_Nm_Shoot += self.export_AA[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                # Break the loop
+                                exported_water = 0
+                            else:
+                                # If the considered parent have been completly filled with water from the child
+                                if exported_water - self.xylem_water[up_parent] > 0:
+                                    # The exposition time is longer if the water content of the target neighbour is more important.
+                                    cumulated_exports_Nm[up_parent] += self.export_Nm[vid] * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[vid]
+                                    cumulated_exports_AA[up_parent] += self.export_AA[vid] * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[vid]
+                                # If it's only partial, we account only for the exceeding amount
+                                else:
+                                    cumulated_exports_Nm[up_parent] += self.export_Nm[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                    cumulated_exports_AA[up_parent] += self.export_AA[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                    # Break the loop
+                                    exported_water = 0
+                            children_list += down_children
+                        parent = children_list
+
+            # Just to check if the situation occurs
+            elif self.axial_export_water_up[vid] > 0 and self.axial_import_water_down[vid] < 0:
+                print("Outflow")
+                turnover = (self.axial_export_water_up[vid] - self.axial_import_water_down[vid]) / self.xylem_water[vid]
+            # Just to check if the situation occurs
+            else:
+                print("Inflow")
+                turnover = (self.axial_export_water_up[vid] - self.axial_import_water_down[vid]) / self.xylem_water[vid]
+        
+
+        for vid in self.vertices:
+            self.xylem_Nm[vid] += self.xylem_total_Nm[1] + cumulated_exports_Nm[vid]
+            self.xylem_AA[vid] += self.xylem_total_AA[1] + cumulated_exports_AA[vid]
+
+        # # AXIAL ADVECTION
+        # # Compute segment upper advection flow to upper segment
+        # # if this is collar, this flow is handled separately by shoot model flows (both advection and diffusion)
+        # if v == 1:
+        #     advection_Nm_up = self.Nm_root_shoot_xylem[1] * self.sub_time_step
+        #     advection_AA_up = self.AA_root_shoot_xylem[1] * self.sub_time_step
+
+        # # for every other segment :
+        # else:
+        #     # if this is an upper flow, take concentrations from the considered segment
+        #     if self.axial_export_water_up[v] >= 0:
+        #         Nm_water_conc = self.xylem_Nm[v] * self.xylem_struct_mass[v] / self.xylem_water[v]
+        #         AA_water_conc = self.xylem_AA[v] * self.xylem_struct_mass[v] / self.xylem_water[v]
+        #         advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
+        #         advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
+        #     # if this is a down flow, take concentrations from the parent segment
+        #     else:
+        #         up = self.g.parent(v)
+        #         # if parent is a fake collar segment, refer directly to collar
+        #         if up in self.collar_skip:
+        #             Nm_water_conc = self.xylem_Nm[1] * self.xylem_struct_mass[1] / self.xylem_water[1]
+        #             AA_water_conc = self.xylem_AA[1] * self.xylem_struct_mass[1] / self.xylem_water[1]
+        #         # else refer directly to parent segment
+        #         else:
+        #             Nm_water_conc = self.xylem_Nm[up] * self.xylem_struct_mass[up] / self.xylem_water[up]
+        #             AA_water_conc = self.xylem_AA[up] * self.xylem_struct_mass[up] / self.xylem_water[up]
+        #         advection_Nm_up = Nm_water_conc * self.axial_export_water_up[v]
+        #         advection_AA_up = AA_water_conc * self.axial_export_water_up[v]
+
+        # # Compute segment lower advection flow from lower segment(s)
+
+        # # Retrieve children
+        # if v == 1:
+        #     child = self.collar_children
+        # else:
+        #     child = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
+
+        # # if this is a root tip (no children or child didn't emerge), no down axial flow
+        # if len(child) == 0:
+        #     advection_Nm_down = 0
+        #     advection_AA_down = 0
             
-        # if there is only one emerged child (segment line-up)
-        elif len(child) == 1:
-            # To check if children is a root-tip
-            grand_child = [k for k in self.g.children(child[0]) if self.struct_mass[k] > 0]
-            # if this is an up flow, take concentrations from the child
-            if self.axial_import_water_down[v] >= 0:
-                # if collar is considered, use precomputed list of real children
-                # here case with only 1 artificial child
-                if v == 1:
-                    Nm_water_conc = self.xylem_Nm[self.collar_children[0]] * self.struct_mass[self.collar_children[0]] * xylem_cross_area_ratio / self.xylem_water[self.collar_children[0]]
-                    AA_water_conc = self.xylem_AA[self.collar_children[0]] * self.struct_mass[self.collar_children[0]] * xylem_cross_area_ratio / self.xylem_water[self.collar_children[0]]
-                # else use the child in direct contact with segment
-                else:
-                    Nm_water_conc = self.xylem_Nm[child[0]] * self.struct_mass[child[0]] * xylem_cross_area_ratio / self.xylem_water[child[0]]
-                    AA_water_conc = self.xylem_AA[child[0]] * self.struct_mass[child[0]] * xylem_cross_area_ratio / self.xylem_water[child[0]]
-            # if this is a down flow, take concentrations from the considered segment
-            else:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
+        # # if there is only one emerged child (segment line-up)
+        # elif len(child) == 1:
+        #     # if this is an up flow, take concentrations from the child
+        #     if self.axial_import_water_down[v] >= 0:
+        #         # if collar is considered, use precomputed list of real children
+        #         # here case with only 1 artificial child
+        #         if v == 1:
+        #             Nm_water_conc = self.xylem_Nm[self.collar_children[0]] * self.xylem_struct_mass[self.collar_children[0]] / self.xylem_water[self.collar_children[0]]
+        #             AA_water_conc = self.xylem_AA[self.collar_children[0]] * self.xylem_struct_mass[self.collar_children[0]] / self.xylem_water[self.collar_children[0]]
+        #         # else use the child in direct contact with segment
+        #         else:
+        #             Nm_water_conc = self.xylem_Nm[child[0]] * self.xylem_struct_mass[child[0]] / self.xylem_water[child[0]]
+        #             AA_water_conc = self.xylem_AA[child[0]] * self.xylem_struct_mass[child[0]] / self.xylem_water[child[0]]
+        #     # if this is a down flow, take concentrations from the considered segment
+        #     else:
+        #         Nm_water_conc = self.xylem_Nm[v] * self.xylem_struct_mass[v] / self.xylem_water[v]
+        #         AA_water_conc = self.xylem_AA[v] * self.xylem_struct_mass[v] / self.xylem_water[v]
 
-            # If children is a root_tip, flows have to be restricted to avoid negative pools.    
-            if len(grand_child) == 0:
-                advection_Nm_down = min(0.9*self.xylem_Nm[child[0]], Nm_water_conc * self.axial_import_water_down[v])
-                advection_AA_down = min(0.9*self.xylem_AA[child[0]], AA_water_conc * self.axial_import_water_down[v])
-            else :
-                advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
-                advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
+        #     advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
+        #     advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
             
-        # if there are several children, sum their respective contributions
-        else:
-            # if this is an up flow, take concentrations from the children
-            if self.axial_import_water_down[v] >= 0:
-                # if collar is considered, use precomputed list of real children
-                if v == 1:
-                    Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in self.collar_children]
-                    AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in self.collar_children]
-                    advection_Nm_down = sum([Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))])
-                    advection_AA_down = sum([AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))])
+        # # if there are several children, sum their respective contributions
+        # else:
+        #     # if this is an up flow, take concentrations from the children
+        #     if self.axial_import_water_down[v] >= 0:
+        #         # if collar is considered, use precomputed list of real children
+        #         if v == 1:
+        #             Nm_water_conc = [self.xylem_Nm[k] * self.xylem_struct_mass[k] / self.xylem_water[k] for k in self.collar_children]
+        #             AA_water_conc = [self.xylem_AA[k] * self.xylem_struct_mass[k] / self.xylem_water[k] for k in self.collar_children]
+        #             advection_Nm_down = sum([Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))])
+        #             advection_AA_down = sum([AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(self.collar_children))])
 
-                # else use the children in direct contact with segment
-                else:
-                    Nm_water_conc = [self.xylem_Nm[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in child]
-                    AA_water_conc = [self.xylem_AA[k] * self.struct_mass[k] * xylem_cross_area_ratio / self.xylem_water[k] for k in child]
-                    advection_Nm_down = sum([Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))])
-                    advection_AA_down = sum([AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))])
+        #         # else use the children in direct contact with segment
+        #         else:
+        #             Nm_water_conc = [self.xylem_Nm[k] * self.xylem_struct_mass[k] / self.xylem_water[k] for k in child]
+        #             AA_water_conc = [self.xylem_AA[k] * self.xylem_struct_mass[k] / self.xylem_water[k] for k in child]
+        #             advection_Nm_down = sum([Nm_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))])
+        #             advection_AA_down = sum([AA_water_conc[k] * self.axial_export_water_up[child[k]] for k in range(len(child))])
 
-            # if this is a down flow, take concentrations from the considered segment
-            else:
-                Nm_water_conc = self.xylem_Nm[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
-                advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
-                advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
+        #     # if this is a down flow, take concentrations from the considered segment
+        #     else:
+        #         Nm_water_conc = self.xylem_Nm[v] * self.xylem_struct_mass[v] / self.xylem_water[v]
+        #         AA_water_conc = self.xylem_AA[v] * self.xylem_struct_mass[v] / self.xylem_water[v]
+        #         advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
+        #         advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
 
-        # sum upward and downward advection contributions to compute overall advection flow for each labile element
-        # If this is an apex, if flows exceed pool size, the flow is topped as apex can have large water absorption contribution but dilluted export.
-        if len(child) == 0:
-            self.axial_advection_Nm_xylem[v] = advection_Nm_down - min(advection_Nm_up, 0.9*self.xylem_Nm[v])
-            self.axial_advection_AA_xylem[v] = advection_AA_down - min(advection_AA_up, 0.9*self.xylem_AA[v])
-        # Anticipate when children is an apex
-        else:
-            self.axial_advection_Nm_xylem[v] = advection_Nm_down - advection_Nm_up
-            self.axial_advection_AA_xylem[v] = advection_AA_down - advection_AA_up
+        # # sum upward and downward advection contributions to compute overall advection flow for each labile element
+        
+        # self.axial_advection_Nm_xylem[v] = advection_Nm_down - advection_Nm_up
+        # self.axial_advection_AA_xylem[v] = advection_AA_down - advection_AA_up
 
-        # AXIAL DIFFUSION
+        # if self.xylem_AA[v] + (self.axial_advection_AA_xylem[v] / self.xylem_struct_mass[v]) < 0 :
+        #     print(v, self.xylem_AA[v] * self.xylem_struct_mass[v], self.axial_advection_AA_xylem[v], self.xylem_water[v], self.axial_export_water_up[v], self., child)
 
-        neighbor = [self.g.parent(v)] + self.g.children(v)
-        # to handle collar or root tip up and down exception
-        if None in neighbor:
-            neighbor.remove(None)
-        # Note : here, shoot will never be a neighbor so xylem diffusion with shoot is computed
-        # at the same time as advection above (around line 606)
+        # # AXIAL DIFFUSION
 
-        # if this is a collar child, add collar as parent
-        if v in self.collar_children:
-            neighbor += [1]
+        # neighbor = [self.g.parent(v)] + self.g.children(v)
+        # # to handle collar or root tip up and down exception
+        # if None in neighbor:
+        #     neighbor.remove(None)
+        # # Note : here, shoot will never be a neighbor so xylem diffusion with shoot is computed
+        # # at the same time as advection above (around line 606)
 
-        # if this is the collar, add the precomputed collar children
-        # Note : fake children with null mass will not be accounted for in the for loop
-        elif v == 1:
-            neighbor += self.collar_children
+        # # if this is a collar child, add collar as parent
+        # if v in self.collar_children:
+        #     neighbor += [1]
 
-        # Reinitialization before computing for each neighbor
-        self.axial_diffusion_Nm_xylem[v] = 0.0
-        self.axial_diffusion_AA_xylem[v] = 0.0
-        # if this is collar, account for diffusion-only exchanges with shoot
-        if v == 1:
-            self.axial_diffusion_AA_phloem[v] = self.AA_root_shoot_phloem[1]
-        else:
-            self.axial_diffusion_AA_phloem[v] = 0.0
+        # # if this is the collar, add the precomputed collar children
+        # # Note : fake children with null mass will not be accounted for in the for loop
+        # elif v == 1:
+        #     neighbor += self.collar_children
 
-        for k in neighbor:
-            if self.struct_mass[k] > 0:
-                # MINERAL NITROGEN TRANSPORT
-                self.axial_diffusion_Nm_xylem[v] += axial_diffusion_xylem * (self.xylem_Nm[k] - self.xylem_Nm[v]) * (
-                                                    xylem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2)**2)
+        # # Reinitialization before computing for each neighbor
+        # self.axial_diffusion_Nm_xylem[v] = 0.0
+        # self.axial_diffusion_AA_xylem[v] = 0.0
+        # # if this is collar, account for diffusion-only exchanges with shoot
+        # if v == 1:
+        #     self.axial_diffusion_AA_phloem[v] = self.AA_root_shoot_phloem[1]
+        # else:
+        #     self.axial_diffusion_AA_phloem[v] = 0.0
 
-                # AMINO ACID TRANSPORT
-                self.axial_diffusion_AA_xylem[v] += axial_diffusion_xylem * (self.xylem_AA[k] - self.xylem_AA[v]) * (
-                                                    xylem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2) ** 2)
+        # for k in neighbor:
+        #     if self.struct_mass[k] > 0:
+        #         # MINERAL NITROGEN TRANSPORT
+        #         self.axial_diffusion_Nm_xylem[v] += axial_diffusion_xylem * (self.xylem_Nm[k] - self.xylem_Nm[v]) * (
+        #                                             xylem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2)**2)
 
-                self.axial_diffusion_AA_phloem[v] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[v]) * (
-                                                    phloem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2) ** 2)
+        #         # AMINO ACID TRANSPORT
+        #         self.axial_diffusion_AA_xylem[v] += axial_diffusion_xylem * (self.xylem_AA[k] - self.xylem_AA[v]) * (
+        #                                             xylem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2) ** 2)
+
+        #         self.axial_diffusion_AA_phloem[v] += axial_diffusion_phloem * (self.phloem_AA[k] - self.phloem_AA[v]) * (
+        #                                             phloem_cross_area_ratio * np.pi * ((self.radius[v] + self.radius[k]) / 2) ** 2)
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_cross_area_ratio, phloem_cross_area_ratio):
         """
@@ -810,6 +923,11 @@ class DiscreteVessels(CommonNitrogenModel):
                 
                 #if self.axial_export_water_up[vid] / self.xylem_water[vid] > 1:
                 #    print(vid, self.axial_export_water_up[vid] / self.xylem_water[vid], self.axial_export_water_up[vid], self.axial_import_water_down[vid], self.length[vid], self.radius[vid])
+
+                #if abs(self.xylem_AA[vid]) > 1 or self.xylem_AA[vid] < 0:
+                #    print(vid, self.xylem_AA[vid], (self.sub_time_step / self.xylem_struct_mass[vid]) *
+                #        self.export_AA[vid], (self.sub_time_step / self.xylem_struct_mass[vid]) *self.diffusion_AA_soil_xylem[vid], (self.sub_time_step / self.xylem_struct_mass[vid]) * self.diffusion_Nm_xylem[vid], self.axial_advection_AA_xylem[vid] / self.xylem_struct_mass[vid],
+                #        self.axial_export_water_up[vid], self.axial_import_water_down[vid], self.xylem_water[vid], xylem_cross_area_ratio, self.struct_mass[vid] )
 
                 self.phloem_AA[vid] += (self.sub_time_step / self.phloem_struct_mass[vid]) * (
                         - self.diffusion_AA_phloem[vid]
