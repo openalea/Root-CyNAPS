@@ -84,7 +84,7 @@ class InitDiscreteVesselsN(InitCommonN):
 class TransportCommonN:
     # kinetic parameters
     vmax_Nm_root: float = 1e-7     # mol N.s-1.m-2
-    vmax_Nm_xylem: float = 1e-7     # mol N.s-1.m-2
+    vmax_Nm_xylem: float = 0 # 1e-7     # mol N.s-1.m-2
     Km_Nm_root_LATS: float = 4e-3    # mol N.m-3 # change according to soil values?
     Km_Nm_root_HATS: float = 5e-5    # mol N.m-3
     begin_N_regulation: float = 2e-5   # mol N.g-1 value
@@ -93,7 +93,7 @@ class TransportCommonN:
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-3   # mol AA.g-1
     diffusion_soil: float = 1e-14   # Artif. g.m-2.s-1 different soil and root concentration units
-    diffusion_xylem: float = 1e-6   # g.m-2.s-1
+    diffusion_xylem: float = 0 # 1e-6   # g.m-2.s-1
     diffusion_phloem: float = 1e-6  # g.m-2.s-1
     diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 different soil and root concentration units
     # metabolism-related parameters
@@ -106,7 +106,7 @@ class TransportAxialN(TransportCommonN):
     xylem_cross_area_ratio: float = 0.84*(0.36**2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
     phloem_cross_area_ratio: float = 0.15*(0.36**2)     # (adim) phloem cross-section area ratio * stele radius ratio^2
     # kinetic parameters
-    axial_diffusion_xylem: float = 2.5e-4   # g.m-2.s-1
+    axial_diffusion_xylem: float = 0 # 2.5e-4   # g.m-2.s-1
     axial_diffusion_phloem: float = 1e-4    # g.m-2.s-1
 
 
@@ -686,6 +686,7 @@ class DiscreteVessels(CommonNitrogenModel):
                 AA_water_conc = self.xylem_AA[v] * self.struct_mass[v] * xylem_cross_area_ratio / self.xylem_water[v]
             advection_Nm_down = Nm_water_conc * self.axial_import_water_down[v]
             advection_AA_down = AA_water_conc * self.axial_import_water_down[v]
+            
         # if there are several children, sum their respective contributions
         else:
             # if this is an up flow, take concentrations from the children
@@ -791,6 +792,9 @@ class DiscreteVessels(CommonNitrogenModel):
                         + self.diffusion_AA_soil_xylem[vid]
                         + self.axial_diffusion_AA_xylem[vid]) + (
                         self.axial_advection_AA_xylem[vid] / self.xylem_struct_mass[vid])
+                
+                if self.axial_export_water_up[vid] / self.xylem_water[vid] > 1:
+                    print(vid, self.axial_export_water_up[vid] / self.xylem_water[vid], self.axial_export_water_up[vid], self.xylem_water[vid], self.length[vid], self.radius[vid])
 
                 self.phloem_AA[vid] += (self.sub_time_step / self.phloem_struct_mass[vid]) * (
                         - self.diffusion_AA_phloem[vid]

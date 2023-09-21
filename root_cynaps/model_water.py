@@ -187,7 +187,7 @@ class WaterModel:
             self.axial_export_water_up[1] = potential_transpiration
 
         self.xylem_total_water += sum(self.radial_import_water.values()) - self.axial_export_water_up[1]
-        print(sum(self.radial_import_water.values()), self.axial_export_water_up[1])
+        #print(sum(self.radial_import_water.values()), self.axial_export_water_up[1])
 
         # Finally we compute the axial result of these transpiration and radial uptake
         # We define "root" as the starting point of the loop below:
