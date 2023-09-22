@@ -644,21 +644,25 @@ class DiscreteVessels(CommonNitrogenModel):
             # If this is only an up flow to parents
             if self.axial_export_water_up[vid] > 0 and self.axial_import_water_down[vid] > 0:
                 print("Up flow")
+                # Turnover defines a dilution factor of radial transport processes over the axially transported
+                # water column
                 turnover = self.axial_export_water_up[vid] / self.xylem_water[vid]
                 if turnover <= 1:
+                    # Transport only affects considered segment
                     cumulated_exports_Nm[vid] += self.export_Nm[vid] * self.sub_time_step
                     cumulated_exports_AA[vid] += self.export_AA[vid] * self.sub_time_step
                 else:
+                    # Transport affects a chain of parents
                     water_exchange_time = self.sub_time_step / turnover
-                    # Loading of the current vertex into the current vertex
+                    # Loading of the current vertex into the current vertex's xylem
                     cumulated_exports_Nm[vid] += self.export_Nm[vid] * water_exchange_time
                     cumulated_exports_AA[vid] += self.export_AA[vid] * water_exchange_time
 
                     exported_water = self.axial_export_water_up[vid]
                     child = vid
-                    # Loading of the current vertex into the vertices who have recieved water from it
+                    # Loading of the current vertex into the vertices who have received water from it
                     while exported_water > 0:
-                        # We remove the amount of water which has already recieved loading
+                        # We remove the amount of water which has already received loading in previous loop
                         exported_water -= self.xylem_water[child]
                         up_parent = self.g.parent(child)
                         # If we reached collar, this amount is being exported
@@ -684,53 +688,53 @@ class DiscreteVessels(CommonNitrogenModel):
             # If this is only a down flow to children
             elif self.axial_export_water_up[vid] < 0 and self.axial_import_water_down[vid] < 0:
                 print("Down flow")
+                # Turnover defines a dilution factor of radial transport processes over the axially transported
+                # water column
                 turnover = - self.axial_import_water_down[vid] / self.xylem_water[vid]
                 if turnover <= 1:
+                    # Transport only affects considered segment
                     cumulated_exports_Nm[vid] += self.export_Nm[vid] * self.sub_time_step
                     cumulated_exports_AA[vid] += self.export_AA[vid] * self.sub_time_step
                 else:
+                    # Transport affects a chain of children
                     water_exchange_time = self.sub_time_step / turnover
-                    # Loading of the current vertex into the current vertex
+                    # Loading of the current vertex into the current vertex's xylem
                     cumulated_exports_Nm[vid] += self.export_Nm[vid] * water_exchange_time
                     cumulated_exports_AA[vid] += self.export_AA[vid] * water_exchange_time
 
-                    exported_water =  -self.axial_import_water_down[vid]
                     parent = [vid]
-                    # Loading of the current vertex into the vertices who have recieved water from it
-                    while exported_water > 0:
+                    # We remove the amount of water which has already been received
+                    exported_water = [-self.axial_import_water_down[vid] - self.xylem_water[vid]]
+                    # Loading of the current vertex into the vertices who have received water from it
+                    while True in [k > 0 for k in exported_water]:
                         children_list = []
-                        exported_water -= self.xylem_water[parent]
-                        for p in parent:
-                            # We remove the amount of water which has already recieved loading
-                            
-                            down_children = [k for k in self.g.children(parent) if self.struct_mass[k] > 0]
-                            # If there is only 1 children (root line)
+                        for p in range(len(parent)):
+                            down_children = [k for k in self.g.children(parent[p]) if self.struct_mass[k] > 0]
+                            # If this is a root apex
                             if len(down_children) == 0:
-                                # The previous parent shoul be loaded more
-                                up_parent = self.g.parent(down_children)
+                                # Water has been selectively leaking, retaining osmolites :
+                                # The parent should be loaded more
+                                cumulated_exports_Nm[parent[p]] += self.export_Nm[vid] * water_exchange_time * exported_water[p] / self.xylem_water[vid]
+                                cumulated_exports_AA[parent[p]] += self.export_AA[vid] * water_exchange_time * exported_water[p] / self.xylem_water[vid]
                                 # Break the loop
-                                exported_water = 0
+                                exported_water[p] = 0
+                            # If there is only 1 children (root line)
                             elif len(down_children) == 1:
-
-                            else:
-                            # If we reached collar, this amount is being exported
-                            if up_parent == None:
-                                Export_Nm_Shoot += self.export_Nm[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
-                                Export_Nm_Shoot += self.export_AA[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
-                                # Break the loop
-                                exported_water = 0
-                            else:
-                                # If the considered parent have been completly filled with water from the child
-                                if exported_water - self.xylem_water[up_parent] > 0:
+                                # If the considered child have been completely filled with water from the parent
+                                if exported_water[p] - self.xylem_water[down_children[0]] > 0:
                                     # The exposition time is longer if the water content of the target neighbour is more important.
-                                    cumulated_exports_Nm[up_parent] += self.export_Nm[vid] * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[vid]
-                                    cumulated_exports_AA[up_parent] += self.export_AA[vid] * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[vid]
-                                # If it's only partial, we account only for the exceeding amount
+                                    cumulated_exports_Nm[down_children[0]] += self.export_Nm[vid] * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[vid]
+                                    cumulated_exports_AA[down_children[0]] += self.export_AA[vid] * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[vid]
+                                    exported_water[p] -= self.xylem_water[down_children[0]]
                                 else:
-                                    cumulated_exports_Nm[up_parent] += self.export_Nm[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
-                                    cumulated_exports_AA[up_parent] += self.export_AA[vid] * water_exchange_time * exported_water / self.xylem_water[vid]
+                                    cumulated_exports_Nm[down_children[0]] += self.export_Nm[vid] * water_exchange_time * exported_water[p] / self.xylem_water[vid]
+                                    cumulated_exports_AA[down_children[0]] += self.export_AA[vid] * water_exchange_time * exported_water[p] / self.xylem_water[vid]
                                     # Break the loop
-                                    exported_water = 0
+                                    exported_water[p] = 0
+                            # TODO STOP
+                            # Else if there are several children.
+                            else:
+                                print(1)
                             children_list += down_children
                         parent = children_list
 
