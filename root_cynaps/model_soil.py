@@ -1,7 +1,7 @@
 """
-rhydromin.soil
+root_cynaps.soil
 _________________
-This is the boundary soil module for rhydromin.
+This is the boundary soil module for root_cynaps.
 
 Documentation and features
 __________________________
@@ -26,8 +26,8 @@ import numpy as np
 class MeanConcentrations:
     soil_water_pressure: float = -0.1e6  # (Pa) mean soil water pressure
     soil_temperature: float = 283.15    # (K) mean soil temperature
-    soil_Nm: float = 2e-4   # mol.m-3
-    soil_AA: float = 1e-4   # mol.m-3
+    soil_Nm: float = 2e-1   # mol.m-3
+    soil_AA: float = 1e-1   # mol.m-3
 
 # External conditions parameters
 

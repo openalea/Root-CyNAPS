@@ -193,11 +193,6 @@ props_metadata = dict(
     storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     xylem_struct_mass=dict(unit="g", value_example=float(1e-3), description="not provided"),
     phloem_struct_mass = dict(unit="g", value_example=float(1e-3), description="not provided"),
-    axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_phloem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # Water model
     xylem_water=dict(unit="mol H2O", value_example=float(0), description="not provided"),
     radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
@@ -250,6 +245,9 @@ def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=desc
     # df = df[list(variables.keys())].fillna(0)
     # Filter duplicated indexes
     props_df = props_df[~props_df.index.duplicated()]
+
+    # Remove false root segments created just for branching regularity issues (vid 0, 2, 4, etc)
+    props_df = props_df[props_df["struct_mass"] > 0]
 
     # Convert to xarray with given dimensions to spatialize selected properties
     props_ds = props_df.to_xarray()

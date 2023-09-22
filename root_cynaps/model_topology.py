@@ -1,7 +1,7 @@
 """
-rhydromin.topology
+root_cynaps.topology
 _________________
-This is the radial root segment topology module for rhydromin exchange surfaces.
+This is the radial root segment topology module for root_cynaps exchange surfaces.
 
 Documentation and features
 __________________________
@@ -95,6 +95,10 @@ class RadialTopology:
         for name in states:
             setattr(self, name, props[name])
 
+        # Collar geometry corrective
+        self.length[1] = 0.003
+        self.radius[1] = 0.002
+
         self.update_topology(**asdict(TissueTopology()))
 
     def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate,
@@ -157,4 +161,6 @@ class RadialTopology:
                 self.apoplasmic_stele[vid] = xylem_differentiation * endodermis_differentiation
 
                 # Conductive apoplasmic volume
+
                 self.xylem_volume[vid] = np.pi * (self.radius[vid] ** 2) * xylem_cross_area_ratio * self.length[vid]
+

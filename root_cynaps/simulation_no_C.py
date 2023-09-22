@@ -6,15 +6,15 @@ from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-from rhydromin.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
-from rhydromin.model_topology import InitSurfaces, TissueTopology, RadialTopology
-from rhydromin.model_water import InitWater, WaterModel
-from rhydromin.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
+from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
+from root_cynaps.model_water import InitWater, WaterModel
+from root_cynaps.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
 
 from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
 
-import rhydromin.converter as converter
-from rhydromin.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
+import root_cynaps.converter as converter
+from root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
 from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 
 
@@ -33,7 +33,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()))
     else:
         root_water = WaterModel(g, time_step, **asdict(InitWater()))
-        root_nitrogen = DiscreteVessels(g, **asdict(InitDiscreteVesselsN()))
+        root_nitrogen = DiscreteVessels(g, time_step, **asdict(InitDiscreteVesselsN()))
     shoot = ShootModel(g, **asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
     # Linking modules
@@ -58,8 +58,9 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
         xarray_output = [mtg_to_dataset(g, variables=props_metadata, time=0)]
-        xarray_output[0].to_netcdf(f"example\\outputs\\xarray_used_input_{start_time}.nc")
+        xarray_output[0].to_netcdf(f"example/outputs/xarray_used_input_{start_time}.nc")
 
+    root_water.init_xylem_water()
     # Scheduler : actual computation loop
     for i in range(n):
         # Update soil state
@@ -69,7 +70,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         # Compute state variations for water (if selected) and then nitrogen
         if discrete_vessels:
             root_water.exchanges_and_balance()
-        root_nitrogen.exchanges_and_balance(time_step=time_step)
+        root_nitrogen.exchanges_and_balance()
 
         shoot.exchanges_and_balance(time=i)
 
@@ -105,23 +106,23 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     if logging:
         # NOTE : merging is slower but way less space is needed
         time_dataset = xr.concat(xarray_output, dim="t")
-        time_dataset.to_netcdf(f"example\\outputs\\{start_time}.nc")
+        time_dataset.to_netcdf(f"example/outputs/{start_time}.nc")
 
         # saving last mtg status
-        with open(r"example\\outputs\\root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
+        with open(r"example/outputs/root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
             pickle.dump(g, output_file)
 
         if plotting_2D:
-            time_dataset = xr.load_dataset(f"example\\outputs\\{start_time}.nc")
-            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(state_extracts.keys()))
-            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7], selection=list(flow_extracts.keys()))
+            time_dataset = xr.load_dataset(f"example/outputs/{start_time}.nc")
+            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
+            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_state_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_flow_extracts.keys()))
             plt.show()
 
         if plotting_STM:
-            from STM_statistics import STM_analysis
-            STM_analysis.run(path=f"example\\outputs\\{start_time}.nc")
+            from tools import STM_analysis
+            STM_analysis.run(path=f"example/outputs/{start_time}.nc")
 
         if plantgl:
             input("end?")

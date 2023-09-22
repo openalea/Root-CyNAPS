@@ -1,8 +1,11 @@
 # Import
 import openalea.plantgl.all as pgl
-from rhydromin.tools import plot_mtg
+
+from root_cynaps.tools import plot_mtg
+
 import matplotlib.pyplot as plt
 import numpy as np
+import nextcloud_client
 
 
 ### Output parameters
@@ -48,11 +51,6 @@ flow_extracts = dict(
     storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_phloem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # Water model
     radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
@@ -69,7 +67,7 @@ global_state_extracts = dict(
     phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_volume=dict(unit="m3", value_example="not provided", description="not provided"),
-    #xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
 )
 
 global_flow_extracts = dict(
@@ -130,18 +128,27 @@ def print_g(g, select, vertice):
             print(k, getattr(g, k))
 
 
-def plot_xr(dataset, vertice=[], selection=[]):
+def plot_xr(dataset, vertice=[], summing=0, selection=[]):
     L = max(1, len(vertice))
     fig, ax = plt.subplots(L, 2)
     # If we plot global properties
     if len(vertice) == 0:
+        # If properties are spatialized but we want an overall root system summary
+        if summing != 0:
+            dataset = dataset.sum(dim="vid")*summing
         ax = [ax]
         text_annot = [[]]
         std_dataset = (dataset - np.mean(dataset))/np.std(dataset)
-        for prop in selection:
-            getattr(dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][0], label=prop)
-            getattr(std_dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][1], label=prop)
-            text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
+        if summing != 0:
+            for prop in selection:
+                getattr(dataset, prop).plot.line(x='t', ax=ax[0][0], label=prop)
+                getattr(std_dataset, prop).plot.line(x='t', ax=ax[0][1], label=prop)
+                text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
+        else:
+            for prop in selection:
+                getattr(dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][0], label=prop)
+                getattr(std_dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][1], label=prop)
+                text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
     # If we plot local properties
     else:
         text_annot = [[] for k in range(len(vertice))]
@@ -183,5 +190,16 @@ def plot_xr(dataset, vertice=[], selection=[]):
     fig.canvas.mpl_connect("motion_notify_event", hover)
 
 
-# TODO : build coordinates after issue identification
-# TODO : understand xylem conc explosion with in out flows.
+def export_nextcloud(link='https://nextcloud.inrae.fr', user='tigerault', password='', file=""):
+    """
+    Description : This function aims at exporting output files and snapshot towards a nextcloud shared server
+
+    param: link : always use https
+    """
+
+    # ! always use https
+    nc = nextcloud_client.Client(link)
+
+    nc.login(user_id=user, password=password)
+
+    nc.put_file('Dossier_Thèse_Tristan_Gérault/' + file, file)
