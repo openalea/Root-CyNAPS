@@ -93,8 +93,8 @@ class WaterModel:
 
         # Repeat the same process for total root system properties
 
-        # Creating variables for
-        self.totals_keywords = dict(xylem_total_water=0,
+        # Creating variables for global balance and outputs
+        self.totals_keywords = dict(xylem_total_water=0.001,
                                     xylem_total_volume=0,
                                     xylem_total_pressure=xylem_total_pressure)
 
@@ -152,7 +152,7 @@ class WaterModel:
                         np.pi * self.length[vid] * (self.radius[vid]**2) * self.xylem_cross_area_ratio *
                         self.water_volumic_mass) / water_molar_mass
 
-        self.xylem_total_water = sum(self.xylem_water.values())
+        self.update_sums()
 
     def transport_water(self, water_molar_mass, radial_water_conductivity, reflexion_coef, R, sap_viscosity):
         # Using previous time-step flows, we compute current time-step pressure for flows computation
@@ -269,3 +269,4 @@ class WaterModel:
         for k in range(int(self.time_step/self.sub_time_step)):
             self.transport_water(**asdict(TransportWater()))
             self.update_sums()
+

@@ -51,11 +51,6 @@ flow_extracts = dict(
     storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_Nm_xylem = dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_xylem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_phloem = dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # Water model
     radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
