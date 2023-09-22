@@ -131,8 +131,8 @@ class UpdateN:
     r_Nm_AA: float = 1.4
     r_AA_struct: float = 65
     r_AA_stor: float = 65
-    xylem_cross_area_ratio: float = 1 #0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
-    phloem_cross_area_ratio: float = 1 #0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
+    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
+    phloem_cross_area_ratio: float = 0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
 
 
 # Nitrogen Model versions as classes. A version relates to a set of structural assumptions given in the class name.
@@ -607,9 +607,8 @@ class DiscreteVessels(CommonNitrogenModel):
 
         # AXIAL TRANSPORT
 
-        # If this is only an up flow to parents
-        if self.axial_export_water_up[v] > 0 and self.axial_import_water_down[v] > 0:
-            print("Up flow")
+        # If this is only an out flow to up parents
+        if self.axial_export_water_up[v] > 0:
             # Turnover defines a dilution factor of radial transport processes over the axially transported
             # water column
             turnover = self.axial_export_water_up[v] / self.xylem_water[v]
@@ -651,9 +650,8 @@ class DiscreteVessels(CommonNitrogenModel):
                             exported_water = 0
                         child = up_parent
 
-        # If this is only a down flow to children
-        elif self.axial_export_water_up[v] < 0 and self.axial_import_water_down[v] < 0:
-            print("Down flow")
+        # If this is only a out flow to down children
+        if self.axial_import_water_down[v] < 0:
             # Turnover defines a dilution factor of radial transport processes over the axially transported
             # water column
             turnover = - self.axial_import_water_down[v] / self.xylem_water[v]
@@ -725,15 +723,11 @@ class DiscreteVessels(CommonNitrogenModel):
                     parent = children_list
                     exported_water = children_exported_water
 
-        # Just to check if the situation occurs
-        elif self.axial_export_water_up[v] > 0 > self.axial_import_water_down[v]:
-            print("Outflow")
-            # turnover = (self.axial_export_water_up[vid] - self.axial_import_water_down[vid]) / self.xylem_water[vid]
-
-        # Just to check if the situation occurs
-        else:
-            print("Inflow")
-            # turnover = (self.axial_export_water_up[vid] - self.axial_import_water_down[vid]) / self.xylem_water[vid]
+        # If this is an inflow from both up an down segments
+        if self.axial_import_water_down[v] >= 0 >= self.axial_export_water_up[v]:
+            # No matter what the transported water amount is, all radial transport effects remain on the current vertex.
+            self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.sub_time_step
+            self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.sub_time_step
 
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_cross_area_ratio, phloem_cross_area_ratio):
         """
@@ -789,7 +783,6 @@ class DiscreteVessels(CommonNitrogenModel):
         xylem_total_water = sum(self.xylem_water.values())
         Nm_water_conc = self.xylem_total_Nm[1] * sum(self.xylem_struct_mass.values()) / xylem_total_water
         AA_water_conc = self.xylem_total_AA[1] * sum(self.xylem_struct_mass.values()) / xylem_total_water
-        print(xylem_total_water)
 
         self.Nm_root_shoot_xylem[1] += Nm_water_conc * self.axial_export_water_up[1]
         self.AA_root_shoot_xylem[1] += AA_water_conc * self.axial_export_water_up[1]
