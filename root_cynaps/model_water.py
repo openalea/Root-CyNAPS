@@ -15,7 +15,7 @@ class InitWater:
     xylem_water: float = 0  # (mol) water content
     water_molar_mass: float = 18    # g.mol-1
     water_volumic_mass: float = 1e6  # g.m-3
-    xylem_total_pressure: float = -0.5e6  # (Pa) apoplastic pressure in stele
+    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele
     # Water transports
     radial_import_water: float = 0
     axial_export_water_up: float = 0
@@ -27,7 +27,7 @@ class InitWater:
 @dataclass
 class TransportWater:
     water_molar_mass: float = 18  # g.mol-1
-    radial_water_conductivity: float = 1e-14 * 1e3  # m.s-1.Pa-1
+    radial_water_conductivity: float = 1e-14  # m.s-1.Pa-1
     reflexion_coef: float = 0.85    # adim
     R: float = 8.314
     sap_viscosity: float = 1.3e6    # Pa
@@ -96,6 +96,7 @@ class WaterModel:
         # Creating variables for global balance and outputs
         self.totals_keywords = dict(xylem_total_water=0.001,
                                     xylem_total_volume=0,
+                                    apex_residual_transpiration=0,
                                     xylem_total_pressure=xylem_total_pressure)
 
         for name, value in self.totals_keywords.items():
@@ -106,6 +107,7 @@ class WaterModel:
         self.totals_states = """
                                 xylem_total_water
                                 xylem_total_volume
+                                apex_residual_transpiration
                                 xylem_total_pressure
                                 """.split()
 
@@ -117,7 +119,6 @@ class WaterModel:
         self.water_volumic_mass = water_volumic_mass
 
         # Declare to outside modules which variables are needed
-        # TODO : convert to dict of dict for the builder to print variable expertise informations
         self.inputs = {
             "soil": [
                 "soil_water_pressure",
@@ -163,30 +164,32 @@ class WaterModel:
         # radial exchanges are only hydrostatic-driven for now
         for vid in self.vertices:
             self.radial_import_water[vid] = radial_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cylinder_exchange_surface[vid] * self.sub_time_step
-            self.xylem_water[vid] += self.radial_import_water[vid]
+            self.xylem_water[vid] += self.radial_import_water[vid] - (self.apex_residual_transpiration[1] * self.xylem_water[vid] / self.xylem_total_water[1])
+
+        # We reinitialize this cumulative value for the current time-step
+        self.apex_residual_transpiration[1] = 0
 
         # First we limit collar transpiration if the result exceeds xylem shear strength
-        potential_pressure = self.xylem_young_modulus * (((((self.xylem_total_water - potential_transpiration + sum(self.radial_import_water.values())) * water_molar_mass) / (
+        potential_pressure = self.xylem_young_modulus * (((((self.xylem_total_water[1] - potential_transpiration + sum(self.radial_import_water.values())) * water_molar_mass) / (
                 np.pi * (np.mean(list(self.radius.values()))**2) * sum(self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass))**0.5) - 1) + np.mean(list(self.soil_water_pressure.values()))
 
-        shear_max = 1e6
+        shear_max = 1e7
 
         actual_pressure = []
         for vid in self.vertices:
             if abs(self.soil_water_pressure[vid] - potential_pressure) > shear_max:
                 actual_pressure += [self.soil_water_pressure[vid] - shear_max]
-                print(True)
 
         if len(actual_pressure) > 0:
             self.xylem_total_pressure[1] = min(actual_pressure)
-            self.axial_export_water_up[1] = self.xylem_total_water + sum(self.radial_import_water.values()) - ((((actual_pressure - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus + 1)**2) * (
+            self.axial_export_water_up[1] = self.xylem_total_water[1] + sum(self.radial_import_water.values()) - ((((max(actual_pressure) - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus + 1)**2) * (
                 (np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / water_molar_mass))
             
         else:
-            self.xylem_total_pressure[1] = -0.5e6 # potential_pressure
+            self.xylem_total_pressure[1] = potential_pressure
             self.axial_export_water_up[1] = potential_transpiration
 
-        self.xylem_total_water += sum(self.radial_import_water.values()) - self.axial_export_water_up[1]
+        self.xylem_total_water[1] += sum(self.radial_import_water.values()) - self.axial_export_water_up[1]
         #print(sum(self.radial_import_water.values()), self.axial_export_water_up[1])
 
         # Finally we compute the axial result of these transpiration and radial uptake
@@ -214,18 +217,20 @@ class WaterModel:
                         np.pi * self.length[vid] * (self.radius[vid]**2) * self.xylem_cross_area_ratio *
                         self.water_volumic_mass) / water_molar_mass
 
-                # If this is a root tip or a non-emerged root segment, there is no down import flux.
+                # If this is a root tip or a non-emerged root segment, there is no down import
+                # However, even though residual axial export should be compensated by radial import as apex are permeable,
+                # this is not always possible to find the best parametrisation to minimize apex_residual_transpiration.
+                # Thus, we create this variable to respect water balance and further impact xylem pressure at next time-step.
                 if (vid != 1) and ((len(child) == 0) or (True not in [self.struct_mass[k] > 0 for k in child])):
                     self.axial_import_water_down[vid] = 0
+                    self.apex_residual_transpiration[1] += final_xylem_water - self.xylem_water[vid] + self.axial_export_water_up[vid]
 
                 # if there are children, there is a down import flux
                 else:
                     self.axial_import_water_down[vid] = final_xylem_water - self.xylem_water[vid] + self.axial_export_water_up[vid]
-                    # water balance is computed here to prevent another for loop over mtg
-                self.xylem_water[vid] = final_xylem_water
 
-                #if vid == 193 :
-                #    print(self.xylem_water[vid], self.axial_export_water_up[vid], self.radial_import_water[vid], self.axial_import_water_down[vid])
+                # water balance is computed here to prevent another for loop over mtg
+                self.xylem_water[vid] = final_xylem_water
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 # if current vertex is collar, we affect down flow at previously computed collar children
@@ -256,8 +261,8 @@ class WaterModel:
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
     def update_sums(self):
-        self.xylem_total_water = sum(self.xylem_water.values())
-        self.xylem_total_volume = sum(self.xylem_volume.values())
+        self.xylem_total_water[1] = sum(self.xylem_water.values())
+        self.xylem_total_volume[1] = sum(self.xylem_volume.values())
 
     def exchanges_and_balance(self):
         """

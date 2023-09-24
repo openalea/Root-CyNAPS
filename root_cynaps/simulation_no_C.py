@@ -42,6 +42,8 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     converter.link_mtg(root_nitrogen, root_topo, category="structure", same_names=True)
 
     converter.link_mtg(root_water, soil, category="soil", same_names=True)
+    root_water.init_xylem_water()  # To prevent wrong water content initialization
+
     converter.link_mtg(root_water, root_topo, category="structure", same_names=True)
 
     converter.link_mtg(root_nitrogen, root_water, category="water", same_names=True)

@@ -538,7 +538,7 @@ class DiscreteVessels(CommonNitrogenModel):
                 ___________
 
         """
-        # TODO : probably collar children have to be reintroduced for good neighbor management.
+        # TODO : probably collar children have to be reintroduced for good neighbor management. (from model_water)
         #  But if null water content proprely passes information between collar and it's children,
         #  it may be already working well
 
