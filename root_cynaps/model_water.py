@@ -10,7 +10,7 @@ from openalea.mtg.traversal import pre_order
 @dataclass
 class InitWater:
     # time resolution
-    sub_time_step: int = 3600 # (second) MUST be a multiple of base time_step
+    sub_time_step: int = 3600  # (second) MUST be a multiple of base time_step
     # Pools
     xylem_water: float = 0  # (mol) water content
     water_molar_mass: float = 18    # g.mol-1

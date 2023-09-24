@@ -9,7 +9,7 @@ from matplotlib.widgets import Slider
 from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
 from root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_nitrogen import InitCommonN, InitDiscreteVesselsN, DiscreteVessels
 
 from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
 
@@ -47,10 +47,8 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     converter.link_mtg(root_nitrogen, root_water, category="water", same_names=True)
 
     # 1 point collar interactions between shoot CN, root nitrogen and root water
-    converter.link_mtg(shoot, root_nitrogen, category="root_nitrogen", translator=converter.nitrogen_state, same_names=False)
     converter.link_mtg(root_nitrogen, shoot, category="shoot_nitrogen", translator=converter.nitrogen_flows, same_names=False)
 
-    converter.link_mtg(shoot, root_water, category="root_water", translator=converter.water_state, same_names=False)
     converter.link_mtg(root_water, shoot, category="shoot_water", translator=converter.water_flows, same_names=False)
 
     # Init output xarray list

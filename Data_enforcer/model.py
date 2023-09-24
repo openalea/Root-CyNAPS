@@ -30,30 +30,12 @@ class ShootModel:
             props[name][1] = self.dataset[name][0]
             setattr(self, name, props[name])
 
-        self.inputs = {
-            "root_nitrogen": [
-                "root_xylem_Nm",
-                "root_xylem_AA",
-                "collar_struct_mass",
-                "root_phloem_AA",
-                "root_radius",
-                "segment_length"],
-            "root_water": [
-                "root_xylem_water",
-                "root_xylem_pressure"
-            ]
-        }
-
     def transportW(self, time):
         # At each time step, we set the transpiration value from the csv file
         self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)
 
     def transportN(self, time):
-        # TODO remove these, it is computed by the root model
-        self.Export_Nitrates[1] = 0
-        self.Export_Amino_Acids[1] = 0
-
-        self.Unloading_Amino_Acids[1] = 0
+        self.Unloading_Amino_Acids[1] = self.dataset["Unloading_Amino_Acids"][time]
 
         self.Export_cytokinins[1] = self.dataset["Export_cytokinins"][time]
 
