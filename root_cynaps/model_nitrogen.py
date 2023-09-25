@@ -44,7 +44,6 @@ class InitCommonN:
     storage_protein: float = 0     # mol prot stor.g-1
     xylem_Nm: float = 1e-4  # mol N.g-1
     xylem_AA: float = 1e-4  # mol AA.g-1
-    phloem_AA: float = 9e-4  # mol AA.g-1
     # Transport processes
     import_Nm: float = 0    # mol N.s-1
     export_Nm: float = 0    # mol N.s-1
@@ -61,6 +60,7 @@ class InitCommonN:
     storage_synthesis: float = 0    # mol stor.s-1
     AA_catabolism: float = 0    # mol AA.s-1
     storage_catabolism: float = 0    # mol stor.s-1
+    phloem_total_AA: float = 9e-4  # mol AA.g-1
     cytokinin_synthesis: float = 0   # mol cytokinin.s-1
 
 
@@ -80,6 +80,7 @@ class InitDiscreteVesselsN(InitCommonN):
 
 @dataclass
 class TransportCommonN:
+    # TODO Add soil active AA import !!
     # kinetic parameters
     vmax_Nm_root: float = 1e-7     # mol N.s-1.m-2
     vmax_Nm_xylem: float = 1e-7     # mol N.s-1.m-2
@@ -90,9 +91,9 @@ class TransportCommonN:
     Km_Nm_xylem: float = 8e-5   # mol N.g-1
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-3   # mol AA.g-1
-    diffusion_soil: float = 1e-14   # Artif. g.m-2.s-1 different soil and root concentration units
-    diffusion_xylem: float = 1e-6   # g.m-2.s-1
-    diffusion_phloem: float = 1e-6  # g.m-2.s-1
+    diffusion_soil: float = 1e-14   # Artif g.m-2.s-1 different soil and root concentration units
+    diffusion_xylem: float = 1e-6   # Artif g.m-2.s-1
+    diffusion_phloem: float = 1e-5  # g.m-2.s-1
     diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 different soil and root concentration units
     # metabolism-related parameters
     transport_C_regulation: float = 7e-3    # mol.g-1
@@ -105,17 +106,18 @@ class TransportAxialN(TransportCommonN):
 
 @dataclass
 class MetabolismN:
+    # TODO : introduce nitrogen fixation
     # kinetic parameters
-    smax_AA: float = 3e-6   # mol.s-1.g-1 DW
+    smax_AA: float = 1e-5   # Artif mol.s-1.g-1 DW
     Km_Nm_AA: float = 3e-6  # mol.g-1 DW
     Km_C_AA: float = 350e-6     # mol.g-1 DW
-    smax_struct: float = 4.5e-13    # mol.s-1.g-1 DW
+    smax_struct: float = 1e-9    # mol.s-1.g-1 DW
     Km_AA_struct: float = 250e-6    # mol.g-1 DW
-    smax_stor: float = 4.5e-14  # mol.s-1.g-1 DW
+    smax_stor: float = 0  # 1e-9  # mol.s-1.g-1 DW 0 for wheat
     Km_AA_stor: float = 250e-6    # mol.g-1 DW
-    cmax_stor: float = 4.5e-14   # mol.s-1.g-1 DW
+    cmax_stor: float = 1e-9   # mol.s-1.g-1 DW
     Km_stor_catab: float = 250e-6    # mol.g-1 DW
-    cmax_AA: float = 1.2e-14    # mol.s-1.g-1 DW
+    cmax_AA: float = 1.2e-8    # mol.s-1.g-1 DW
     Km_AA_catab: float = 2.5e-6     # mol.g-1 DW
     storage_C_regulation: float = 7e-3  # mol.g-1
 
@@ -143,7 +145,7 @@ class UpdateN:
 class CommonNitrogenModel:
     def __init__(self, g, time_step, sub_time_step, Nm, AA, struct_protein, storage_protein, import_Nm, export_Nm, export_AA, diffusion_Nm_soil,
                  diffusion_Nm_xylem, diffusion_Nm_soil_xylem, diffusion_AA_soil, diffusion_AA_phloem, diffusion_AA_soil_xylem, AA_synthesis, struct_synthesis,
-                 storage_synthesis, AA_catabolism, storage_catabolism, cytokinin_synthesis):
+                 storage_synthesis, AA_catabolism, storage_catabolism, phloem_total_AA, cytokinin_synthesis):
 
         """
         Description
@@ -250,7 +252,7 @@ class CommonNitrogenModel:
                                     xylem_total_AA=0,
                                     Nm_root_shoot_xylem=0,
                                     AA_root_shoot_xylem=0,
-                                    phloem_total_AA=0,
+                                    phloem_total_AA=phloem_total_AA,
                                     cytokinin_synthesis=cytokinin_synthesis
                                     ))
 
@@ -460,6 +462,8 @@ class CommonNitrogenModel:
                 + self.storage_catabolism[v] / r_AA_stor
                 - self.AA_catabolism[v]
                 )
+        if self.AA[v] < 0:
+            print("error")
 
         self.struct_protein[v] += (self.sub_time_step / self.struct_mass[v]) * (
                 self.struct_synthesis[v]
@@ -470,7 +474,7 @@ class CommonNitrogenModel:
                 - self.storage_catabolism[v]
                 )
 
-        self.phloem_total_AA[1] += (self.AA_root_shoot_phloem[1] - (self.sub_time_step * self.diffusion_AA_phloem[v])) / (self.total_struct_mass[1] * phloem_cross_area_ratio)
+        self.phloem_total_AA[1] += - (self.sub_time_step * self.diffusion_AA_phloem[v]) / (self.total_struct_mass[1] * phloem_cross_area_ratio)
 
     def update_sums(self):
         self.total_struct_mass[1] = sum(self.struct_mass.values())
@@ -486,7 +490,7 @@ class CommonNitrogenModel:
 class DiscreteVessels(CommonNitrogenModel):
 
     def __init__(self, g, time_step, xylem_Nm, xylem_AA, xylem_struct_mass, displaced_Nm_in, displaced_Nm_out, displaced_AA_in,
-                 displaced_AA_out, cumulated_radial_exchanges_Nm, cumulated_radial_exchanges_AA, phloem_AA, phloem_struct_mass, **kwargs):
+                 displaced_AA_out, cumulated_radial_exchanges_Nm, cumulated_radial_exchanges_AA, phloem_struct_mass, **kwargs):
 
         self.g = g
 
@@ -500,7 +504,6 @@ class DiscreteVessels(CommonNitrogenModel):
                             displaced_AA_out=displaced_AA_out,
                             cumulated_radial_exchanges_Nm=cumulated_radial_exchanges_Nm,
                             cumulated_radial_exchanges_AA=cumulated_radial_exchanges_AA,
-                            phloem_AA=phloem_AA,
                             phloem_struct_mass=phloem_struct_mass)
 
         self.totals_keywords = {}
@@ -516,7 +519,6 @@ class DiscreteVessels(CommonNitrogenModel):
                 displaced_AA_out
                 cumulated_radial_exchanges_Nm
                 cumulated_radial_exchanges_AA
-                phloem_AA
                 phloem_struct_mass
                 """.split()
 
@@ -672,9 +674,25 @@ class DiscreteVessels(CommonNitrogenModel):
                     for p in range(len(parent)):
                         if exported_water[p] > 0:
                             down_children = [k for k in self.g.children(parent[p]) if self.struct_mass[k] > 0]
-                            # TODO think about this condition
+                            # if the parent is an apex and water has been exported from it,
+                            # it means that the apex concentrates the associated carried and loaded nitrogen matter
                             if len(down_children) == 0:
-                                print("apex_export??")
+                                # this water amount has also been subject to loading
+                                self.cumulated_radial_exchanges_Nm[parent[p]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                self.cumulated_radial_exchanges_AA[parent[p]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                # if the translated nitrogen matter has completely ended up in the apex
+                                if exported_water[p] + self.xylem_water[parent[p]] > self.xylem_water[v] * axis_proportion[p]:
+                                    self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p]
+                                    self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p]
+                                # else it is shared with grandparent
+                                else:
+                                    grandparent = self.g.parent(parent[p])
+                                    parent_proportion = (exported_water[p] + self.xylem_water[parent[p]]) / (self.xylem_water[v] * axis_proportion[p])
+                                    self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p] * parent_proportion
+                                    self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p] * parent_proportion
+                                    self.displaced_Nm_in[grandparent] += self.displaced_Nm_out[v] * axis_proportion[p] * (1 - parent_proportion)
+                                    self.displaced_AA_in[grandparent] += self.displaced_AA_out[v] * axis_proportion[p] * (1 - parent_proportion)
+
                             # If there is only 1 child (root line)
                             elif len(down_children) == 1:
                                 # If the considered child have been completely filled with water from the parent
@@ -693,10 +711,10 @@ class DiscreteVessels(CommonNitrogenModel):
                                     else:
                                         # Displaced matter is shared between child and its parent
                                         child_proportion = exported_water[p] / (self.xylem_water[v] * axis_proportion[p])
-                                        self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * child_proportion
-                                        self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * child_proportion
-                                        self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * (1 - child_proportion)
-                                        self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * (1 - child_proportion)
+                                        self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * axis_proportion[p] * child_proportion
+                                        self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * axis_proportion[p] * child_proportion
+                                        self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p] * (1 - child_proportion)
+                                        self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p] * (1 - child_proportion)
                                     # Break the loop
                                     children_exported_water += [0]
 
@@ -729,10 +747,10 @@ class DiscreteVessels(CommonNitrogenModel):
                                         else:
                                             # Displaced matter is shared between child and its parent
                                             child_proportion = children_down_flow[ch] / (self.xylem_water[v] * axis_proportion[p + ch])
-                                            self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * child_proportion
-                                            self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * child_proportion
-                                            self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * (1 - child_proportion)
-                                            self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * (1 - child_proportion)
+                                            self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * axis_proportion[p + ch] * child_proportion
+                                            self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * axis_proportion[p + ch] * child_proportion
+                                            self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p + ch] * (1 - child_proportion)
+                                            self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p + ch] * (1 - child_proportion)
                                         # Break the loop
                                         children_down_flow[ch] = 0
                                 children_exported_water += children_down_flow
@@ -805,6 +823,7 @@ class DiscreteVessels(CommonNitrogenModel):
         # Update vessel scale properties
         self.xylem_total_Nm[1] = sum([x*y for x, y in zip(self.xylem_Nm.values(), self.xylem_struct_mass.values())]) / self.total_struct_mass[1]
         self.xylem_total_AA[1] = sum([x*y for x, y in zip(self.xylem_AA.values(), self.xylem_struct_mass.values())]) / self.total_struct_mass[1]
+        self.phloem_total_AA[1] += self.AA_root_shoot_phloem[1] / (self.total_struct_mass[1] * phloem_cross_area_ratio)
 
         # Reinitialize for the sum of the next loop
         # TODO find a way to output these values before executing this

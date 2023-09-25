@@ -100,7 +100,7 @@ class WaterModel:
 
         # Creating variables for global balance and outputs
         self.totals_keywords = dict(xylem_total_water=0,
-                                    apex_residual_transpiration=0,
+                                    actual_transpiration=0,
                                     xylem_total_pressure=xylem_total_pressure)
 
         for name, value in self.totals_keywords.items():
@@ -110,7 +110,7 @@ class WaterModel:
         # Accessing properties once, pointing to g for further modifications
         self.totals_states = """
                                 xylem_total_water
-                                apex_residual_transpiration
+                                actual_transpiration
                                 xylem_total_pressure
                                 """.split()
 
@@ -171,12 +171,15 @@ class WaterModel:
 
         # we set collar element the flow provided by shoot model
         potential_transpiration = self.water_root_shoot_xylem[1] * self.sub_time_step
+        # condition if potential transpiration is going to lead to a tearing pressure of xylem
         if self.xylem_total_water[1] - potential_transpiration < tearing_xylem_total_water:
-            self.axial_export_water_up[1] = self.xylem_total_water[1] - tearing_xylem_total_water
-            print("reduced transpiration", tearing_xylem_total_water)
+            self.actual_transpiration[1] = self.xylem_total_water[1] - tearing_xylem_total_water
         else:
-            self.axial_export_water_up[1] = potential_transpiration
-        # TODO add a condition is potential transpiration is going to lead to an shearing pressure for xylem
+            self.actual_transpiration[1] = potential_transpiration
+
+        self.axial_export_water_up[1] = self.actual_transpiration[1]
+
+        # Loop computing individual segments' water exchange
         for vid in self.vertices:
             # radial exchanges are only hydrostatic-driven for now
             self.radial_import_water[vid] = radial_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cylinder_exchange_surface[vid] * self.sub_time_step
@@ -205,7 +208,6 @@ class WaterModel:
                 # If this is a root tip or a non-emerged root segment, there is no down import
                 if (vid != 1) and ((len(child) == 0) or (True not in [self.struct_mass[k] > 0 for k in child])):
                     self.axial_import_water_down[vid] = 0
-                    self.apex_residual_transpiration[1] += self.axial_export_water_up[vid] - self.shoot_uptake[vid]
 
                 # if there are children, there is a down import flux
                 else:

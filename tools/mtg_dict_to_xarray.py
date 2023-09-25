@@ -176,7 +176,6 @@ props_metadata = dict(
     storage_protein=dict(unit="mol N.g-1", value_example=float(0), description="not provided"),
     xylem_Nm=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
     xylem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
-    phloem_AA=dict(unit="mol N.s-1", value_example=float(1e-4), description="not provided"),
     import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
