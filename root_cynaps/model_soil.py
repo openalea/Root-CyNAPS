@@ -33,7 +33,7 @@ class MeanConcentrations:
 
 @dataclass
 class SoilPatch:
-    patch: bool = False # To set if soil N conditions are patchy or homogeneous (equals soil_Nm_max)
+    patch: bool = False  # To set if soil N conditions are patchy or homogeneous (equals soil_Nm_max)
     soil_Nm_max: float = 0.01
     patch_dilution: float = 0
     z_soil_Nm_max: float = 0

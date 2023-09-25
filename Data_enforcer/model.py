@@ -32,10 +32,10 @@ class ShootModel:
 
     def transportW(self, time):
         # At each time step, we set the transpiration value from the csv file
-        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)
+        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time] * 1e-3  # mmol.s-1
 
     def transportN(self, time):
-        self.Unloading_Amino_Acids[1] = self.dataset["Unloading_Amino_Acids"][time]
+        self.Unloading_Amino_Acids[1] = self.dataset["Unloading_Amino_Acids"][time] * 1e-6  # micromol.h-1
 
         self.Export_cytokinins[1] = self.dataset["Export_cytokinins"][time]
 

@@ -651,7 +651,6 @@ class DiscreteVessels(CommonNitrogenModel):
                     self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * children_radius_prop[ch]
 
             else:
-                #print("D > 1")
                 # Exported matter corresponds to the whole segment's water content
                 self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
                 self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
@@ -673,8 +672,11 @@ class DiscreteVessels(CommonNitrogenModel):
                     for p in range(len(parent)):
                         if exported_water[p] > 0:
                             down_children = [k for k in self.g.children(parent[p]) if self.struct_mass[k] > 0]
+                            # TODO think about this condition
+                            if len(down_children) == 0:
+                                print("apex_export??")
                             # If there is only 1 child (root line)
-                            if len(down_children) == 1:
+                            elif len(down_children) == 1:
                                 # If the considered child have been completely filled with water from the parent
                                 if exported_water[p] - self.xylem_water[down_children[0]] > 0:
                                     # The exposition time is longer if the water content of the target neighbour is more important.
@@ -693,14 +695,13 @@ class DiscreteVessels(CommonNitrogenModel):
                                         child_proportion = exported_water[p] / (self.xylem_water[v] * axis_proportion[p])
                                         self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * child_proportion
                                         self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * child_proportion
-                                        self.displaced_Nm_in[p] += self.displaced_Nm_out[v] * (1 - child_proportion)
-                                        self.displaced_AA_in[p] += self.displaced_AA_out[v] * (1 - child_proportion)
+                                        self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * (1 - child_proportion)
+                                        self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * (1 - child_proportion)
                                     # Break the loop
                                     children_exported_water += [0]
 
                             # Else if there are several children.
                             else:
-                                print(len(down_children))  # to check > 1
                                 # Water repartition is done according to radius,
                                 # as this is the main criteria used in the water model
                                 radius_sum = sum([self.radius[k] for k in down_children])
@@ -715,7 +716,7 @@ class DiscreteVessels(CommonNitrogenModel):
                                     # If the considered child have been completely filled with water from the parent
                                     if children_down_flow[ch] - self.xylem_water[down_children[ch]] > 0 :
                                         # The exposition time is longer if the water content of the target neighbour is more important.
-                                        self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water
+                                        self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
                                         self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
                                         children_down_flow[ch] -= self.xylem_water[down_children[ch]]
                                     else:
@@ -730,8 +731,8 @@ class DiscreteVessels(CommonNitrogenModel):
                                             child_proportion = children_down_flow[ch] / (self.xylem_water[v] * axis_proportion[p + ch])
                                             self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * child_proportion
                                             self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * child_proportion
-                                            self.displaced_Nm_in[p] += self.displaced_Nm_out[v] * (1 - child_proportion)
-                                            self.displaced_AA_in[p] += self.displaced_AA_out[v] * (1 - child_proportion)
+                                            self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * (1 - child_proportion)
+                                            self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * (1 - child_proportion)
                                         # Break the loop
                                         children_down_flow[ch] = 0
                                 children_exported_water += children_down_flow

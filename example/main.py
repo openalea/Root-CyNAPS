@@ -10,4 +10,4 @@ def main(init, n, time_step):
 
 # This step is essential to ensure a systematic reference of subdirectories, at least for windows paths
 os.chdir(os.getcwd()[:os.getcwd().find("example")-1])
-main(init='example/inputs/root00020.pckl', n=72, time_step=3600)
+main(init='example/inputs/root00020.pckl', n=144, time_step=3600)
