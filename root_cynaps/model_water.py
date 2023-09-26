@@ -15,7 +15,7 @@ class InitWater:
     xylem_water: float = 0  # (mol) water content
     water_molar_mass: float = 18    # g.mol-1
     water_volumic_mass: float = 1e6  # g.m-3
-    xylem_total_pressure: float = -0.5e6  # (Pa) apoplastic pressure in stele
+    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance
     # Water transports
     radial_import_water: float = 0
     shoot_uptake: float = 0
@@ -23,12 +23,12 @@ class InitWater:
     axial_import_water_down: float = 0
     # Mechanical properties
     xylem_young_modulus: float = 1e6  # (Pa) radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)
-    xylem_cross_area_ratio: float = 10 # 0.84 * (0.36 ** 2) # (adim) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio
+    xylem_cross_area_ratio: float = 10  # 0.84 * (0.36 ** 2) # (adim) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio
 
 @dataclass
 class TransportWater:
     water_molar_mass: float = 18  # g.mol-1
-    radial_water_conductivity: float = 1e-14 * 1e4  # m.s-1.Pa-1
+    radial_water_conductivity: float = 1e-14 * 1e6  # Artif m.s-1.Pa-1
     reflexion_coef: float = 0.85    # adim
     R: float = 8.314
     xylem_tear: float = 9e5  # (Pa) maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)
@@ -178,6 +178,9 @@ class WaterModel:
             self.actual_transpiration[1] = potential_transpiration
 
         self.axial_export_water_up[1] = self.actual_transpiration[1]
+
+        # For export unit, TODO remove later
+        self.actual_transpiration[1] /= self.sub_time_step
 
         # Loop computing individual segments' water exchange
         for vid in self.vertices:

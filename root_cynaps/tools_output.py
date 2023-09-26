@@ -37,6 +37,7 @@ state_extracts = dict(
 
 flow_extracts = dict(
     import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    import_AA=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     diffusion_Nm_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -45,6 +46,12 @@ flow_extracts = dict(
     diffusion_AA_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     diffusion_AA_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    displaced_Nm_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    displaced_Nm_out=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    displaced_AA_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    displaced_AA_out=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    cumulated_radial_exchanges_Nm=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    cumulated_radial_exchanges_AA=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -58,6 +65,7 @@ flow_extracts = dict(
 
 global_state_extracts = dict(
     total_Nm=dict(unit="mol", value_example="not provided",  description="not provided"),
+    total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
     total_hexose=dict(unit="mol", value_example="not provided", description="not provided"),
     total_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
     total_struct_mass=dict(unit="mol", value_example="not provided", description="not provided"),
@@ -69,12 +77,14 @@ global_state_extracts = dict(
 )
 
 global_flow_extracts = dict(
-    Export_Nitrates=dict(unit="mol", value_example="not provided",  description="not provided"),
-    Export_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
-    Unloading_Amino_Acids=dict(unit="mol", value_example="not provided", description="not provided"),
-    Export_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
+    Nm_root_shoot_xylem=dict(unit="mol.time_step-1", value_example="not provided",  description="not provided"),
+    AA_root_shoot_xylem=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    Unloading_Amino_Acids=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    Export_cytokinins=dict(unit="UA.time_step-1", value_example="not provided", description="not provided"),
     cytokinin_synthesis=dict(unit="mol", value_example="not provided", description="not provided"),
-    Total_Transpiration=dict(unit="mol", value_example="not provided", description="not provided")
+    actual_transpiration=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    Total_Transpiration=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    total_AA_rhizodeposition=dict(unit="mol.time_step-1", value_example="not provided", description="not provided")
 )
 
 
