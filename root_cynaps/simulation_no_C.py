@@ -9,7 +9,7 @@ from matplotlib.widgets import Slider
 from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
 from root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.model_nitrogen import InitCommonN, InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
 
 from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
 
@@ -110,10 +110,10 @@ def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_
 
         if plotting_2D:
             time_dataset = xr.load_dataset(output_path + f"/{start_time}.nc")
-            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
-            plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
-            plot_xr(dataset=time_dataset, selection=list(global_state_extracts.keys()))
-            plot_xr(dataset=time_dataset, selection=list(global_flow_extracts.keys()))
+            #plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
+            #plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
+            plot_xr(datasets=time_dataset, selection=list(global_state_extracts.keys()))
+            plot_xr(datasets=time_dataset, selection=list(global_flow_extracts.keys()))
             plt.show()
 
         if plotting_STM:

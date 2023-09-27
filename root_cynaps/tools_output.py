@@ -136,15 +136,16 @@ def print_g(g, select, vertice):
             print(k, getattr(g, k))
 
 
-def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=[]):
+def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=[""]):
     if len(vertice) == 0:
         fig, ax = plt.subplots()
     else:
         fig, ax = plt.subplots(len(vertice), 2)
 
-    if type(datasets) != list:
+    if supplementary_legend == [""]:
         datasets = [datasets]
     for d in range(len(datasets)):
+        print(d)
         # If we plot global properties
         if len(vertice) == 0:
             # If properties are spatialized but we want an overall root system summary
