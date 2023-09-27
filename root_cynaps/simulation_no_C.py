@@ -9,7 +9,7 @@ from matplotlib.widgets import Slider
 from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
 from root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.model_nitrogen import InitCommonN, OnePoolVessels, InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_nitrogen import InitCommonN, InitDiscreteVesselsN, DiscreteVessels
 
 from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
 
@@ -21,19 +21,16 @@ from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 '''FUNCTIONS'''
 
 
-def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plotting_2D=True, plotting_STM=False, logging=False):
+def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_dir, init, n, time_step, echo=False, plantgl=False, plotting_2D=True, plotting_STM=False, logging=False):
     # Loading mtg file
-    with open(init, 'rb') as f:
+    with open(current_file_dir + "/inputs/" + init, 'rb') as f:
         g = pickle.load(f)
 
     # Initialization of modules
     soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
-    if not discrete_vessels:
-        root_nitrogen = OnePoolVessels(g, **asdict(InitCommonN()))
-    else:
-        root_water = WaterModel(g, time_step, **asdict(InitWater()))
-        root_nitrogen = DiscreteVessels(g, time_step, **asdict(InitDiscreteVesselsN()))
+    root_water = WaterModel(g, time_step, **asdict(InitWater()))
+    root_nitrogen = DiscreteVessels(g, time_step, **asdict(InitDiscreteVesselsN()))
     shoot = ShootModel(g, **asdict(InitShootNitrogen()), **asdict(InitShootWater()))
 
     # Linking modules
@@ -42,15 +39,14 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     converter.link_mtg(root_nitrogen, root_topo, category="structure", same_names=True)
 
     converter.link_mtg(root_water, soil, category="soil", same_names=True)
+
     converter.link_mtg(root_water, root_topo, category="structure", same_names=True)
 
     converter.link_mtg(root_nitrogen, root_water, category="water", same_names=True)
 
     # 1 point collar interactions between shoot CN, root nitrogen and root water
-    converter.link_mtg(shoot, root_nitrogen, category="root_nitrogen", translator=converter.nitrogen_state, same_names=False)
     converter.link_mtg(root_nitrogen, shoot, category="shoot_nitrogen", translator=converter.nitrogen_flows, same_names=False)
 
-    converter.link_mtg(shoot, root_water, category="root_water", translator=converter.water_state, same_names=False)
     converter.link_mtg(root_water, shoot, category="shoot_water", translator=converter.water_flows, same_names=False)
 
     # Init output xarray list
@@ -58,23 +54,23 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
         # If logging, we start by storing start time and state for later reference during output file analysis
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
         xarray_output = [mtg_to_dataset(g, variables=props_metadata, time=0)]
-        xarray_output[0].to_netcdf(f"example/outputs/xarray_used_input_{start_time}.nc")
+        xarray_output[0].to_netcdf(output_path + f"/xarray_used_input_{start_time}.nc")
 
     root_water.init_xylem_water()
     # Scheduler : actual computation loop
     for i in range(n):
         # Update soil state
-        soil.update_patches(patch_age=i*time_step, **asdict(SoilPatch()))
+        soil.update_patches(patch_age=i*time_step, z_soil_Nm_max=z_soil_Nm_max, **asdict(SoilPatch()))
         # Update topological surfaces and volumes based on other evolved structural properties
         root_topo.update_topology(**asdict(TissueTopology()))
         # Compute state variations for water (if selected) and then nitrogen
-        if discrete_vessels:
-            root_water.exchanges_and_balance()
-        root_nitrogen.exchanges_and_balance()
+        root_water.exchanges_and_balance()
+        root_nitrogen.exchanges_and_balance(hexose_decrease_rate)
 
         shoot.exchanges_and_balance(time=i)
 
-        print("time step : {}h".format(i))
+        if echo:
+            print("time step : {}h".format(i))
 
         if plantgl:
             if i == 0:
@@ -106,14 +102,14 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
     if logging:
         # NOTE : merging is slower but way less space is needed
         time_dataset = xr.concat(xarray_output, dim="t")
-        time_dataset.to_netcdf(f"example/outputs/{start_time}.nc")
+        time_dataset.to_netcdf(output_path + f"/{start_time}.nc")
 
         # saving last mtg status
-        with open(r"example/outputs/root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
+        with open(output_path + r"/root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
             pickle.dump(g, output_file)
 
         if plotting_2D:
-            time_dataset = xr.load_dataset(f"example/outputs/{start_time}.nc")
+            time_dataset = xr.load_dataset(output_path + f"/{start_time}.nc")
             plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
             plot_xr(dataset=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
             plot_xr(dataset=time_dataset, selection=list(global_state_extracts.keys()))
@@ -122,7 +118,7 @@ def N_simulation(init, n, time_step, discrete_vessels=False, plantgl=False, plot
 
         if plotting_STM:
             from tools import STM_analysis
-            STM_analysis.run(path=f"example/outputs/{start_time}.nc")
+            STM_analysis.run(path=output_path + f"/{start_time}.nc")
 
         if plantgl:
             input("end?")

@@ -1,4 +1,4 @@
-import numpy as np
+import os
 from dataclasses import dataclass
 import pandas as pd
 
@@ -20,8 +20,7 @@ class ShootModel:
                  water_root_shoot_xylem):
 
         self.g = g
-
-        self.dataset = pd.read_csv("Data_enforcer/inputs/cnwheat_outputs.csv", sep=";")
+        self.dataset = pd.read_csv(os.path.dirname(__file__) + "/inputs/cnwheat_outputs.csv", sep=";")
         self.dataset = self.dataset.set_index("t")
 
         props = self.g.properties()
@@ -30,30 +29,12 @@ class ShootModel:
             props[name][1] = self.dataset[name][0]
             setattr(self, name, props[name])
 
-        self.inputs = {
-            "root_nitrogen": [
-                "root_xylem_Nm",
-                "root_xylem_AA",
-                "collar_struct_mass",
-                "root_phloem_AA",
-                "root_radius",
-                "segment_length"],
-            "root_water": [
-                "root_xylem_water",
-                "root_xylem_pressure"
-            ]
-        }
-
     def transportW(self, time):
         # At each time step, we set the transpiration value from the csv file
-        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time]*(1e-3)
+        self.Total_Transpiration[1] = self.dataset["Total_Transpiration"][time] * 1e-3  # mmol.s-1
 
     def transportN(self, time):
-        # TODO remove these, it is computed by the root model
-        self.Export_Nitrates[1] = 0
-        self.Export_Amino_Acids[1] = 0
-
-        self.Unloading_Amino_Acids[1] = 0
+        self.Unloading_Amino_Acids[1] = self.dataset["Unloading_Amino_Acids"][time] * 1e-6  # micromol.h-1
 
         self.Export_cytokinins[1] = self.dataset["Export_cytokinins"][time]
 
