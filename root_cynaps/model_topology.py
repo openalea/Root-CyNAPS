@@ -97,7 +97,7 @@ class RadialTopology:
 
         # Collar geometry corrective
         self.length[1] = 0.003
-        self.radius[1] = 0.002
+        # self.radius[1] = 0.002
 
         self.update_topology(**asdict(TissueTopology()))
 

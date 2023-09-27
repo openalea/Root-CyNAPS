@@ -1,4 +1,4 @@
-import numpy as np
+import os
 from dataclasses import dataclass
 import pandas as pd
 
@@ -20,8 +20,7 @@ class ShootModel:
                  water_root_shoot_xylem):
 
         self.g = g
-
-        self.dataset = pd.read_csv("Data_enforcer/inputs/cnwheat_outputs.csv", sep=";")
+        self.dataset = pd.read_csv(os.path.dirname(__file__) + "/inputs/cnwheat_outputs.csv", sep=";")
         self.dataset = self.dataset.set_index("t")
 
         props = self.g.properties()

@@ -85,19 +85,19 @@ class TransportCommonN:
     # kinetic parameters
     vmax_Nm_root: float = 1e-7     # mol N.s-1.m-2
     vmax_Nm_xylem: float = 1e-7     # mol N.s-1.m-2
-    Km_Nm_root_LATS: float = 4e-3    # mol N.m-3 # change according to soil values?
-    Km_Nm_root_HATS: float = 5e-5    # mol N.m-3
-    begin_N_regulation: float = 2e-5   # mol N.g-1 value
-    span_N_regulation: float = 5e-4    # mol N.g-1 range
+    Km_Nm_root_LATS: float = 1e-1   # mol N.m-3 Changed to increase diminution
+    Km_Nm_root_HATS: float = 1e-6  # mol N.m-3
+    begin_N_regulation: float = 1e1   # Artif mol N.g-1 changed so that import_Nm variation may occur in Nm variation range
+    span_N_regulation: float = 2e-4    # mol N.g-1 range corresponding to observed variation range within segment
     Km_Nm_xylem: float = 8e-5   # mol N.g-1
-    vmax_AA_root: float = 1e-8     # Artif -1 mol AA.s-1.m-2
+    vmax_AA_root: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_root: float = 1e-3    # mol AA.m-3
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_xylem: float = 1e-3   # mol AA.g-1
-    diffusion_soil: float = 1e-12   # Artif g.m-2.s-1 different soil and root concentration units
-    diffusion_xylem: float = 1e-5   # Artif -1 g.m-2.s-1 more realistic ranges
+    diffusion_soil: float = 1e-12   # Artif g.m-2.s-1 while there is no soil model balance
+    diffusion_xylem: float = 1e-4   # g.m-2.s-1 more realistic ranges
     diffusion_phloem: float = 1e-5  # Artif -1 g.m-2.s-1 more realistic ranges
-    diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 different soil and root concentration units
+    diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 while there is no soil model balance
     # metabolism-related parameters
     transport_C_regulation: float = 7e-3    # mol.g-1
 
@@ -419,10 +419,8 @@ class CommonNitrogenModel:
         :param Km_C_struct :
 
         """
-        # amino acid synthesis
-        # artificially fixated hexose concentration before coupling with C model
-        self.C_hexose_root[v] = 0.4
 
+        # amino acid synthesis
         if self.C_hexose_root[v] > 0:
             self.AA_synthesis[v] = self.struct_mass[v] * smax_AA / (
                 ((1 + Km_Nm_AA) / self.Nm[v])
@@ -448,6 +446,11 @@ class CommonNitrogenModel:
         Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
         self.AA_catabolism[v] = self.struct_mass[v] * cmax_AA * self.AA[v] / (
                 Km_stor_root + self.AA[v])
+
+    def transport_C(self, v, apex_C_hexose_root=0.4, hexose_decrease_rate=0.3):
+        # artificially fixated hexose concentration before coupling with C model
+        self.C_hexose_root[v] = apex_C_hexose_root - hexose_decrease_rate * self.thermal_time_since_emergence[v] / max(
+            self.thermal_time_since_emergence.values())
 
     def metabolism_total_hormones(self, smax_cytok, Km_C_cytok, Km_N_cytok):
         self.cytokinin_synthesis[0] = self.total_struct_mass[1] * smax_cytok * (
@@ -844,7 +847,7 @@ class DiscreteVessels(CommonNitrogenModel):
             self.displaced_Nm_in[vid] = 0
             self.displaced_AA_in[vid] = 0
 
-    def exchanges_and_balance(self):
+    def exchanges_and_balance(self, hexose_decrease_rate):
 
         """
         Description
@@ -864,6 +867,7 @@ class DiscreteVessels(CommonNitrogenModel):
             for vid in self.vertices:
                 # if root segment emerged
                 if self.struct_mass[vid] > 0:
+                    self.transport_C(vid, hexose_decrease_rate=hexose_decrease_rate)
                     self.transport_N(vid, **asdict(TransportAxialN()))
                     self.metabolism_N(vid, **asdict(MetabolismN()))
 
