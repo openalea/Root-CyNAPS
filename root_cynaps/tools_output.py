@@ -67,23 +67,23 @@ global_state_extracts = dict(
     total_Nm=dict(unit="mol", value_example="not provided",  description="not provided"),
     total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
     total_hexose=dict(unit="mol", value_example="not provided", description="not provided"),
-    total_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
+    #total_cytokinins=dict(unit="mol", value_example="not provided", description="not provided"),
     total_struct_mass=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
     phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
-    xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
-    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+    #xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
+    #xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
 )
 
 global_flow_extracts = dict(
     Nm_root_shoot_xylem=dict(unit="mol.time_step-1", value_example="not provided",  description="not provided"),
     AA_root_shoot_xylem=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
-    Unloading_Amino_Acids=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
-    Export_cytokinins=dict(unit="UA.time_step-1", value_example="not provided", description="not provided"),
+    #Unloading_Amino_Acids=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    #Export_cytokinins=dict(unit="UA.time_step-1", value_example="not provided", description="not provided"),
     cytokinin_synthesis=dict(unit="mol", value_example="not provided", description="not provided"),
-    actual_transpiration=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
-    Total_Transpiration=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    #actual_transpiration=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
+    #Total_Transpiration=dict(unit="mol.time_step-1", value_example="not provided", description="not provided"),
     total_AA_rhizodeposition=dict(unit="mol.time_step-1", value_example="not provided", description="not provided")
 )
 
@@ -136,66 +136,90 @@ def print_g(g, select, vertice):
             print(k, getattr(g, k))
 
 
-def plot_xr(dataset, vertice=[], summing=0, selection=[]):
-    L = max(1, len(vertice))
-    fig, ax = plt.subplots(L, 2)
-    # If we plot global properties
+def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=[]):
     if len(vertice) == 0:
-        # If properties are spatialized but we want an overall root system summary
-        if summing != 0:
-            dataset = dataset.sum(dim="vid")*summing
-        ax = [ax]
-        text_annot = [[]]
-        std_dataset = (dataset - np.mean(dataset))/np.std(dataset)
-        if summing != 0:
-            for prop in selection:
-                getattr(dataset, prop).plot.line(x='t', ax=ax[0][0], label=prop)
-                getattr(std_dataset, prop).plot.line(x='t', ax=ax[0][1], label=prop)
-                text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
-        else:
-            for prop in selection:
-                getattr(dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][0], label=prop)
-                getattr(std_dataset, prop).sel(vid=1).plot.line(x='t', ax=ax[0][1], label=prop)
-                text_annot[0] += [ax[0][0].text(0, 0, ""), ax[0][1].text(0, 0, "")]
-    # If we plot local properties
+        fig, ax = plt.subplots()
     else:
-        text_annot = [[] for k in range(len(vertice))]
-        for k in range(len(vertice)):
-            if len(vertice) > 1:
-                modified_ax = ax[k]
+        fig, ax = plt.subplots(len(vertice), 2)
+
+    if type(datasets) != list:
+        datasets = [datasets]
+    for d in range(len(datasets)):
+        # If we plot global properties
+        if len(vertice) == 0:
+            # If properties are spatialized but we want an overall root system summary
+            if summing != 0:
+                datasets[d] = datasets[d].sum(dim="vid")*summing
+            text_annot = [[]]
+            if summing != 0:
+                for prop in selection:
+                    getattr(datasets[d], prop).plot.line(x='t', ax=ax, label=prop + supplementary_legend[d])
+                    text_annot[0] += [ax.text(0, 0, ""), ax.text(0, 0, "")]
             else:
-                modified_ax = ax
-            v_extract = dataset.sel(vid=vertice[k])
-            std_v_extract = (v_extract - np.mean(v_extract))/np.std(v_extract)
-            for prop in selection:
-                getattr(v_extract, prop).plot.line(x='t', ax=modified_ax[0], label=prop)
-                getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1], label=prop)
-                text_annot[k] += [modified_ax[0].text(0, 0, ""), modified_ax[1].text(0, 0, "")]
+                for prop in selection:
+                    getattr(datasets[d], prop).sel(vid=1).plot.line(x='t', ax=ax, label=prop + supplementary_legend[d])
+                    text_annot[0] += [ax.text(0, 0, ""), ax.text(0, 0, "")]
 
-    def hover(event):
-        # for each row
-        for axe in range(len(ax)):
-            # for each column
-            for norm in range(2):
-                # if mouse event is in the ax
-                if event.inaxes == ax[axe][norm]:
-                    # At call remove all annotations to prevent overlap
-                    for k in text_annot[axe]: k.set_visible(False)
-                    # for all variables lines in the axe
-                    for line in ax[axe][norm].get_lines():
-                        # if the mouse pointer is on the line
-                        cont, ind = line.contains(event)
-                        if cont:
-                            # get the position
-                            posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
-                            # get variable name
-                            label = "{}:{}, {}".format(line.get_label(), posx, posy)
-                            print(label)
-                            # add text annotation to the axe and refresh
-                            text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
-                            fig.canvas.draw_idle()
+        # If we plot local properties
+        else:
+            text_annot = [[] for k in range(len(vertice))]
+            for k in range(len(vertice)):
+                if len(vertice) > 1:
+                    modified_ax = ax[k]
+                else:
+                    modified_ax = ax
+                v_extract = datasets[d].sel(vid=vertice[k])
+                std_v_extract = (v_extract - np.mean(v_extract))/np.std(v_extract)
+                for prop in selection:
+                    getattr(v_extract, prop).plot.line(x='t', ax=modified_ax[0], label=prop + supplementary_legend[d])
+                    getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1], label=prop + supplementary_legend[d])
+                    text_annot[k] += [modified_ax[0].text(0, 0, ""), modified_ax[1].text(0, 0, "")]
 
-    fig.canvas.mpl_connect("motion_notify_event", hover)
+    if len(vertice) == 0:
+        def hover_global(event):
+            if event.inaxes == ax:
+                # At call remove all annotations to prevent overlap
+                for k in text_annot[0]: k.set_visible(False)
+                # for all variables lines in the axe
+                for line in ax.get_lines():
+                    # if the mouse pointer is on the line
+                    cont, ind = line.contains(event)
+                    if cont:
+                        # get the position
+                        posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
+                        # get variable name
+                        label = "{}:{}, {}".format(line.get_label(), posx, posy)
+                        print(label)
+                        # add text annotation to the axe and refresh
+                        text_annot[0] += [ax.text(x=posx, y=posy, s=label)]
+                        fig.canvas.draw_idle()
+
+        fig.canvas.mpl_connect("motion_notify_event", hover_global)
+    else:
+        def hover_local(event):
+            # for each row
+            for axe in range(len(ax)):
+                # for each column
+                for norm in range(2):
+                    # if mouse event is in the ax
+                    if event.inaxes == ax[axe][norm]:
+                        # At call remove all annotations to prevent overlap
+                        for k in text_annot[axe]: k.set_visible(False)
+                        # for all variables lines in the axe
+                        for line in ax[axe][norm].get_lines():
+                            # if the mouse pointer is on the line
+                            cont, ind = line.contains(event)
+                            if cont:
+                                # get the position
+                                posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
+                                # get variable name
+                                label = "{}:{}, {}".format(line.get_label(), posx, posy)
+                                print(label)
+                                # add text annotation to the axe and refresh
+                                text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
+                                fig.canvas.draw_idle()
+
+        fig.canvas.mpl_connect("motion_notify_event", hover_local)
 
 
 def export_nextcloud(link='https://nextcloud.inrae.fr', user='tigerault', password='', file=""):

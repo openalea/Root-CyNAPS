@@ -9,6 +9,7 @@ import multiprocessing as mp
 import tqdm
 
 from simulations.running_example.main import main
+from simulations.running_scenarios.comparing_multiple_scenarios import plot_multiple_scenario
 
 
 def run_one_scenario(scenario: dict = {}):
@@ -111,3 +112,4 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
 if __name__ == '__main__':
     previous_outputs_clearing()
     run_multiple_scenarios()
+    plot_multiple_scenario(scenarios_set=0)
