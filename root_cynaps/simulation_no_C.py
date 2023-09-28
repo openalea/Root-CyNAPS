@@ -90,7 +90,7 @@ def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_
                 list_flow = list(flow_extracts.keys())
                 [fig.text(0, 0.85 - 0.1 * k, list_flow[k]) for k in range(len(list_flow))]
                 # actual plot
-                plot_N(g, list_flow, axs, span_slider=0.1)
+                plot_N(g, list_flow, axs)
             else:
                 plot_N(g, list_flow, axs, span_slider=span_slider.val)
 

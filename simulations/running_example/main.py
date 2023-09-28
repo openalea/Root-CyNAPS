@@ -18,7 +18,7 @@ def previous_outputs_clearing():
     except OSError as e:
         print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
 
-def main(output_path, hexose_decrease_rate, z_soil_Nm_max, init='root00020.pckl', n=500, time_step=3600, echo=False):
+def main(output_path, hexose_decrease_rate, z_soil_Nm_max, init='root00020.pckl', n=144, time_step=3600, echo=False):
     """
     :Parameters
     Every unchanged argument should be placed as default parameter for ease of multiprocessing

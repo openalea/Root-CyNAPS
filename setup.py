@@ -1,5 +1,6 @@
 # -*- coding: latin-1 -*-
 import sys
+import os
 from setuptools import setup
 
 """
@@ -34,10 +35,12 @@ if sys.version_info < (3, 9):
     print('ERROR: CN-Wheat requires at least Python 3.9 to run.')
     sys.exit(1)
 
+current_file_dir = os.path.dirname(__file__)
+
 setup(
     name="Root-CyNAPS",
     version="0.1.0",
-    packages=["Data_enforcer", "root_cynaps", "STM_statistics"],
+    packages=[current_file_dir+"/Data_enforcer", current_file_dir+"/root_cynaps"],
     include_package_data=True,
     author="T.Gérault, F.Rees, R.Barillot and C.Pradal",
     author_email="tristan.gerault@inrae.fr, frederic.rees@inrae.fr, romain.barillot@inrae.fr, christophe.pradal@cirad.fr",

@@ -88,7 +88,7 @@ global_flow_extracts = dict(
 )
 
 
-def plot_N(g, p, axs, span_slider):
+def plot_N(g, p, axs, span_slider=0.1):
 
     range_min, range_max = [0 for k in flow_extracts], [0 for k in flow_extracts]
     scene = pgl.Scene()
@@ -103,7 +103,7 @@ def plot_N(g, p, axs, span_slider):
         cm = plt.cm.get_cmap('jet')
         ax = axs[k]
         ax.clear()
-        y,x = np.histogram(plot_range, 20)
+        y, x = np.histogram(plot_range, 20)
         colors = [cm(((j - range_min[k]) / (range_max[k] - range_min[k]))) for j in x]
         ax.bar(x[:-1], y, color=colors, width=x[1]-x[0])
 
@@ -145,7 +145,6 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
     if supplementary_legend == [""]:
         datasets = [datasets]
     for d in range(len(datasets)):
-        print(d)
         # If we plot global properties
         if len(vertice) == 0:
             # If properties are spatialized but we want an overall root system summary
