@@ -46,7 +46,7 @@ WORKDIR ./pp/root_cynaps
 
 RUN python setup.py develop
 
-VOLUME ./pp/root_cynaps/simulations/running_scenarios/outputs
+VOLUME ./pp/root_cynaps/simulations/running_example/outputs
 
 # Mandatory for good packages indexing
 USER root
