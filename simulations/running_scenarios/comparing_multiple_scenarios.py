@@ -69,7 +69,8 @@ def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_st
         regression_results = regression_extract.curvefit(coords=scenario_variables, func=multilinear_f, param_names=["P_" + name for name in scenario_variables] + ["origin_value"])
         # TODO Make better use of the covariance matrix.
         regression_coefficients = regression_results.sel(param="P_hexose_decrease_rate")["curvefit_coefficients"].to_dict()
-        coefficients_dict = {k: v for k, v in zip(regression_coefficients["coords"]["vid"]["data"], regression_coefficients["data"])}
+        # Note here that we normalize by dividing by root segment structural mass to avoid under representation of young short segments
+        coefficients_dict = {k: v/(g.properties()["struct_mass"][k]) for k, v in zip(regression_coefficients["coords"]["vid"]["data"], regression_coefficients["data"])}
 
         print("PLOTTING REGRESSION RESULTS WITH PLANTGL...")
         g.properties()["coef_hexose"] = coefficients_dict
@@ -83,6 +84,7 @@ def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_st
     # TODO
 
     # Wait until user ends
+    plt.show()
     input("end?")
 
 

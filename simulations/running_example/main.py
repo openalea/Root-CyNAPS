@@ -3,6 +3,7 @@ import shutil
 
 from root_cynaps.simulation_no_C import N_simulation
 
+
 def previous_outputs_clearing():
     root_path = os.path.dirname(__file__)
     try:
@@ -18,6 +19,7 @@ def previous_outputs_clearing():
     except OSError as e:
         print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
 
+
 def main(output_path, hexose_decrease_rate, z_soil_Nm_max, init='root00020.pckl', n=144, time_step=3600, echo=False):
     """
     :Parameters
@@ -27,8 +29,8 @@ def main(output_path, hexose_decrease_rate, z_soil_Nm_max, init='root00020.pckl'
     current_file_dir = os.path.dirname(__file__)
     if echo:
         plantgl=False
-        plotting_2D = True
-        plotting_STM = False
+        plotting_2D = False
+        plotting_STM = True
     else:
         plantgl = False
         plotting_2D = False

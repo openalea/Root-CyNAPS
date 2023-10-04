@@ -45,7 +45,7 @@ class Preprocessing:
     def __init__(self, df_path="", coordinates={}, type='csv', variables={}, window=60, stride=1):
         self.dataframe, self.coord = self.importer(df_path=df_path, type=type, coordinates=coordinates, variables=variables)
         self.unormalized_df = self.dataframe
-        self.normalization()
+        self.normalization(variables=variables)
         self.stacked_dataframe = []
         self.stacked_unorm_dataframe = []
         self.organ_slicer()
@@ -66,20 +66,23 @@ class Preprocessing:
         coord = df[list(coordinates.keys())].fillna(0)
         df = df[list(variables.keys())]
         df = df.fillna(0)
-        #df = df.dropna()
-
+        # df = df.dropna()
         # Filter duplicated indexes
         #df = df[~df.index.duplicated()]
 
         return df, coord
 
-    def normalization(self):
+    def normalization(self, variables):
         '''
         Standard normalization technique
         '''
-        # Please check if a variable is constant
-        # print(self.dataframe.min() == self.dataframe.max())
-        self.dataframe = (self.dataframe - self.dataframe.min()) / (self.dataframe.max() - self.dataframe.min())
+        for name in list(variables.keys()):
+            if self.dataframe[name].min() != self.dataframe[name].max():
+                self.dataframe[name] = (self.dataframe[name] - self.dataframe[name].min()) / (self.dataframe[name].max() - self.dataframe[name].min())
+            # in case a variable is constant :
+            else:
+                self.dataframe[name] = self.dataframe[name] - self.dataframe[name]
+
 
     def organ_slicer(self):
         for vid in range(max(self.dataframe.index.get_level_values("vid")) + 1 ):
@@ -406,6 +409,7 @@ class MainMenu:
                 for v in range(nb_props):
                     aucs[k][l][properties[v]] = np.sum([(np.mean(curve_sets_clusters[k][v][t]) - np.mean(curve_sets_clusters[l][v][t])) *
                                                         (1-f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue) for t in range(self.window)])
+                    print(aucs[k][l][properties[v]], curve_sets_clusters[k][v], curve_sets_clusters[l][v])
 
         return aucs
 
@@ -462,7 +466,7 @@ class MainMenu:
         # Loop over data dimensions and create text annotations.
         for i in range(len(pair_labels)):
             for j in range(len(properties)):
-                ax31.text(i, j, int(round(heatmap[i][j],0)), ha="center", va="center", color="w",
+                ax31.text(i, j, int(round(heatmap[i][j], 0)), ha="center", va="center", color="w",
                                fontsize=10, fontweight='bold')
         fig3.show()
 

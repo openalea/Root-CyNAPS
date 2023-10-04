@@ -12,7 +12,7 @@ from tools.analysis.time_series_projection import Preprocessing, DCAE
 input_type = "mtg"
 
 # DCAE parameters
-import_model, train_model = True, False
+import_model, train_model = False, True
 dev = True
 window = 24
 EPOCHS = 25
@@ -34,6 +34,7 @@ mtg_coordinates = dict(
 )
 
 # Properties of interest (Remove constant variables or training will fail)
+# TODO actualize
 flow_extracts = dict(
     import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -49,11 +50,6 @@ flow_extracts = dict(
     storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_Nm_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_advection_AA_xylem=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_Nm_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_xylem=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
-    axial_diffusion_AA_phloem=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # Water model
     radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
@@ -86,17 +82,10 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
                                  epochs=EPOCHS, batch_size=BS)
 
         if input("Save autoencoder? WARNING Overwrite (y/n) : ") == 'y':
-            folder = "tools\\analysis\\saved_model\\autoencoder"
-            for filename in os.listdir(folder):
-                file_path = os.path.join(folder, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                except Exception as e:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
-            autoencoder.save(folder)
+            folder = os.path.dirname(__file__)
+            shutil.rmtree(folder + '/saved_model/autoencoder')
+            os.mkdir(folder + '/saved_model/autoencoder')
+            autoencoder.save(folder + '/saved_model/autoencoder')
 
     # use the convolutional autoencoder to predict latent layer from trained encoder only
     # in autoencoder, -2 to retrieve encoder, -1 for decoder
@@ -110,7 +99,7 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
         latent_windows += [trained_encoder.predict(k)]
     # print(latent_windows) # number of extracter windows x window size
 
-    # Latent space projection on 2D
+    # Latent space projection on lower dimension
     print("[INFO] UMAP reducer processing...")
     umap_reducer_ND = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=umap_dim, random_state=umap_seed)
 
@@ -143,10 +132,10 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
 
     stacked_dataframe = preprocess.stacked_dataframe
     stacked_unorm_dataframe = preprocess.stacked_unorm_dataframe
-    if umap_dim !=3:
-        plot=False
+    if umap_dim != 3:
+        plot = False
     else:
-        plot=True
+        plot = True
 
     # Using this loop to be able to implement visualization without re-running UMAP each time
     while dev:

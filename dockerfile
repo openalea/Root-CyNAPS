@@ -1,9 +1,17 @@
 # Specifying the base image
 FROM condaforge/mambaforge:23.3.1-1
 
-RUN mamba install -y -c conda-forge python==3.9.15
+RUN mamba create -n root_cynaps
 
-# Specifying the install packages
+# May be optional
+RUN mamba init bash
+
+# Equivalent command to mamba activate root_cynaps
+SHELL ["mamba", "run", "-n", "root_cynaps", "/bin/bash", "-c"]
+
+RUN mamba install -y  -c conda-forge python==3.9.15
+
+# Specifying the install packages in specific order instead of .yml file
 RUN mamba install -y -c openalea3 -c conda-forge openalea.plantgl openalea.mtg
 
 RUN mamba install -y -c conda-forge xarray==2023.3.0 dask==2023.3.2 bottleneck==1.3.7
@@ -28,10 +36,19 @@ RUN python -m pip install tensorflow==2.12.0
 
 RUN python -m pip install pyncclient
 
+RUN apt-get update && apt-get -y install libgl1
+
 RUN mkdir pp
 
-ADD root_cynaps ./pp/root_cynaps
+ADD . ./pp/root_cynaps
 
-RUN python ./pp/root_cynaps/setup.py develop
+WORKDIR ./pp/root_cynaps
 
-CMD python ./pp/root_cynaps/simulations/running_example/main.py
+RUN python setup.py develop
+
+VOLUME ./pp/root_cynaps/simulations/running_scenarios/outputs
+
+# Mandatory for good packages indexing
+USER root
+
+CMD python simulations/running_example/main.py
