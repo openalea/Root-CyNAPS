@@ -42,15 +42,20 @@ from scipy.stats import f_oneway
 
 
 class Preprocessing:
-    def __init__(self, df_path="", coordinates={}, type='csv', variables={}, window=60, stride=1):
-        self.dataframe, self.coord = self.importer(df_path=df_path, type=type, coordinates=coordinates, variables=variables)
-        self.unormalized_df = self.dataframe
-        self.normalization(variables=variables)
-        self.stacked_dataframe = []
-        self.stacked_unorm_dataframe = []
-        self.organ_slicer()
-        self.stacked_dataset = []
-        self.windows_slicer(window=window, stride=stride, depth=len(variables))
+    def __init__(self, df_path="", coordinates={}, type='csv', variables={}, window=60, stride=1, modalities=["no sensitivity analysis"]):
+        if len(modalities) > 1:
+            for modality in modalities:
+                print(f"[INFO] Preprocessing {df_path + '/' + modality}")
+        else:
+            print(f"[INFO] Preprocessing {df_path}")
+            self.dataframe, self.coord = self.importer(df_path=df_path, type=type, coordinates=coordinates, variables=variables)
+            self.unormalized_df = self.dataframe
+            self.normalization(variables=variables)
+            self.stacked_dataframe = []
+            self.stacked_unorm_dataframe = []
+            self.organ_slicer()
+            self.stacked_dataset = []
+            self.windows_slicer(window=window, stride=stride, depth=len(variables))
 
     def importer(self, df_path="", type="", coordinates={}, variables={}):
         if type == "csv":
@@ -158,7 +163,7 @@ class DCAE:
         return (encoder, decoder, autoencoder)
 
     @staticmethod
-    def train(stacked_dataset, autoencoder, test_prop=0.2, epochs=25, batch_size=100):
+    def train(stacked_dataset, autoencoder, test_prop=0.2, epochs=25, batch_size=100, plotting=False):
         unified_dataset = np.concatenate(stacked_dataset)
         trainX, testX = train_test_split(unified_dataset, test_size=test_prop)
         opt = Adam(learning_rate=1e-3)
@@ -170,17 +175,18 @@ class DCAE:
             epochs=epochs,
             batch_size=batch_size)
 
-        # construct a plot that plots and saves the training history
-        N = np.arange(0, epochs)
-        plt.style.use("ggplot")
-        plt.figure()
-        plt.plot(N, H.history["loss"], label="train_loss")
-        plt.plot(N, H.history["val_loss"], label="val_loss")
-        plt.title("Training Loss and Accuracy")
-        plt.xlabel("Epoch #")
-        plt.ylabel("Loss/Accuracy")
-        plt.legend(loc="lower left")
-        plt.show()
+        if plotting:
+            # construct a plot that plots and saves the training history
+            N = np.arange(0, epochs)
+            plt.style.use("ggplot")
+            plt.figure()
+            plt.plot(N, H.history["loss"], label="train_loss")
+            plt.plot(N, H.history["val_loss"], label="val_loss")
+            plt.title("Training Loss and Accuracy")
+            plt.xlabel("Epoch #")
+            plt.ylabel("Loss/Accuracy")
+            plt.legend(loc="lower left")
+            plt.show()
 
         return autoencoder
 
@@ -372,19 +378,22 @@ class MainMenu:
         for k in range(len(self.clusters)):
             classes += [k for j in range(len(self.clusters[k]))]
             selected_groups += [list(i) for i in conc_latent_windows[self.clusters[k]]]
-        # splitting data for svm training and test
-        x_train, x_test, y_train, y_test = train_test_split(selected_groups, classes, test_size=0.2)
-        clf = SVC(kernel='linear', C=100)
-        clf.fit(selected_groups, classes)
-        result = clf.predict(x_test)
-        # Evaluating the accuracy of the model using the sklearn functions
-        accuracy = accuracy_score(y_test, result) * 100
-        confusion_mat = confusion_matrix(y_test, result)
+        if len(self.clusters) > 1:
+            # splitting data for svm training and test
+            x_train, x_test, y_train, y_test = train_test_split(selected_groups, classes, test_size=0.2)
+            clf = SVC(kernel='linear', C=100)
+            clf.fit(selected_groups, classes)
+            result = clf.predict(x_test)
+            # Evaluating the accuracy of the model using the sklearn functions
+            accuracy = accuracy_score(y_test, result) * 100
+            confusion_mat = confusion_matrix(y_test, result)
 
-        # Printing the results
-        print("Accuracy for SVM is:", accuracy)
-        print("Confusion Matrix")
-        print(confusion_mat)
+            # Printing the results
+            print("Accuracy for SVM is:", accuracy)
+            print("Confusion Matrix")
+            print(confusion_mat)
+        else:
+            print("Only one class")
 
         # Check individual variables contributions to differences between clusters
         # for each labelled cluster
@@ -408,8 +417,8 @@ class MainMenu:
                 # for each variable, label the sum to a name (dict key) for readability
                 for v in range(nb_props):
                     aucs[k][l][properties[v]] = np.sum([(np.mean(curve_sets_clusters[k][v][t]) - np.mean(curve_sets_clusters[l][v][t])) *
-                                                        (1-f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue) for t in range(self.window)])
-                    print(aucs[k][l][properties[v]], curve_sets_clusters[k][v], curve_sets_clusters[l][v])
+                                                        (1-f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue) for t in range(self.window)
+                                                        if not np.isnan(f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue)])
 
         return aucs
 

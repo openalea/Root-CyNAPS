@@ -60,11 +60,12 @@ flow_extracts = dict(
 def run_analysis(path, input_type=input_type, import_model=import_model, train_model=train_model, dev=dev, window=window,
                  EPOCHS=EPOCHS, BS=BS, test_prop=test_prop, umap_seed=umap_seed, umap_dim=umap_dim, n_neighbors=n_neighbors, min_dist=min_dist,
                  min_cluster_size=min_cluster_size, min_samples=min_samples,mtg_coordinates=mtg_coordinates,
-                 flow_extracts=flow_extracts):
+                 flow_extracts=flow_extracts, modalities=["no sensitivity analysis"]):
+
     # Import and preprocess data
-    print("[INFO] preprocessing data...")
     preprocess = Preprocessing(df_path=path, type=input_type, coordinates=mtg_coordinates, variables=flow_extracts,
-                               window=window)
+                               window=window, modalities=modalities)
+
     stacked_dataset = [np.array(k) for k in preprocess.stacked_dataset]
 
     if import_model:
@@ -77,15 +78,14 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
                                                      filters=((64, 10, 2), (32, 5, 2), (12, 5, 3)), latentDim=window)
 
     if train_model:
+        plotting = False
         print("[INFO] training autoencoder...")
         autoencoder = DCAE.train(stacked_dataset=stacked_dataset, autoencoder=autoencoder, test_prop=test_prop,
-                                 epochs=EPOCHS, batch_size=BS)
-
-        if input("Save autoencoder? WARNING Overwrite (y/n) : ") == 'y':
-            folder = os.path.dirname(__file__)
-            shutil.rmtree(folder + '/saved_model/autoencoder')
-            os.mkdir(folder + '/saved_model/autoencoder')
-            autoencoder.save(folder + '/saved_model/autoencoder')
+                                 epochs=EPOCHS, batch_size=BS, plotting=False)
+        folder = os.path.dirname(__file__)
+        shutil.rmtree(folder + '/saved_model/autoencoder')
+        os.mkdir(folder + '/saved_model/autoencoder')
+        autoencoder.save(folder + '/saved_model/autoencoder')
 
     # use the convolutional autoencoder to predict latent layer from trained encoder only
     # in autoencoder, -2 to retrieve encoder, -1 for decoder
