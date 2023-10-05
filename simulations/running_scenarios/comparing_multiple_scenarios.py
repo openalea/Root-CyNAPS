@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import xarray as xr
 
 from root_cynaps.tools_output import plot_xr, plot_N, global_state_extracts, global_flow_extracts
-from tools import STM_analysis
 
 
 def analyze_multiple_scenarios(scenarios_set):
@@ -38,10 +37,10 @@ def analyze_multiple_scenarios(scenarios_set):
 def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_steps=[]):
 
     # plot global properties
-    print("PLOTTING GLOBAL PROPERTIES...")
-    plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
-    plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
-    plt.ion()
+    #print("PLOTTING GLOBAL PROPERTIES...")
+    #plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
+    #plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
+    #plt.ion()
 
     print("PROCESSING SPATIALIZED DATA...")
     for k in range(len(supplementary_legend)):
@@ -63,8 +62,8 @@ def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_st
         datasets[d] = datasets[d].assign_coords(coords=coordinates).expand_dims(dim=dict(zip(scenario_variables, [1 for k in scenario_variables])))
     print("Merging datasets from different scenarios...")
     merged_dataset = xr.merge(datasets)
-
-    print(merged_dataset)
+    merged_dataset.to_netcdf("C:/Users/tigerault/pp/root_cynaps/simulations/running_scenarios/outputs/tests.nc")
+    #print(merged_dataset)
 
     for time_step in time_steps:
         regression_extract = getattr(merged_dataset, prop).sel(t=time_step)

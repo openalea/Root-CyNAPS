@@ -7,6 +7,7 @@ import numpy as np
 from itertools import product
 import multiprocessing as mp
 import tqdm
+import xarray as xr
 
 from simulations.running_example.main import main
 from simulations.running_scenarios.comparing_multiple_scenarios import analyze_multiple_scenarios
@@ -77,10 +78,10 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
             scenario = {}
             names = scenarios_df["variable_name"]
             file_name = ["{:.2e}".format(k) for k in combination]
-            path = root_path + '/outputs/' + folder_name + '/' + str(file_name)
-            os.mkdir(path)
+            path = root_path + '/outputs/' + folder_name + '/' + str(file_name) + '.nc'
             for k in range(len(names)):
-                scenario.update({"output_path": path, names[k]: combination[k]})
+                scenario.update({names[k]: combination[k]})
+            scenario.update({"output_path": path})
             scenarios += [scenario]
 
     # We record the starting time of the simulation:
@@ -107,6 +108,19 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
     print("|                                       |")
     print("=========================================")
     print("Multiprocessing took %4.3f minutes!" % tmp)
+
+
+    print("Merging multiple scenarios...")
+    central_dataset = xr.open_mfdataset(root_path + '/outputs/' + folder_name + '/*.nc')
+    central_dataset.to_netcdf(root_path + '/outputs/' + folder_name + '/merged.nc')
+    print(central_dataset)
+    del central_dataset  # to remove the link with files we now wish to delete
+    for file in os.listdir(root_path + '/outputs/' + folder_name):
+        if '.nc' in file and file != "merged.nc":
+            os.remove(root_path + '/outputs/' + folder_name + '/' + file)
+    t_merge = time.time()
+    tmp = (t_merge - t_end) / 60.
+    print("Merging took %4.3f minutes!" % tmp)
 
 
 if __name__ == '__main__':

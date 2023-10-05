@@ -20,15 +20,15 @@ mtg_coordinates = dict(
     # (filling unused space with nan) analysis dimensions rather should be built afterwards from xarray stack/unstack methods
 )
 
-# Properties of interest
+# Properties of interest (Note that for now categorial variables have been excluded)
 # TODO : issues with RGB values (idea [0,1]?), list (idea computation from mtg topology?) and boolean properties (idea 0/1?)
 props_metadata = dict(
-    edge_type=dict(unit="adim", value_example="<", description="if '<': belongs to the same axis as the previous element; if '+': corresponds to the first element of a new axis"),
-    label=dict(unit="adim", value_example="Segment", description="either Apex or Segment"),
+    # edge_type=dict(unit="adim", value_example="<", description="if '<': belongs to the same axis as the previous element; if '+': corresponds to the first element of a new axis"),
+    # label=dict(unit="adim", value_example="Segment", description="either Apex or Segment"),
     global_sucrose_deficit=dict(unit="adim", value_example="", description="not provided"),
-    type=dict(unit="adim", value_example="Normal_root_after_emergence", description="Several possibilities, including Root_before_emergence (i.e. a primordium)"),
+    # type=dict(unit="adim", value_example="Normal_root_after_emergence", description="Several possibilities, including Root_before_emergence (i.e. a primordium)"),
     root_order=dict(unit="adim", value_example=1, description="Root classes ordering according to successive branching events"),
-    lateral_root_emergence_possibility=dict(unit="adim", value_example="Impossible", description="not provided"),
+    # lateral_root_emergence_possibility=dict(unit="adim", value_example="Impossible", description="not provided"),
     emergence_cost=dict(unit="mol of hexose", value_example=0, description="not provided"),
     angle_down=dict(unit="°", value_example=8.94314236715159, description="not provided"),
     angle_roll=dict(unit="°", value_example=116.691298481059, description="not provided"),
@@ -47,7 +47,7 @@ props_metadata = dict(
     thermal_time_since_root_hairs_emergence_started=dict(unit="s", value_example=131927, description="not provided"),
     actual_time_since_root_hairs_emergence_stopped=dict(unit="s", value_example=221967, description="not provided"),
     thermal_time_since_root_hairs_emergence_stopped=dict(unit="s", value_example=110983, description="not provided"),
-    #all_root_hairs_formed=dict(unit="adim", value_example=True, description="not provided"),
+    # all_root_hairs_formed=dict(unit="adim", value_example=True, description="not provided"),
     root_hairs_lifespan=dict(unit="s", value_example=165600, description="not provided"),
     root_hairs_external_surface=dict(unit="m2", value_example=1.7318E-05, description="not provided"),
     root_hairs_volume=dict(unit="m3", value_example=5.19541E-11, description="not provided"),
@@ -250,7 +250,7 @@ def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=desc
 
     # Select properties actually used in the current version of the target model
     props_df = props_df[list(variables.keys())]
-    # df = df[list(variables.keys())].fillna(0)
+
     # Filter duplicated indexes
     props_df = props_df[~props_df.index.duplicated()]
 

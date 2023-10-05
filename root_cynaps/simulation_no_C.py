@@ -1,7 +1,9 @@
 '''IMPORTS'''
-from datetime import datetime
 import pickle
+import os
+import shutil
 import xarray as xr
+from random import random
 from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
@@ -21,7 +23,13 @@ from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 '''FUNCTIONS'''
 
 
-def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_dir, init, n, time_step, echo=False, plantgl=False, plotting_2D=True, plotting_STM=False, logging=False):
+def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_dir, init, n, time_step, echo=False,
+                 plantgl=False, plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
+    # Store this before anything else to ensure the locals order is right
+    Loc = locals()
+    real_parameters = ["output_path", "current_file_dir", "init", "n", "time_step", "echo", "plantgl", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
+    scenario = dict([(key, value) for key, value in Loc.items() if key not in real_parameters])
+
     # Loading mtg file
     with open(current_file_dir + "/inputs/" + init, 'rb') as f:
         g = pickle.load(f)
@@ -51,10 +59,9 @@ def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_
 
     # Init output xarray list
     if logging:
-        # If logging, we start by storing start time and state for later reference during output file analysis
-        start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
-        xarray_output = [mtg_to_dataset(g, variables=props_metadata, time=0)]
-        xarray_output[0].to_netcdf(output_path + f"/xarray_used_input_{start_time}.nc")
+        os.mkdir(output_path[:-3])
+        time_xrs = [mtg_to_dataset(g, variables=props_metadata, time=0)]
+        # xarray_output[0].to_netcdf(output_path + f"/xarray_used_input_{start_time}.nc")
 
     root_water.init_xylem_water()
     # Scheduler : actual computation loop
@@ -97,19 +104,28 @@ def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_
         if logging:
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
             # However, it might be necessary to empty this and save .nc files every X time steps for memory management
-            xarray_output += [mtg_to_dataset(g, variables=props_metadata, time=i+1)]
+            time_xrs += [mtg_to_dataset(g, variables=props_metadata, time=i+1)]
+            if len(time_xrs) >= max_time_steps_for_memory:
+                interstitial_dataset = xr.concat(time_xrs, dim="t")
+                interstitial_dataset.to_netcdf(output_path[:-3] + f'/t={i+1}.nc')
+                del interstitial_dataset
+                del time_xrs
+                time_xrs = []
 
     if logging:
+        if len(time_xrs) > 0:
+            interstitial_dataset = xr.concat(time_xrs, dim="t")
+            interstitial_dataset.to_netcdf(output_path[:-3] + f'/tf.nc')
+            del interstitial_dataset
+            del time_xrs
         # NOTE : merging is slower but way less space is needed
-        time_dataset = xr.concat(xarray_output, dim="t")
-        time_dataset.to_netcdf(output_path + f"/{start_time}.nc")
-
-        # saving last mtg status
-        with open(output_path + r"/root{}.pckl".format(str(max(time_dataset.vid.values)).zfill(5)), "wb") as output_file:
-            pickle.dump(g, output_file)
+        time_step_files = [output_path[:-3] + '/' + name for name in os.listdir(output_path[:-3])]
+        time_dataset = xr.open_mfdataset(time_step_files)
+        time_dataset = time_dataset.assign_coords(coords=scenario).expand_dims(dim=dict(zip(list(scenario.keys()), [1 for k in scenario])))
+        time_dataset.to_netcdf(output_path)
 
         if plotting_2D:
-            time_dataset = xr.load_dataset(output_path + f"/{start_time}.nc")
+            time_dataset = xr.load_dataset(output_path)
             #plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
             #plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
             plot_xr(datasets=time_dataset, selection=list(global_state_extracts.keys()))
@@ -118,7 +134,10 @@ def N_simulation(output_path, hexose_decrease_rate, z_soil_Nm_max, current_file_
 
         if plotting_STM:
             from tools import STM_analysis
-            STM_analysis.run(path=output_path + f"/{start_time}.nc")
+            STM_analysis.run(path=output_path)
+
+        del time_dataset
+        shutil.rmtree(output_path[:-3])
 
         if plantgl:
             input("end?")
