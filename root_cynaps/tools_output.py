@@ -5,7 +5,6 @@ from root_cynaps.tools import plot_mtg
 
 import matplotlib.pyplot as plt
 import numpy as np
-import nextcloud_client
 
 
 ### Output parameters
@@ -221,17 +220,3 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
 
         fig.canvas.mpl_connect("motion_notify_event", hover_local)
 
-
-def export_nextcloud(link='https://nextcloud.inrae.fr', user='tigerault', password='', file=""):
-    """
-    Description : This function aims at exporting output files and snapshot towards a nextcloud shared server
-
-    param: link : always use https
-    """
-
-    # ! always use https
-    nc = nextcloud_client.Client(link)
-
-    nc.login(user_id=user, password=password)
-
-    nc.put_file('Dossier_Thèse_Tristan_Gérault/' + file, file)

@@ -59,7 +59,7 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
     elif os.path.splitext(scenarios_list)[1] == ".xlsx":
         # We read the data frame containing the different scenarios to be simulated:
         print("Loading the instructions of scenario(s)...")
-        scenarios_df = pd.read_excel(os.path.join('inputs', scenarios_list), sheet_name="scenarios_variables")
+        scenarios_df = pd.read_excel(os.path.join(root_path + '/inputs', scenarios_list), sheet_name="scenarios_variables")
 
         start_time = datetime.now().strftime("%y.%m.%d_%H.%M")
         folder_name = " X ".join(list(scenarios_df["variable_name"])) + " S " + start_time
@@ -83,6 +83,9 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
                 scenario.update({names[k]: combination[k]})
             scenario.update({"output_path": path})
             scenarios += [scenario]
+
+    # We copy the mtg file from the input folder of running example TODO store dynamically when rhizodep coupling is ok
+    shutil.copy("simulations/running_example/inputs/root00020.pckl", root_path + '/outputs/' + folder_name + '/root00020.pckl')
 
     # We record the starting time of the simulation:
     t_start = time.time()
@@ -113,7 +116,6 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
     print("Merging multiple scenarios...")
     central_dataset = xr.open_mfdataset(root_path + '/outputs/' + folder_name + '/*.nc')
     central_dataset.to_netcdf(root_path + '/outputs/' + folder_name + '/merged.nc')
-    print(central_dataset)
     del central_dataset  # to remove the link with files we now wish to delete
     for file in os.listdir(root_path + '/outputs/' + folder_name):
         if '.nc' in file and file != "merged.nc":

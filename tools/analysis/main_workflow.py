@@ -57,16 +57,17 @@ flow_extracts = dict(
 )
 
 
-def run_analysis(path, input_type=input_type, import_model=import_model, train_model=train_model, dev=dev, window=window,
+def run_analysis(file, input_type=input_type, import_model=import_model, train_model=train_model, dev=dev, window=window,
                  EPOCHS=EPOCHS, BS=BS, test_prop=test_prop, umap_seed=umap_seed, umap_dim=umap_dim, n_neighbors=n_neighbors, min_dist=min_dist,
                  min_cluster_size=min_cluster_size, min_samples=min_samples,mtg_coordinates=mtg_coordinates,
-                 flow_extracts=flow_extracts, modalities=["no sensitivity analysis"]):
+                 flow_extracts=flow_extracts):
 
     # Import and preprocess data
-    preprocess = Preprocessing(df_path=path, type=input_type, coordinates=mtg_coordinates, variables=flow_extracts,
-                               window=window, modalities=modalities)
+    print("[INFO] Preprocessing saved file...")
+    preprocess = Preprocessing(central_dataset=file, type=input_type, coordinates=mtg_coordinates, variables=flow_extracts,
+                               window=window)
 
-    stacked_dataset = [np.array(k) for k in preprocess.stacked_dataset]
+    # stacked_dataset = [np.array(k) for k in preprocess.stacked_dataset]
 
     if import_model:
         print("[INFO] loading autoencoder...")
@@ -80,7 +81,7 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
     if train_model:
         plotting = False
         print("[INFO] training autoencoder...")
-        autoencoder = DCAE.train(stacked_dataset=stacked_dataset, autoencoder=autoencoder, test_prop=test_prop,
+        autoencoder = DCAE.train(stacked_dataset=preprocess.stacked_da, autoencoder=autoencoder, test_prop=test_prop,
                                  epochs=EPOCHS, batch_size=BS, plotting=False)
         folder = os.path.dirname(__file__)
         shutil.rmtree(folder + '/saved_model/autoencoder')
@@ -94,17 +95,17 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
 
     # project on latent representation for all dataset, here time windows are still ordered in the obtained array
     print("[INFO] encoding windows...")
-    latent_windows = []
-    for k in stacked_dataset:
-        latent_windows += [trained_encoder.predict(k)]
-    # print(latent_windows) # number of extracter windows x window size
+
+    latent_windows = trained_encoder.predict(preprocess.stacked_da)
+    # print(latent_windows)  # number of extracter windows x number of modalities x number of organs
+
 
     # Latent space projection on lower dimension
     print("[INFO] UMAP reducer processing...")
     umap_reducer_ND = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=umap_dim, random_state=umap_seed)
 
     print("     Whole latent windows...")
-    windows_ND_embedding = umap_reducer_ND.fit_transform(np.concatenate(latent_windows))
+    windows_ND_embedding = umap_reducer_ND.fit_transform(latent_windows)
 
     print("[INFO] HDBSCAN clustering...")
     clusterer = hdbscan.HDBSCAN(algorithm='best', alpha=1.0, approx_min_span_tree=True,
@@ -144,7 +145,7 @@ def run_analysis(path, input_type=input_type, import_model=import_model, train_m
         from tools.analysis.time_series_projection import MainMenu
 
         main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
-                             sliced_windows=stacked_dataset, original_unorm_dataframe=stacked_unorm_dataframe,
+                             sliced_windows=preprocess.stacked_da, original_unorm_dataframe=stacked_unorm_dataframe,
                              original_dataframe=stacked_dataframe, coordinates=preprocess.coord,
                              clusters=hdbscan_clusters, index_2D=index_2d, index_ND=index_Nd, window=window, plot=plot)
         main_menu.build_app()

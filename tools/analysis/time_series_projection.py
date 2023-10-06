@@ -14,6 +14,7 @@ conda install -c conda-forge hdbscan
 # Data processing packages
 import pandas as pd
 import xarray as xr
+import xbatcher as xb
 import numpy as np
 # Visual packages
 import matplotlib.pyplot as plt
@@ -42,72 +43,29 @@ from scipy.stats import f_oneway
 
 
 class Preprocessing:
-    def __init__(self, df_path="", coordinates={}, type='csv', variables={}, window=60, stride=1, modalities=["no sensitivity analysis"]):
-        if len(modalities) > 1:
-            for modality in modalities:
-                print(f"[INFO] Preprocessing {df_path + '/' + modality}")
-        else:
-            print(f"[INFO] Preprocessing {df_path}")
-            self.dataframe, self.coord = self.importer(df_path=df_path, type=type, coordinates=coordinates, variables=variables)
-            self.unormalized_df = self.dataframe
-            self.normalization(variables=variables)
-            self.stacked_dataframe = []
-            self.stacked_unorm_dataframe = []
-            self.organ_slicer()
-            self.stacked_dataset = []
-            self.windows_slicer(window=window, stride=stride, depth=len(variables))
+    def __init__(self, central_dataset, coordinates={}, type='csv', variables={}, window=24, stride=12):
+        self.unormalized_ds = central_dataset[list(variables.keys())]
+        del central_dataset
+        self.normalized_ds = self.normalization(self.unormalized_ds).fillna(0)
 
-    def importer(self, df_path="", type="", coordinates={}, variables={}):
-        if type == "csv":
-            df = pd.read_csv(df_path, index_col=list(coordinates.keys()))
-        elif type == "mtg":
-            df = xr.load_dataset(df_path)
-            df = df.to_dataframe()
-        else:
-            print("Wrong import technique")
-            return
+        # stacking to put every sliced window on the same learning slope then
+        self.normalized_ds = self.normalized_ds.stack(stk=[dim for dim in self.normalized_ds.dims if dim != "t"])
+        n_windows = int(1 + ((max(self.normalized_ds.coords["t"].values)-window + 1)/stride))
 
-        # Filter the studied output properties
-        coord = df[list(coordinates.keys())].fillna(0)
-        df = df[list(variables.keys())]
-        df = df.fillna(0)
-        # df = df.dropna()
-        # Filter duplicated indexes
-        #df = df[~df.index.duplicated()]
+        self.labels, self.t_windows = [], []
+        for coord in self.normalized_ds.coords["stk"].values:
+            self.t_windows += [k*stride for k in range(n_windows)]
+            self.labels += [coord]*n_windows
 
-        return df, coord
+        bgen = xb.BatchGenerator(self.normalized_ds.to_array().transpose("stk", "variable", "t"), input_dims={'stk': 1, 't': window}, input_overlap={"t": window-stride}, preload_batch=True)
+        depth = 12
+        self.stacked_da = np.concatenate([[reshape(batch, shape=(1, window, depth))] for batch in bgen])
 
-    def normalization(self, variables):
-        '''
+    def normalization(self, dataset):
+        """
         Standard normalization technique
-        '''
-        for name in list(variables.keys()):
-            if self.dataframe[name].min() != self.dataframe[name].max():
-                self.dataframe[name] = (self.dataframe[name] - self.dataframe[name].min()) / (self.dataframe[name].max() - self.dataframe[name].min())
-            # in case a variable is constant :
-            else:
-                self.dataframe[name] = self.dataframe[name] - self.dataframe[name]
-
-
-    def organ_slicer(self):
-        for vid in range(max(self.dataframe.index.get_level_values("vid")) + 1 ):
-            test = self.dataframe.index.get_level_values("vid") == vid
-            self.stacked_dataframe += [self.dataframe[test]]
-            self.stacked_unorm_dataframe += [self.unormalized_df[test]]
-
-    def windows_slicer(self, window=60, depth=14, stride=1):
-        for k in self.stacked_dataframe:
-            l = k.shape[0]
-            windows_list = []
-            for t in range(int(l / stride)):
-                if t * stride <= l - window:
-                    initial = t * stride
-                    final = initial + window
-                    windows_list += [reshape(k[initial: final], shape=(1, window, depth))]
-            # Too long conversion to xarray
-            # xr.concat([df.to_xarray() for df in data_df], dim="dataset")
-            if windows_list != []:
-                self.stacked_dataset += [windows_list]
+        """
+        return (dataset - dataset.min(dim="t")) / (dataset.max(dim="t") - dataset.min(dim="t"))
 
 
 class DCAE:
@@ -164,8 +122,7 @@ class DCAE:
 
     @staticmethod
     def train(stacked_dataset, autoencoder, test_prop=0.2, epochs=25, batch_size=100, plotting=False):
-        unified_dataset = np.concatenate(stacked_dataset)
-        trainX, testX = train_test_split(unified_dataset, test_size=test_prop)
+        trainX, testX = train_test_split(stacked_dataset, test_size=test_prop)
         opt = Adam(learning_rate=1e-3)
         autoencoder.compile(loss="mse", optimizer=opt)
         # train the convolutional autoencoder

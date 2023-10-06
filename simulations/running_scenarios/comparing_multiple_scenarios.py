@@ -8,39 +8,45 @@ import xarray as xr
 from root_cynaps.tools_output import plot_xr, plot_N, global_state_extracts, global_flow_extracts
 
 
-def analyze_multiple_scenarios(scenarios_set):
-    # READING SCENARIO INSTRUCTIONS:
-    root_path = os.path.dirname(__file__)
-    working_dir = os.listdir(root_path + '/outputs')
-    if scenarios_set == -1:
-        for k in range(len(working_dir)):
-            print(k, working_dir[k])
-        scenarios_set = int(input("which scenarios ?"))
-    list_dir = os.listdir(root_path + '/outputs/' + working_dir[scenarios_set])
-    time_datasets = []
-    legend = []
-    for directory in list_dir:
-        for filename in os.listdir(root_path + '/outputs/' + working_dir[scenarios_set] + '/' + directory):
-            if ".nc" in filename and "xarray_used_input" not in filename:
-                filepath = root_path + '/outputs/' + working_dir[scenarios_set] + '/' + directory + '/' + filename
-                time_datasets += [xr.load_dataset(filepath)]
-        legend += [directory]
 
-    mtg_path = root_path + "/outputs/" + working_dir[scenarios_set] + '/' + list_dir[0]
-    g_name = [name for name in os.listdir(mtg_path) if ".pckl" in name][0]
-    with open(root_path + "/outputs/" + working_dir[scenarios_set] + '/' + list_dir[0] + '/' + g_name, 'rb') as f:
+def analyze_multiple_scenarios(scenarios_set):
+    # Setting the working dir to current file' outputs subdirectory
+    root_path = os.path.dirname(__file__)
+    possible_scenarios = os.listdir(root_path + '/outputs')
+
+    # Reading scenario instructions
+    if scenarios_set == -1:
+        for k in range(len(possible_scenarios)):
+            print(k, possible_scenarios[k])
+        scenarios_set = int(input("which scenarios ?"))
+    working_dir = root_path + '/outputs/' + possible_scenarios[scenarios_set]
+
+    central_dataset = xr.load_dataset(working_dir + '/merged.nc')
+
+    g_name = [name for name in os.listdir(working_dir) if ".pckl" in name][0]
+    with open(working_dir + '/' + g_name, 'rb') as f:
         g = pickle.load(f)
 
-    plot_multiple_scenarios(g=g, datasets=time_datasets, supplementary_legend=legend, set_name=working_dir[scenarios_set], time_steps=[100, 120])
+    # Plotting global outputs
+    # print("PLOTTING GLOBAL PROPERTIES...")
+    # plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
+    # plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
+    # plt.ion()
+
+    # For some reason, dataset should be loaded before umap
+    from tools import STM_analysis
+    # Running STM sensitivity analysis
+    STM_analysis.run(file=central_dataset)
+
+    # TODO Plotting target local values
+
+    # TODO Plotting values projected on architecture
 
 
 def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_steps=[]):
 
     # plot global properties
-    #print("PLOTTING GLOBAL PROPERTIES...")
-    #plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
-    #plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
-    #plt.ion()
+
 
     print("PROCESSING SPATIALIZED DATA...")
     for k in range(len(supplementary_legend)):
