@@ -23,9 +23,9 @@ def analyze_multiple_scenarios(scenarios_set):
 
     central_dataset = xr.load_dataset(working_dir + '/merged.nc')
 
-    g_name = [name for name in os.listdir(working_dir) if ".pckl" in name][0]
-    with open(working_dir + '/' + g_name, 'rb') as f:
-        g = pickle.load(f)
+    #g_name = [name for name in os.listdir(working_dir) if ".pckl" in name][0]
+    #with open(working_dir + '/' + g_name, 'rb') as f:
+    #    g = pickle.load(f)
 
     # Plotting global outputs
     # print("PLOTTING GLOBAL PROPERTIES...")
@@ -36,7 +36,7 @@ def analyze_multiple_scenarios(scenarios_set):
     # For some reason, dataset should be loaded before umap
     from tools import STM_analysis
     # Running STM sensitivity analysis
-    STM_analysis.run(file=central_dataset)
+    STM_analysis.run(file=central_dataset, output_path=working_dir)
 
     # TODO Plotting target local values
 
@@ -46,8 +46,6 @@ def analyze_multiple_scenarios(scenarios_set):
 def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_steps=[]):
 
     # plot global properties
-
-
     print("PROCESSING SPATIALIZED DATA...")
     for k in range(len(supplementary_legend)):
         supplementary_legend[k] = [float(k) for k in eval(supplementary_legend[k])]
@@ -69,7 +67,6 @@ def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_st
     print("Merging datasets from different scenarios...")
     merged_dataset = xr.merge(datasets)
     merged_dataset.to_netcdf("C:/Users/tigerault/pp/root_cynaps/simulations/running_scenarios/outputs/tests.nc")
-    #print(merged_dataset)
 
     for time_step in time_steps:
         regression_extract = getattr(merged_dataset, prop).sel(t=time_step)

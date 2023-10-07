@@ -12,7 +12,7 @@ from tools.analysis.time_series_projection import Preprocessing, DCAE
 input_type = "mtg"
 
 # DCAE parameters
-import_model, train_model = False, True
+import_model, train_model = True, False
 dev = True
 window = 24
 EPOCHS = 25
@@ -27,15 +27,13 @@ min_dist = 0.15
 min_cluster_size = 5000
 min_samples = 10
 
-# Coordinates in topology
-mtg_coordinates = dict(
-    distance_from_tip=dict(unit="m", value_example=0.026998706,
-                           description="Distance between the root segment and the considered root axis tip")
-)
 
 # Properties of interest (Remove constant variables or training will fail)
 # TODO actualize
 flow_extracts = dict(
+    # SUPPLEMENTARY COORDINATES
+    distance_from_tip=dict(unit="m", value_example=float(0.026998706), description="Distance between the root segment and the considered root axis tip"),
+    # REAL VARIABLES OF INTEREST
     import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
@@ -53,25 +51,25 @@ flow_extracts = dict(
     # Water model
     radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
     axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
+    axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided")
 )
 
 
-def run_analysis(file, input_type=input_type, import_model=import_model, train_model=train_model, dev=dev, window=window,
+def run_analysis(file, output_path, input_type=input_type, import_model=import_model, train_model=train_model, dev=dev, window=window,
                  EPOCHS=EPOCHS, BS=BS, test_prop=test_prop, umap_seed=umap_seed, umap_dim=umap_dim, n_neighbors=n_neighbors, min_dist=min_dist,
-                 min_cluster_size=min_cluster_size, min_samples=min_samples,mtg_coordinates=mtg_coordinates,
+                 min_cluster_size=min_cluster_size, min_samples=min_samples,
                  flow_extracts=flow_extracts):
 
     # Import and preprocess data
     print("[INFO] Preprocessing saved file...")
-    preprocess = Preprocessing(central_dataset=file, type=input_type, coordinates=mtg_coordinates, variables=flow_extracts,
-                               window=window)
+    preprocess = Preprocessing(central_dataset=file, type=input_type, variables=flow_extracts, window=window)
 
     # stacked_dataset = [np.array(k) for k in preprocess.stacked_dataset]
 
+    folder = os.path.dirname(__file__)
     if import_model:
         print("[INFO] loading autoencoder...")
-        autoencoder = load_model("tools/analysis/saved_model/autoencoder")
+        autoencoder = load_model(folder + "/saved_model/autoencoder")
     else:
         # Build the convolutional autoencoder
         print("[INFO] building autoencoder...")
@@ -83,7 +81,6 @@ def run_analysis(file, input_type=input_type, import_model=import_model, train_m
         print("[INFO] training autoencoder...")
         autoencoder = DCAE.train(stacked_dataset=preprocess.stacked_da, autoencoder=autoencoder, test_prop=test_prop,
                                  epochs=EPOCHS, batch_size=BS, plotting=False)
-        folder = os.path.dirname(__file__)
         shutil.rmtree(folder + '/saved_model/autoencoder')
         os.mkdir(folder + '/saved_model/autoencoder')
         autoencoder.save(folder + '/saved_model/autoencoder')
@@ -119,20 +116,7 @@ def run_analysis(file, input_type=input_type, import_model=import_model, train_m
     for c in range(len(clusterer.labels_)):
         hdbscan_clusters[groups.index(clusterer.labels_[c])] += [c]
 
-
-    # A position translator is needed to pass selections between 3d+ and 2d representations
-    index_2d = []
-    index_Nd = []
-    m = 0
-    for k in latent_windows:
-        index_2d += [i for i in range(len(k))]
-        index_Nd += [[m + i for i in range(len(k))]]
-        m += len(k)
-
     # Plotting projection
-
-    stacked_dataframe = preprocess.stacked_dataframe
-    stacked_unorm_dataframe = preprocess.stacked_unorm_dataframe
     if umap_dim != 3:
         plot = False
     else:
@@ -145,18 +129,18 @@ def run_analysis(file, input_type=input_type, import_model=import_model, train_m
         from tools.analysis.time_series_projection import MainMenu
 
         main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
-                             sliced_windows=preprocess.stacked_da, original_unorm_dataframe=stacked_unorm_dataframe,
-                             original_dataframe=stacked_dataframe, coordinates=preprocess.coord,
-                             clusters=hdbscan_clusters, index_2D=index_2d, index_ND=index_Nd, window=window, plot=plot)
+                             sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
+                             original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
+                             clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows, output_path=output_path)
         main_menu.build_app()
-        again = input("reimport and replot? (y/n)")
-        if again != "y":
+        again = input("reimport and replot? ([Y]/n)")
+        if again != "y" or "Y" or "":
             dev = False
 
     # If this is user call of the analysis
     if not dev:
         main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
-                             sliced_windows=stacked_dataset, original_unorm_dataframe=stacked_unorm_dataframe,
-                             original_dataframe=stacked_dataframe, coordinates=preprocess.coord,
-                             clusters=hdbscan_clusters, index_2D=index_2d, index_ND=index_Nd, window=window, plot=plot)
+                             sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
+                             original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
+                             clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows, output_path=output_path)
         main_menu.build_app()

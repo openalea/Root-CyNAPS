@@ -85,7 +85,7 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
             scenarios += [scenario]
 
     # We copy the mtg file from the input folder of running example TODO store dynamically when rhizodep coupling is ok
-    shutil.copy("simulations/running_example/inputs/root00020.pckl", root_path + '/outputs/' + folder_name + '/root00020.pckl')
+    #shutil.copy("simulations/running_example/inputs/root00020.pckl", root_path + '/outputs/' + folder_name + '/root00020.pckl')
 
     # We record the starting time of the simulation:
     t_start = time.time()

@@ -139,7 +139,7 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
     if len(vertice) == 0:
         fig, ax = plt.subplots()
     else:
-        fig, ax = plt.subplots(len(vertice), 2)
+        fig, ax = plt.subplots(len(vertice), 1)
 
     if supplementary_legend == [""]:
         datasets = [datasets]
@@ -161,18 +161,19 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
 
         # If we plot local properties
         else:
+            if len(vertice) == 1:
+                ax = [ax]
             text_annot = [[] for k in range(len(vertice))]
             for k in range(len(vertice)):
-                if len(vertice) > 1:
-                    modified_ax = ax[k]
-                else:
-                    modified_ax = ax
-                v_extract = datasets[d].sel(vid=vertice[k])
-                std_v_extract = (v_extract - np.mean(v_extract))/np.std(v_extract)
+                v_extract = datasets[d].stack(stk=[dim for dim in datasets[d].dims if dim != "t"]).sel(vid=vertice[k])
+                # automatic legends from xarray are structured the following way : modalities x properties
+                legend = list(v_extract.coords["stk"].values) * len(selection)
+                print(legend)
                 for prop in selection:
-                    getattr(v_extract, prop).plot.line(x='t', ax=modified_ax[0], label=prop + supplementary_legend[d])
-                    getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1], label=prop + supplementary_legend[d])
-                    text_annot[k] += [modified_ax[0].text(0, 0, ""), modified_ax[1].text(0, 0, "")]
+                    # TODO find a way to remove legend and make modalities readable. Also check order in legend
+                    # TODO multivariate ANOVA and general time series sensitivity analysis
+                    getattr(v_extract, prop).plot.line(x='t', ax=ax[k], label=prop + supplementary_legend[d])
+                    text_annot[k] += [ax[k].text(0, 0, ""), ax[k].text(0, 0, "")]
 
     if len(vertice) == 0:
         def hover_global(event):
@@ -198,25 +199,24 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
         def hover_local(event):
             # for each row
             for axe in range(len(ax)):
-                # for each column
-                for norm in range(2):
-                    # if mouse event is in the ax
-                    if event.inaxes == ax[axe][norm]:
-                        # At call remove all annotations to prevent overlap
-                        for k in text_annot[axe]: k.set_visible(False)
-                        # for all variables lines in the axe
-                        for line in ax[axe][norm].get_lines():
-                            # if the mouse pointer is on the line
-                            cont, ind = line.contains(event)
-                            if cont:
-                                # get the position
-                                posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
-                                # get variable name
-                                label = "{}:{}, {}".format(line.get_label(), posx, posy)
-                                print(label)
-                                # add text annotation to the axe and refresh
-                                text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
-                                fig.canvas.draw_idle()
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe]:
+                    # At call remove all annotations to prevent overlap
+                    for k in text_annot[axe]: k.set_visible(False)
+                    # for all variables lines in the axe
+                    lines = ax[axe].get_lines()
+                    for l in range(len(lines)):
+                        # if the mouse pointer is on the line
+                        cont, ind = lines[l].contains(event)
+                        if cont:
+                            # get the position
+                            posx, posy = [lines[l].get_xdata()[ind['ind'][0]], lines[l].get_ydata()[ind['ind'][0]]]
+                            # get variable name
+                            label = "{}_{}\n{},{}".format(lines[l].get_label(), str(legend[l]), posx, "{:.2e}".format(posy))
+                            print(label)
+                            # add text annotation to the axe and refresh
+                            text_annot[axe] += [ax[axe].text(x=posx, y=posy, s=label)]
+                            fig.canvas.draw_idle()
 
         fig.canvas.mpl_connect("motion_notify_event", hover_local)
-
+        fig.show()
