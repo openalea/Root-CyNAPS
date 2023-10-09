@@ -68,17 +68,17 @@ def run_analysis(file, output_path, input_type=input_type, import_model=import_m
 
     folder = os.path.dirname(__file__)
     if import_model:
-        print("[INFO] loading autoencoder...")
+        print("[INFO] Loading autoencoder...")
         autoencoder = load_model(folder + "/saved_model/autoencoder")
     else:
         # Build the convolutional autoencoder
-        print("[INFO] building autoencoder...")
+        print("[INFO] Building autoencoder...")
         (encoder, decoder, autoencoder) = DCAE.build(height=1, width=window, depth=len(flow_extracts),
                                                      filters=((64, 10, 2), (32, 5, 2), (12, 5, 3)), latentDim=window)
 
     if train_model:
         plotting = False
-        print("[INFO] training autoencoder...")
+        print("[INFO] Training autoencoder...")
         autoencoder = DCAE.train(stacked_dataset=preprocess.stacked_da, autoencoder=autoencoder, test_prop=test_prop,
                                  epochs=EPOCHS, batch_size=BS, plotting=False)
         shutil.rmtree(folder + '/saved_model/autoencoder')
@@ -91,17 +91,15 @@ def run_analysis(file, output_path, input_type=input_type, import_model=import_m
     # print(trained_encoder.summary())
 
     # project on latent representation for all dataset, here time windows are still ordered in the obtained array
-    print("[INFO] encoding windows...")
+    print("[INFO] Encoding windows...")
 
     latent_windows = trained_encoder.predict(preprocess.stacked_da)
     # print(latent_windows)  # number of extracter windows x number of modalities x number of organs
 
 
     # Latent space projection on lower dimension
-    print("[INFO] UMAP reducer processing...")
+    print("[INFO] UMAP reducer processing latent windows...")
     umap_reducer_ND = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=umap_dim, random_state=umap_seed)
-
-    print("     Whole latent windows...")
     windows_ND_embedding = umap_reducer_ND.fit_transform(latent_windows)
 
     print("[INFO] HDBSCAN clustering...")
@@ -122,6 +120,16 @@ def run_analysis(file, output_path, input_type=input_type, import_model=import_m
     else:
         plot = True
 
+    # If this is user call of the analysis
+    if not dev:
+        from tools.analysis.time_series_projection import MainMenu
+        main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
+                             sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
+                             original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
+                             clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows,
+                             output_path=output_path)
+        main_menu.build_app()
+
     # Using this loop to be able to implement visualization without re-running UMAP each time
     while dev:
         # If re-running, reload the local plotting library
@@ -134,13 +142,6 @@ def run_analysis(file, output_path, input_type=input_type, import_model=import_m
                              clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows, output_path=output_path)
         main_menu.build_app()
         again = input("reimport and replot? ([Y]/n)")
-        if again != "y" or "Y" or "":
+        if again not in ("y", "Y", ""):
+            print(again)
             dev = False
-
-    # If this is user call of the analysis
-    if not dev:
-        main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
-                             sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
-                             original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
-                             clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows, output_path=output_path)
-        main_menu.build_app()

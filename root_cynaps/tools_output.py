@@ -4,6 +4,9 @@ import openalea.plantgl.all as pgl
 from root_cynaps.tools import plot_mtg
 
 import matplotlib.pyplot as plt
+from matplotlib.backend_bases import MouseButton
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import tkinter as tk
 import numpy as np
 
 
@@ -118,28 +121,36 @@ def plot_N(g, p, axs, span_slider=0.1):
     return range_min, range_max
 
 
-def print_g(g, select, vertice):
-    if vertice != 0:
-        # extract MTG properties only once
-        props = g.properties()
-        extract = [props[k] for k in select]
-        # print only selected segment
-        print(vertice, end=' ')
-        for k in range(len(extract)):
-            print(' / ' + select[k] + ' :', end=' ')
-            print("{:1.3e}".format(extract[k][vertice]), end=' ')
-        print('')
-
-    else:
-        for k in select:
-            print(k, getattr(g, k))
-
-
 def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=[""]):
+    # TODO : convert to class
+    root = tk.Tk()
+    root.title(f'2D data from vertices {str(vertice)[1:-1]}')
+    root.rowconfigure(1, weight=1)
+    root.rowconfigure(2, weight=10)
+    root.columnconfigure(1, weight=10)
+    root.columnconfigure(2, weight=1)
+
+    # Listbox widget to add plots
+    lb = tk.Listbox(root)
+    for k in range(len(selection)):
+        lb.insert(k, selection[k])
+
+    # Check the number of plots for right subplot divisions
     if len(vertice) == 0:
         fig, ax = plt.subplots()
     else:
         fig, ax = plt.subplots(len(vertice), 1)
+
+    # Embed figure in the tkinter window
+    canvas = FigureCanvasTkAgg(fig, master=root)
+
+    # TODO: Keep the interactive toolbar in the window
+    toolbar = NavigationToolbar2Tk(canvas, root, pack_toolbar=False)
+    toolbar.update()
+
+    toolbar.grid(row=1, column=1, sticky="NSEW")
+    canvas.get_tk_widget().grid(row=2, column=1, sticky="NSEW")
+    lb.grid(row=2, column=2, sticky="NSEW", columnspan=2)
 
     if supplementary_legend == [""]:
         datasets = [datasets]
@@ -168,11 +179,9 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
                 v_extract = datasets[d].stack(stk=[dim for dim in datasets[d].dims if dim != "t"]).sel(vid=vertice[k])
                 # automatic legends from xarray are structured the following way : modalities x properties
                 legend = list(v_extract.coords["stk"].values) * len(selection)
-                print(legend)
                 for prop in selection:
-                    # TODO find a way to remove legend and make modalities readable. Also check order in legend
-                    # TODO multivariate ANOVA and general time series sensitivity analysis
-                    getattr(v_extract, prop).plot.line(x='t', ax=ax[k], label=prop + supplementary_legend[d])
+                    # TODO Also check order in legend, atomatic legend colors did not matched pointer legend
+                    getattr(v_extract, prop).plot.line(x='t', ax=ax[k], label=prop + supplementary_legend[d], add_legend=False)
                     text_annot[k] += [ax[k].text(0, 0, ""), ax[k].text(0, 0, "")]
 
     if len(vertice) == 0:
@@ -212,11 +221,46 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
                             # get the position
                             posx, posy = [lines[l].get_xdata()[ind['ind'][0]], lines[l].get_ydata()[ind['ind'][0]]]
                             # get variable name
-                            label = "{}_{}\n{},{}".format(lines[l].get_label(), str(legend[l]), posx, "{:.2e}".format(posy))
-                            print(label)
+                            label = "{}_{}\n{},{}".format(lines[l].get_label(), ["{:.2e}".format(s) for s in legend[l]], posx, "{:.2e}".format(posy))
                             # add text annotation to the axe and refresh
                             text_annot[axe] += [ax[axe].text(x=posx, y=posy, s=label)]
                             fig.canvas.draw_idle()
 
         fig.canvas.mpl_connect("motion_notify_event", hover_local)
-        fig.show()
+
+    def on_click(event):
+        if event.button is MouseButton.LEFT:
+            # for each row
+            for axe in range(len(ax)):
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe]:
+                    # for all variables lines in the axe
+                    for line in ax[axe].get_lines():
+                        # if the mouse pointer is on the line
+                        cont, ind = line.contains(event)
+                        if cont:
+                            line.set_visible(False)
+                            ax[axe].relim(visible_only=True)
+                            ax[axe].autoscale()
+        canvas.draw()
+
+    def on_lb_select(event):
+        # TODO maybe add possibility to normalize-add a plot for ease of reading
+        w = event.widget
+        index = int(w.curselection()[0])
+        value = w.get(index)
+        # for each row
+        for axe in range(len(ax)):
+            for line in ax[axe].get_lines():
+                if line.get_label() == value:
+                    line.set_visible(True)
+            ax[axe].relim(visible_only=True)
+            ax[axe].autoscale()
+        canvas.draw()
+
+    lb.bind('<<ListboxSelect>>', on_lb_select)
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
+    # Finally show figure
+    root.mainloop()

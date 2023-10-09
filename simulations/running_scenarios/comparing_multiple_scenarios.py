@@ -8,7 +8,6 @@ import xarray as xr
 from root_cynaps.tools_output import plot_xr, plot_N, global_state_extracts, global_flow_extracts
 
 
-
 def analyze_multiple_scenarios(scenarios_set):
     # Setting the working dir to current file' outputs subdirectory
     root_path = os.path.dirname(__file__)
@@ -27,18 +26,18 @@ def analyze_multiple_scenarios(scenarios_set):
     #with open(working_dir + '/' + g_name, 'rb') as f:
     #    g = pickle.load(f)
 
+    # TODO : general sensitivity analysis on time-series data
     # Plotting global outputs
     # print("PLOTTING GLOBAL PROPERTIES...")
     # plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
     # plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
     # plt.ion()
 
+    # TODO : change for plant-scale vs organ scale age, rather than vid
+    # Running STM sensitivity analysis
     # For some reason, dataset should be loaded before umap
     from tools import STM_analysis
-    # Running STM sensitivity analysis
     STM_analysis.run(file=central_dataset, output_path=working_dir)
-
-    # TODO Plotting target local values
 
     # TODO Plotting values projected on architecture
 
@@ -85,9 +84,6 @@ def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_st
         fig, axs = plt.subplots(2, 1)
         fig.subplots_adjust(left=0.2, bottom=0.2)
         plot_N(g=g, p=["coef_hexose"], axs=axs)
-
-    # plot local properties once differences are identified spatially
-    # TODO
 
     # Wait until user ends
     plt.show()

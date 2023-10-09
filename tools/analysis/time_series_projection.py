@@ -18,12 +18,9 @@ import xbatcher as xb
 import numpy as np
 # Visual packages
 import matplotlib.pyplot as plt
-from matplotlib.widgets import RectangleSelector, LassoSelector
-from matplotlib.path import Path
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import tkinter as tk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Tensor management packages
 from tensorflow import keras, reshape
@@ -38,6 +35,7 @@ import umap
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, accuracy_score
 from scipy.stats import f_oneway
+from statsmodels.multivariate.manova import MANOVA
 
 from root_cynaps.tools_output import plot_xr
 
@@ -164,7 +162,7 @@ class MainMenu:
         self.window = window
         self.windows_time = windows_time
         self.vid_numbers = np.unique([index[-1] for index in self.coordinates])
-        self.sensitivity_coordinates = np.unique([index[-1] for index in self.coordinates])
+        self.sensitivity_coordinates = [index[:-1] for index in self.coordinates]
 
         # Tk init
         self.root = tk.Tk()
@@ -218,6 +216,8 @@ class MainMenu:
             # splitting data for svm training and test
             x_train, x_test, y_train, y_test = train_test_split(selected_groups, classes, test_size=0.2)
             clf = SVC(kernel='linear', C=100)
+            # Here we use all data because we just perform analysis of model performance at segmentation,
+            # we don't want it to be predictive
             clf.fit(selected_groups, classes)
             result = clf.predict(x_test)
             # Evaluating the accuracy of the model using the sklearn functions
@@ -260,7 +260,7 @@ class MainMenu:
         return aucs
 
     def cluster_info(self):
-        print("[INFO] building cluster visualisation")
+        print("[INFO] Comparing clusters...")
         if len(self.clusters) == 0:
             print("[Error] : no cluster selected")
             return
@@ -308,11 +308,38 @@ class MainMenu:
         fig3.savefig(self.output_path + "/clustering.png")
         fig3.show()
 
+    def cluster_sensitivity_test(self):
+        # Rq : we tried SVM fitting but it wouldn't converge
+        # Starting with multivariate anova assuming normality
+        classes = []
+        selected_groups = []
+        # Tuple is necessary here because this call is "Frozen"
+        sensi_names = tuple(dim for dim in self.original_unorm_dataset.dims.keys() if dim not in ("t", "vid"))
+        for c in range(len(self.clusters)):
+            classes += [f'c{c}' for j in range(len(self.clusters[c]))]
+            selected_groups += [self.sensitivity_coordinates[k] for k in self.clusters[c]]
+        cluster_sensi_values = pd.DataFrame(data=selected_groups, columns=sensi_names)
+        cluster_sensi_values['cluster'] = classes
+        print(cluster_sensi_values)
+        sensi_sum = ""
+        for name in sensi_names:
+            sensi_sum += f"{name} + "
+        sensi_sum = sensi_sum[:-3]
+        print(sensi_sum)
+        fit = MANOVA.from_formula(f'{sensi_sum} ~ cluster', data=cluster_sensi_values)
+        print(fit.mv_test())
+        # print(fit.predict(params=sensi_names))
+
+        # TODO : when the model reaches a good predictive value through results, we then checkout the model's characteristics
+        # TODO : regarding the effect of a given variable in the classes divergence (+/-)
+        return
+
     def build_app(self, plot=False):
         # time is an axis as others, rather, default color corresponding coordinates on structure
         # For a given cluster, it wil enable user to select 2D plots of interest for targeted layers, WITH corresponding clusters highlighted (and refreshed)
 
         self.cluster_info()
+        self.cluster_sensitivity_test()
         self.root.mainloop()
 
     def flat_plot_instance(self):
