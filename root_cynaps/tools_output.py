@@ -242,6 +242,12 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
                             line.set_visible(False)
                             ax[axe].relim(visible_only=True)
                             ax[axe].autoscale()
+        elif event.button is MouseButton.LEFT:
+            for axe in range(len(ax)):
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe]:
+                    ax[axe].relim(visible_only=True)
+                    ax[axe].autoscale()
         canvas.draw()
 
     def on_lb_select(event):

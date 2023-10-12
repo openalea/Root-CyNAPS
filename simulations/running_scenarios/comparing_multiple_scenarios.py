@@ -27,7 +27,12 @@ def analyze_multiple_scenarios(scenarios_set):
     #    g = pickle.load(f)
 
     # TODO : general sensitivity analysis on time-series data
-    # Plotting global outputs
+    # Global sensitivity analysis at the end of the simulation for now
+    # Using a linear regression
+    from tools import global_sensitivity
+    global_sensitivity.regression_analysis(dataset=central_dataset, output_path=working_dir)
+
+    # TODO : Plotting global outputs
     # print("PLOTTING GLOBAL PROPERTIES...")
     # plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
     # plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)

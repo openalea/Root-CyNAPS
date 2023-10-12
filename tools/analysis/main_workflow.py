@@ -12,7 +12,7 @@ from tools.analysis.time_series_projection import Preprocessing, DCAE
 input_type = "mtg"
 
 # DCAE parameters
-import_model, train_model = True, False
+import_model, train_model = False, True
 dev = True
 window = 24
 EPOCHS = 25

@@ -36,6 +36,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, accuracy_score
 from scipy.stats import f_oneway
 from statsmodels.multivariate.manova import MANOVA
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 from root_cynaps.tools_output import plot_xr
 
@@ -46,10 +47,12 @@ class Preprocessing:
     def __init__(self, central_dataset, type='csv', variables={}, window=24, stride=12):
         self.unormalized_ds = central_dataset[list(variables.keys())]
         del central_dataset
+
         self.normalized_ds = self.normalization(self.unormalized_ds).fillna(0)
 
         # stacking to put every sliced window on the same learning slope then
         self.normalized_ds = self.normalized_ds.stack(stk=[dim for dim in self.normalized_ds.dims if dim != "t"])
+
         n_windows = int(1 + ((max(self.normalized_ds.coords["t"].values)-window + 1)/stride))
 
         self.labels, self.t_windows = [], []
@@ -64,8 +67,11 @@ class Preprocessing:
     def normalization(self, dataset):
         """
         Standard normalization technique
+        NOTE : per organ normalization was fucking up the relative magnitude of the different organ comparison
+        Now, the standardization is operated from min and max for all t, vid and scenario parameter
         """
-        return (dataset - dataset.min(dim="t")) / (dataset.max(dim="t") - dataset.min(dim="t"))
+
+        return (dataset - dataset.min()) / (dataset.max() - dataset.min())
 
 
 class DCAE:
@@ -182,6 +188,9 @@ class MainMenu:
         info_button = tk.Button(self.root, text='Clusters info', command=self.cluster_info)
         info_button.grid(row=3, column=3)
 
+        svm_button = tk.Button(self.root, text='SVM comparison', command=self.svm_selection)
+        svm_button.grid(row=2, column=3)
+
         # Label widget
         label = tk.Label(self.root, text='Organ ID :')
         label.grid(row=0, column=2, sticky='S')
@@ -200,6 +209,7 @@ class MainMenu:
         self.clusters = clusters
 
     def svm_selection(self):
+        print("[INFO] Testing clusters significativity...")
         classes = []
         selected_groups = []
         if len(self.clusters) == 0:
@@ -231,6 +241,7 @@ class MainMenu:
         else:
             print("Only one class")
 
+    def compute_aucs(self):
         # Check individual variables contributions to differences between clusters
         # for each labelled cluster
         nb_props = len(self.properties)
@@ -265,7 +276,7 @@ class MainMenu:
             print("[Error] : no cluster selected")
             return
 
-        aucs = self.svm_selection()
+        aucs = self.compute_aucs()
 
         fig3 = plt.figure(figsize=(12, 10))
         gs = gridspec.GridSpec(2, len(self.clusters), height_ratios=[1, 2], figure=fig3)
@@ -291,7 +302,7 @@ class MainMenu:
 
             for i in range(k+1, len(self.clusters)):
                 heatmap += [list(aucs[k][i].values())]
-            pair_labels += ["{}v{}".format(k, i) for i in range(k + 1, len(self.clusters))]
+            pair_labels += ["{}-{}".format(k, i) for i in range(k + 1, len(self.clusters))]
 
         hm = ax31.imshow(np.transpose(heatmap), cmap="PiYG", aspect="auto")
         fig3.colorbar(hm, orientation='horizontal', location='top')
@@ -302,37 +313,72 @@ class MainMenu:
         # Loop over data dimensions and create text annotations.
         for i in range(len(pair_labels)):
             for j in range(len(self.properties)):
-                ax31.text(i, j, int(round(heatmap[i][j], 0)), ha="center", va="center", color="w",
+                ax31.text(i, j, round(heatmap[i][j], 1), ha="center", va="center", color="w",
                                fontsize=10, fontweight='bold')
 
-        fig3.savefig(self.output_path + "/clustering.png")
+        fig3.set_size_inches(19, 10)
+        fig3.savefig(self.output_path + "/clustering.png", dpi=400)
         fig3.show()
 
-    def cluster_sensitivity_test(self):
-        # Rq : we tried SVM fitting but it wouldn't converge
+    def flat_plot_instance(self):
+        layer = self.lb.curselection()
+        if len(layer) > 0:
+            layer = self.vid_numbers[layer[0]]
+            plot_xr(datasets=self.original_unorm_dataset, vertice=[layer], selection=self.properties)
+
+    def cluster_sensitivity_test(self, alpha=0.05):
         # Starting with multivariate anova assuming normality
+        # Dataframe formating...
         classes = []
         selected_groups = []
         # Tuple is necessary here because this call is "Frozen"
         sensi_names = tuple(dim for dim in self.original_unorm_dataset.dims.keys() if dim not in ("t", "vid"))
         for c in range(len(self.clusters)):
-            classes += [f'c{c}' for j in range(len(self.clusters[c]))]
+            classes += [str(c) for j in range(len(self.clusters[c]))]
             selected_groups += [self.sensitivity_coordinates[k] for k in self.clusters[c]]
         cluster_sensi_values = pd.DataFrame(data=selected_groups, columns=sensi_names)
         cluster_sensi_values['cluster'] = classes
-        print(cluster_sensi_values)
+
+        # MANOVA for sensitivity factors across the cluster factor
         sensi_sum = ""
         for name in sensi_names:
             sensi_sum += f"{name} + "
         sensi_sum = sensi_sum[:-3]
-        print(sensi_sum)
-        fit = MANOVA.from_formula(f'{sensi_sum} ~ cluster', data=cluster_sensi_values)
-        print(fit.mv_test())
-        # print(fit.predict(params=sensi_names))
 
-        # TODO : when the model reaches a good predictive value through results, we then checkout the model's characteristics
-        # TODO : regarding the effect of a given variable in the classes divergence (+/-)
-        return
+        fit = MANOVA.from_formula(f'{sensi_sum} ~ cluster', data=cluster_sensi_values)
+        manova_df = pd.DataFrame((fit.mv_test().results['cluster']['stat']))
+        manova_pv = float(manova_df.loc[["Wilks' lambda"]]["Pr > F"])
+
+        # If there is a significant difference between clusters regarding sensitivity variables...
+        if manova_pv < alpha:
+            # Perform pairwise tukey post-hoc test to identify which clusters are different
+            meandiff_line = []
+            significativity = []
+            for sensi in sensi_names:
+                tuckey_test = pairwise_tukeyhsd(cluster_sensi_values[sensi], cluster_sensi_values['cluster'], alpha=alpha).summary().data
+                column_names = tuckey_test[0]
+                pairwise_label = [line[column_names.index('group1')] + '-' + line[column_names.index('group2')] for line in tuckey_test[1:]]
+                meandiff_line += [[line[column_names.index('meandiff')] for line in tuckey_test[1:]]]
+                significativity += [[str(line[column_names.index('reject')]) for line in tuckey_test[1:]]]
+
+            fig_tuckey, ax = plt.subplots()
+            ax.set_xticks(np.arange(len(pairwise_label)), labels=pairwise_label)
+            ax.set_yticks(np.arange(len(sensi_names)), labels=sensi_names)
+            hm = ax.imshow(meandiff_line, cmap="PiYG", aspect="auto")
+            fig_tuckey.colorbar(hm, orientation='horizontal', location='top')
+            # Loop over data dimensions and create text annotations.
+            for i in range(len(sensi_names)):
+                for j in range(len(pairwise_label)):
+                    ax.text(j, i, significativity[i][j], ha="center", va="center", color="w",
+                              fontsize=10, fontweight='bold')
+            fig_tuckey.set_size_inches(19, 10)
+            fig_tuckey.savefig(self.output_path + "/pairwise_tucker.png", dpi=400)
+            fig_tuckey.show()
+
+            significant_sensitivity = [False]
+        else:
+            significant_sensitivity = [False]
+        return significant_sensitivity
 
     def build_app(self, plot=False):
         # time is an axis as others, rather, default color corresponding coordinates on structure
@@ -341,9 +387,3 @@ class MainMenu:
         self.cluster_info()
         self.cluster_sensitivity_test()
         self.root.mainloop()
-
-    def flat_plot_instance(self):
-        layer = self.lb.curselection()
-        if len(layer) > 0:
-            layer = self.vid_numbers[layer[0]]
-            plot_xr(datasets=self.original_unorm_dataset, vertice=[layer], selection=self.properties)
