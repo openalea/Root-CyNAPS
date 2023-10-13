@@ -20,9 +20,9 @@ BS = 100
 test_prop = 0.2
 # UMAP Parameters
 umap_seed = 42
-umap_dim = 10
-n_neighbors = 15
-min_dist = 0.15
+umap_dim = 10  #
+n_neighbors = 50  #
+min_dist = 0.05  #
 # HDBSCAN Parameters
 min_cluster_size = 5000
 min_samples = 10
@@ -59,6 +59,13 @@ def run_analysis(file, output_path, input_type=input_type, import_model=import_m
                  EPOCHS=EPOCHS, BS=BS, test_prop=test_prop, umap_seed=umap_seed, umap_dim=umap_dim, n_neighbors=n_neighbors, min_dist=min_dist,
                  min_cluster_size=min_cluster_size, min_samples=min_samples,
                  flow_extracts=flow_extracts):
+    '''
+    Description
+    This function runs the main workflow for
+
+    :param file: xarray datadset containing 't', 'vid and supplementary scenario parameters
+
+    '''
 
     # Import and preprocess data
     print("[INFO] Preprocessing saved file...")
@@ -122,26 +129,33 @@ def run_analysis(file, output_path, input_type=input_type, import_model=import_m
 
     # If this is user call of the analysis
     if not dev:
-        from tools.analysis.time_series_projection import MainMenu
-        main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
-                             sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
-                             original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
-                             clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows,
-                             output_path=output_path)
-        main_menu.build_app()
+        if len(hdbscan_clusters) > 0:
+            from tools.analysis.time_series_projection import MainMenu
+            main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
+                                 sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
+                                 original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
+                                 clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows,
+                                 output_path=output_path)
+            main_menu.build_app()
+        else:
+            print('[ERROR] Analysis output without cluster')
 
     # Using this loop to be able to implement visualization without re-running UMAP each time
-    while dev:
-        # If re-running, reload the local plotting library
-        importlib.reload(tools.analysis.time_series_projection)
-        from tools.analysis.time_series_projection import MainMenu
+    if len(hdbscan_clusters) > 0:
+        while dev:
+            # If re-running, reload the local plotting library
+            importlib.reload(tools.analysis.time_series_projection)
+            from tools.analysis.time_series_projection import MainMenu
 
-        main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
-                             sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
-                             original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
-                             clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows, output_path=output_path)
-        main_menu.build_app()
-        again = input("reimport and replot? ([Y]/n)")
-        if again not in ("y", "Y", ""):
-            print(again)
-            dev = False
+            main_menu = MainMenu(windows_ND_projection=windows_ND_embedding, latent_windows=latent_windows,
+                                 sliced_windows=preprocess.stacked_da, original_unorm_dataset=preprocess.unormalized_ds,
+                                 original_dataset=preprocess.normalized_ds, coordinates=preprocess.labels,
+                                 clusters=hdbscan_clusters, window=window, plot=plot, windows_time=preprocess.t_windows, output_path=output_path)
+            main_menu.build_app()
+            again = input("reimport and replot? ([Y]/n)")
+            if again not in ("y", "Y", ""):
+                print(again)
+                dev = False
+
+    else:
+        print('[ERROR] Analysis output without cluster')

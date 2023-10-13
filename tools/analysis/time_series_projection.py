@@ -19,7 +19,7 @@ import numpy as np
 # Visual packages
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from matplotlib.colors import CenteredNorm
 import tkinter as tk
 
 # Tensor management packages
@@ -68,7 +68,8 @@ class Preprocessing:
         """
         Standard normalization technique
         NOTE : per organ normalization was fucking up the relative magnitude of the different organ comparison
-        Now, the standardization is operated from min and max for all t, vid and scenario parameter
+        Now, the standardization is operated from min and max for all t, vid and scenario parameter.
+        Still it remains essential to be able to compare the magnitude of the differences between clusters
         """
 
         return (dataset - dataset.min()) / (dataset.max() - dataset.min())
@@ -241,7 +242,7 @@ class MainMenu:
         else:
             print("Only one class")
 
-    def compute_aucs(self):
+    def compute_group_area_between_curves(self):
         # Check individual variables contributions to differences between clusters
         # for each labelled cluster
         nb_props = len(self.properties)
@@ -255,7 +256,8 @@ class MainMenu:
         # (unit = sum(flux_unit*time_step) = quantity per time_step hours)
 
         # Matrix to present main responsible for divergence between clusters through the Area Under the Curve (AUC)
-        aucs = [[{} for k in range(len(self.clusters))] for i in range(len(self.clusters))]
+        abcs = [[{} for k in range(len(self.clusters))] for i in range(len(self.clusters))]
+        mean_diff_bcs = [[{} for k in range(len(self.clusters))] for i in range(len(self.clusters))]
         # for each row
         for k in range(len(self.clusters)):
             # for each element after diagonal in row
@@ -264,11 +266,13 @@ class MainMenu:
                 # Then sum this to compute Area Under the curve for each variable and add it in the cross comparison matrix
                 # for each variable, label the sum to a name (dict key) for readability
                 for v in range(nb_props):
-                    aucs[k][l][self.properties[v]] = np.sum([(np.mean(curve_sets_clusters[k][v][t]) - np.mean(curve_sets_clusters[l][v][t])) *
+                    step_wise_differences = [(np.mean(curve_sets_clusters[k][v][t]) - np.mean(curve_sets_clusters[l][v][t])) *
                                                         (1-f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue) for t in range(self.window)
-                                                        if not np.isnan(f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue)])
+                                                        if not np.isnan(f_oneway(curve_sets_clusters[k][v][t], curve_sets_clusters[l][v][t]).pvalue)]
+                    abcs[k][l][self.properties[v]] = np.sum([abs(diff) for diff in step_wise_differences])
+                    mean_diff_bcs[k][l][self.properties[v]] = np.mean(step_wise_differences) * self.window
 
-        return aucs
+        return abcs, mean_diff_bcs
 
     def cluster_info(self):
         print("[INFO] Comparing clusters...")
@@ -276,7 +280,7 @@ class MainMenu:
             print("[Error] : no cluster selected")
             return
 
-        aucs = self.compute_aucs()
+        abcs, mean_diff_between_clusters = self.compute_group_area_between_curves()
 
         fig3 = plt.figure(figsize=(12, 10))
         gs = gridspec.GridSpec(2, len(self.clusters), height_ratios=[1, 2], figure=fig3)
@@ -285,9 +289,10 @@ class MainMenu:
         ax31 = fig3.add_subplot(gs[1, :])
 
         fig3.text(0.01, 0.95, "Space-Time repartition", fontweight='bold')
-        fig3.text(0.01, 0.50, "window AUC between clusters", fontweight='bold')
+        fig3.text(0.01, 0.50, "window ABC between clusters", fontweight='bold')
 
         heatmap = []
+        heatmap_values = []
         pair_labels = []
         # for each cluster combination
         for k in range(len(self.clusters)):
@@ -301,10 +306,11 @@ class MainMenu:
             ax30[k].hist2d(times, coords, bins=20, cmap="Purples")
 
             for i in range(k+1, len(self.clusters)):
-                heatmap += [list(aucs[k][i].values())]
+                heatmap += [list(abcs[k][i].values())]
+                heatmap_values += [list(mean_diff_between_clusters[k][i].values())]
             pair_labels += ["{}-{}".format(k, i) for i in range(k + 1, len(self.clusters))]
 
-        hm = ax31.imshow(np.transpose(heatmap), cmap="PiYG", aspect="auto")
+        hm = ax31.imshow(np.transpose(heatmap), cmap="Greens", aspect="auto", vmin=0)
         fig3.colorbar(hm, orientation='horizontal', location='top')
 
         ax31.set_xticks(np.arange(len(pair_labels)), labels=pair_labels)
@@ -313,7 +319,7 @@ class MainMenu:
         # Loop over data dimensions and create text annotations.
         for i in range(len(pair_labels)):
             for j in range(len(self.properties)):
-                ax31.text(i, j, round(heatmap[i][j], 1), ha="center", va="center", color="w",
+                ax31.text(i, j, round(heatmap_values[i][j], 2), ha="center", va="center", color="w",
                                fontsize=10, fontweight='bold')
 
         fig3.set_size_inches(19, 10)
@@ -364,12 +370,13 @@ class MainMenu:
             fig_tuckey, ax = plt.subplots()
             ax.set_xticks(np.arange(len(pairwise_label)), labels=pairwise_label)
             ax.set_yticks(np.arange(len(sensi_names)), labels=sensi_names)
-            hm = ax.imshow(meandiff_line, cmap="PiYG", aspect="auto")
+            shifted_colormap = CenteredNorm()
+            hm = ax.imshow(meandiff_line, cmap="PiYG", aspect="auto", norm=shifted_colormap)
             fig_tuckey.colorbar(hm, orientation='horizontal', location='top')
             # Loop over data dimensions and create text annotations.
             for i in range(len(sensi_names)):
                 for j in range(len(pairwise_label)):
-                    ax.text(j, i, significativity[i][j], ha="center", va="center", color="w",
+                    ax.text(j, i, significativity[i][j], ha="center", va="center", color="b",
                               fontsize=10, fontweight='bold')
             fig_tuckey.set_size_inches(19, 10)
             fig_tuckey.savefig(self.output_path + "/pairwise_tucker.png", dpi=400)
@@ -380,10 +387,15 @@ class MainMenu:
             significant_sensitivity = [False]
         return significant_sensitivity
 
+    def plantGL_map(self):
+        # TODO
+        return
+
     def build_app(self, plot=False):
         # time is an axis as others, rather, default color corresponding coordinates on structure
         # For a given cluster, it wil enable user to select 2D plots of interest for targeted layers, WITH corresponding clusters highlighted (and refreshed)
 
         self.cluster_info()
         self.cluster_sensitivity_test()
+        self.plantGL_map()
         self.root.mainloop()

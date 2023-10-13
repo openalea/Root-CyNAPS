@@ -5,8 +5,7 @@ import pickle
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from root_cynaps.tools_output import plot_xr, plot_N, global_state_extracts, global_flow_extracts
-
+from root_cynaps.tools_output import plot_N
 
 def analyze_multiple_scenarios(scenarios_set):
     # Setting the working dir to current file' outputs subdirectory
@@ -22,15 +21,16 @@ def analyze_multiple_scenarios(scenarios_set):
 
     central_dataset = xr.load_dataset(working_dir + '/merged.nc')
 
-    #g_name = [name for name in os.listdir(working_dir) if ".pckl" in name][0]
-    #with open(working_dir + '/' + g_name, 'rb') as f:
-    #    g = pickle.load(f)
-
     # TODO : general sensitivity analysis on time-series data
     # Global sensitivity analysis at the end of the simulation for now
     # Using a linear regression
     from tools import global_sensitivity
     global_sensitivity.regression_analysis(dataset=central_dataset, output_path=working_dir)
+
+    # TODO Plotting on architecture
+    g_name = [name for name in os.listdir(working_dir) if ".pckl" in name][0]
+    with open(working_dir + '/' + g_name, 'rb') as f:
+        g = pickle.load(f)
 
     # TODO : Plotting global outputs
     # print("PLOTTING GLOBAL PROPERTIES...")
@@ -38,13 +38,10 @@ def analyze_multiple_scenarios(scenarios_set):
     # plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
     # plt.ion()
 
-    # TODO : change for plant-scale vs organ scale age, rather than vid
     # Running STM sensitivity analysis
     # For some reason, dataset should be loaded before umap
     from tools import STM_analysis
     STM_analysis.run(file=central_dataset, output_path=working_dir)
-
-    # TODO Plotting values projected on architecture
 
 
 def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_steps=[]):

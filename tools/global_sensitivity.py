@@ -32,7 +32,7 @@ def regression_analysis(dataset, output_path):
     # TODO : normalize and comment
     regression_variables = [dim for dim in dataset.dims if dim not in ('t', 'vid')]
     df_regression = pd.DataFrame(columns=['variable', 'r2', 'intercept'] + regression_variables)
-    for global_output in global_flow_extracts.keys():
+    for global_output in global_state_extracts.keys():
         y = dataset.sel(vid=1)[global_output]
         y = y.sel(t=max(y.t))
         y = y.stack(stk=y.dims)
