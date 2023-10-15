@@ -13,7 +13,6 @@ conda install -c conda-forge hdbscan
 '''IMPORTS'''
 # Data processing packages
 import pandas as pd
-import xarray as xr
 import xbatcher as xb
 import numpy as np
 # Visual packages
@@ -31,7 +30,6 @@ from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 
 # Projection
-import umap
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, accuracy_score
 from scipy.stats import f_oneway

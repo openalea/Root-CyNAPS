@@ -128,4 +128,4 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
 if __name__ == '__main__':
     previous_outputs_clearing()
     run_multiple_scenarios()
-    # analyze_multiple_scenarios(scenarios_set=0)
+    analyze_multiple_scenarios(scenarios_set=0)

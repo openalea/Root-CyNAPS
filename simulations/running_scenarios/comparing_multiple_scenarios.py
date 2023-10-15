@@ -1,11 +1,13 @@
 import os
-import numpy as np
 import pickle
 
-import matplotlib.pyplot as plt
 import xarray as xr
 
-from root_cynaps.tools_output import plot_N
+from root_cynaps.tools import plot_mtg
+import openalea.plantgl.all as pgl
+from openalea.mtg.traversal import pre_order, post_order
+
+import matplotlib.pyplot as plt
 
 def analyze_multiple_scenarios(scenarios_set):
     # Setting the working dir to current file' outputs subdirectory
@@ -21,97 +23,90 @@ def analyze_multiple_scenarios(scenarios_set):
 
     central_dataset = xr.load_dataset(working_dir + '/merged.nc')
 
-    # TODO : general sensitivity analysis on time-series data
-    # Global sensitivity analysis at the end of the simulation for now
-    # Using a linear regression
-    from tools import global_sensitivity
-    global_sensitivity.regression_analysis(dataset=central_dataset, output_path=working_dir)
-
-    # TODO Plotting on architecture
+    # Plotting topological plan
+    # TODO, recenter and colorbar legend ?
+    print("[INFO] Plotting topology and coordinate map...")
+    # Loading MTG file
     g_name = [name for name in os.listdir(working_dir) if ".pckl" in name][0]
     with open(working_dir + '/' + g_name, 'rb') as f:
         g = pickle.load(f)
+    # Plotting the vid as color to enable a better reading of groups
+    g.properties()["v"] = dict(
+        zip(list(g.properties()["struct_mass"].keys()), list(g.properties()["struct_mass"].keys())))
+    scene = pgl.Scene()
+    scene += plot_mtg(g,
+                      prop_cmap="v",
+                      lognorm=False,  # to avoid issues with negative values
+                      vmin=min(g.properties()["struct_mass"].keys()),
+                      vmax=max(g.properties()["struct_mass"].keys()),
+                      k=0)
+    pgl.Viewer.display(scene)
 
-    # TODO : Plotting global outputs
-    # print("PLOTTING GLOBAL PROPERTIES...")
+    # # TESTS FOR PERSISTENT HOMOLOGY COORDINATES
+    # root_gen = g.component_roots_at_scale_iter(g.root, scale=1)
+    # root = next(root_gen)
+    # ct = 0
+    # g.properties()["dist_to_collar"] = {1: 0}
+    # for vid in pre_order(g, root):
+    #     if vid != 1:
+    #         parent = g.parent(vid)
+    #         g.properties()["dist_to_collar"][vid] = g.properties()["dist_to_collar"][parent] + g.properties()["length"][vid]
+    #
+    # print(g.properties()["dist_to_collar"])
+    #
+    # def whole_axis(g, vid, prop):
+    #     axes_list = []
+    #     axis_dict = {}
+    #     axis_dict[vid] = g.properties()[prop][vid]
+    #     while g.properties()["label"][vid] != "Apex":
+    #         for v in g.children(vid):
+    #             if g.properties()["edge_type"][v] != "+":
+    #                 vid = v
+    #             else:
+    #                 axes_list += whole_axis(g, v, prop)
+    #         axis_dict[vid] = g.properties()[prop][vid]
+    #     axes_list += [axis_dict]
+    #     return axes_list
+    #
+    # axes_list = whole_axis(g=g, vid=2, prop="dist_to_collar")
+    # axes_insertion = [g.parent(list(axe.keys())[0]) for axe in axes_list]
+    #
+    # def ordinator(axe):
+    #     axe_po_groups = [axe]
+    #     for v in list(axe.keys()):
+    #         if v in axes_insertion:
+    #             axe_po_groups += ordinator(axe=axes_list[axes_insertion.index(v)])
+    #     return axe_po_groups
+    #
+    # ordered_axes_list = ordinator(axe = axes_list[-1])
+    #
+    # fig, ax = plt.subplots()
+    # for axe in range(len(ordered_axes_list)):
+    #     X = list(ordered_axes_list[axe].values())
+    #     Y = [axe for k in range(len(X))]
+    #     ax.plot(X, Y, '.-', linewidth=2, markersize=8)
+    # fig.show()
+
+    # TODO : general sensitivity analysis on time-series data
+    # Global sensitivity analysis at the end of the simulation for now
+    # Using a linear regression
+
+    print("[INFO] Performing regression sensitivity on model final global states...")
+    from tools import global_sensitivity
+    global_sensitivity.regression_analysis(dataset=central_dataset, output_path=working_dir)
+
+    # TODO : Plotting global outputs, should work with minor adjustments
+    print("Plotting global properties...")
     # plot_xr(datasets=datasets, selection=list(global_state_extracts.keys()), supplementary_legend=supplementary_legend)
     # plot_xr(datasets=datasets, selection=list(global_flow_extracts.keys()), supplementary_legend=supplementary_legend)
-    # plt.ion()
 
     # Running STM sensitivity analysis
-    # For some reason, dataset should be loaded before umap
+    # For some reason, dataset should be loaded before umap, and the run() call should be made at the end of
+    # the workflow because tkinter locks everything
+    # TODO : adapt to sliding windows along roots ?
+    print("[INFO] Performing local organs' physiology clustering...")
     from tools import STM_analysis
     STM_analysis.run(file=central_dataset, output_path=working_dir)
-
-
-def plot_multiple_scenarios(g, datasets, supplementary_legend, set_name, time_steps=[]):
-
-    # plot global properties
-    print("PROCESSING SPATIALIZED DATA...")
-    for k in range(len(supplementary_legend)):
-        supplementary_legend[k] = [float(k) for k in eval(supplementary_legend[k])]
-
-    # Finally, do regression along the axes and plot p_value in plantgl
-
-    scenario_variables = []
-    for k in range(set_name.count(" X ")):
-        cut = set_name.find(" X ")
-        scenario_variables += [set_name[:cut]]
-        set_name = set_name[cut + 3:]
-    scenario_variables += [set_name[:set_name.find(" ")]]
-
-    # plot spatialized property correlation with scenarios' variables on plantgl
-    prop = "import_Nm"
-    for d in range(len(datasets)):
-        coordinates = dict(zip(scenario_variables, supplementary_legend[d]))
-        datasets[d] = datasets[d].assign_coords(coords=coordinates).expand_dims(dim=dict(zip(scenario_variables, [1 for k in scenario_variables])))
-    print("Merging datasets from different scenarios...")
-    merged_dataset = xr.merge(datasets)
-    merged_dataset.to_netcdf("C:/Users/tigerault/pp/root_cynaps/simulations/running_scenarios/outputs/tests.nc")
-
-    for time_step in time_steps:
-        regression_extract = getattr(merged_dataset, prop).sel(t=time_step)
-        print(f"Regression over {scenario_variables} values for {prop}")
-        # regression_results = regression_extract.polyfit(dim=scenario_variables[0], deg=1, full=True, cov=True)
-        regression_results = regression_extract.curvefit(coords=scenario_variables, func=multilinear_f, param_names=["P_" + name for name in scenario_variables] + ["origin_value"])
-        # TODO Make better use of the covariance matrix.
-        regression_coefficients = regression_results.sel(param="P_hexose_decrease_rate")["curvefit_coefficients"].to_dict()
-        # Note here that we normalize by dividing by root segment structural mass to avoid under representation of young short segments
-        coefficients_dict = {k: v/(g.properties()["struct_mass"][k]) for k, v in zip(regression_coefficients["coords"]["vid"]["data"], regression_coefficients["data"])}
-
-        print("PLOTTING REGRESSION RESULTS WITH PLANTGL...")
-        g.properties()["coef_hexose"] = coefficients_dict
-
-        # legend plot TODO : side to side plots
-        fig, axs = plt.subplots(2, 1)
-        fig.subplots_adjust(left=0.2, bottom=0.2)
-        plot_N(g=g, p=["coef_hexose"], axs=axs)
-
-    # Wait until user ends
-    plt.show()
-    input("end?")
-
-
-# Tool functions
-def multilinear_f(*args):
-    """
-    Description : This function with variable argument length returns the linear combination of input variables
-    """
-    arguments = args[0]
-    parameters = args[1:]
-    origin_value = parameters[-1]
-    products = []
-    for a in range(len(arguments)):
-        products += [[x*parameters[a] for x in arguments[a]]]
-    summed_product = []
-    for rep in range(len(arguments[0])):
-        s = 0
-        for d in range(len(arguments)):
-            s += products[d][rep]
-        s += origin_value
-        summed_product += [s]
-
-    return np.array(summed_product)
 
 
 if __name__ == '__main__':
