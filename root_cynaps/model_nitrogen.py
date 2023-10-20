@@ -447,11 +447,6 @@ class CommonNitrogenModel:
         self.AA_catabolism[v] = self.struct_mass[v] * cmax_AA * self.AA[v] / (
                 Km_stor_root + self.AA[v])
 
-    def transport_C(self, v, apex_C_hexose_root=0.4, hexose_decrease_rate=0.3):
-        # artificially fixated hexose concentration before coupling with C model
-        self.C_hexose_root[v] = apex_C_hexose_root - hexose_decrease_rate * self.thermal_time_since_emergence[v] / max(
-            self.thermal_time_since_emergence.values())
-
     def metabolism_total_hormones(self, smax_cytok, Km_C_cytok, Km_N_cytok):
         self.cytokinin_synthesis[0] = self.total_struct_mass[1] * smax_cytok * (
                 self.total_hexose[1]/(self.total_hexose[1] + Km_C_cytok)) * (
@@ -847,7 +842,13 @@ class DiscreteVessels(CommonNitrogenModel):
             self.displaced_Nm_in[vid] = 0
             self.displaced_AA_in[vid] = 0
 
-    def exchanges_and_balance(self, hexose_decrease_rate):
+    def add_properties_to_new_segments(self):
+        for vid in self.g.vertices(scale=self.g.max_scale()):
+            if vid not in list(self.Nm.keys()):
+                for prop in list(self.keywords.keys()):
+                    getattr(self, prop)[vid] = 0
+
+    def exchanges_and_balance(self):
 
         """
         Description
@@ -855,19 +856,17 @@ class DiscreteVessels(CommonNitrogenModel):
         Model time-step processes and balance for nitrogen to be called by simulation files.
 
         """
-
+        self.add_properties_to_new_segments()
         # Computing all derivative processes
         # Global root system processes
         self.metabolism_total_hormones(**asdict(MetabolismHormones()))
         self.initialize_cumulative()
         # For each sub_time_step
         for k in range(int(self.time_step/self.sub_time_step)):
-
             # Spatialized for all root segments in MTG...
             for vid in self.vertices:
                 # if root segment emerged
                 if self.struct_mass[vid] > 0:
-                    self.transport_C(vid, hexose_decrease_rate=hexose_decrease_rate)
                     self.transport_N(vid, **asdict(TransportAxialN()))
                     self.metabolism_N(vid, **asdict(MetabolismN()))
 

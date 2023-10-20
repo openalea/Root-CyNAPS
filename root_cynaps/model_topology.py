@@ -58,8 +58,10 @@ class RadialTopology:
     def __init__(self, g, root_exchange_surface, cylinder_exchange_surface, stele_exchange_surface,
                  phloem_exchange_surface, apoplasmic_stele, xylem_volume):
 
+        self.g = g
+
         # New properties' creation in MTG
-        keywords = dict(
+        self.keywords = dict(
             root_exchange_surface=root_exchange_surface,
             cylinder_exchange_surface=cylinder_exchange_surface,
             stele_exchange_surface=stele_exchange_surface,
@@ -68,13 +70,13 @@ class RadialTopology:
             xylem_volume=xylem_volume)
 
         props = g.properties()
-        for name in keywords:
+        for name in self.keywords:
             props.setdefault(name, {})
 
         # vertices storage for future calls in for loops
         self.vertices = g.vertices(scale=g.max_scale())
         for vid in self.vertices:
-            for name, value in keywords.items():
+            for name, value in self.keywords.items():
                 # Effectively creates the new property
                 props[name][vid] = value
 
@@ -101,6 +103,12 @@ class RadialTopology:
 
         self.update_topology(**asdict(TissueTopology()))
 
+    def add_properties_to_new_segments(self):
+        for vid in self.g.vertices(scale=self.g.max_scale()):
+            if vid not in list(self.root_exchange_surface.keys()):
+                for prop in list(self.keywords.keys()):
+                    getattr(self, prop)[vid] = 0
+
     def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate,
                         cortex_ratio, stele_ratio, phloem_ratio, xylem_cross_area_ratio):
         """
@@ -124,6 +132,8 @@ class RadialTopology:
         Apoplasmic parietal resistance is also accounted for in this formalism.
         H3 : for now, tissue surfaces are supposed linearly proportional to segment radius. This might be plasticised in further developments.
         """
+        self.add_properties_to_new_segments()
+
         # for all root segments in MTG...
         for vid in self.vertices:
 

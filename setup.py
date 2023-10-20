@@ -32,7 +32,7 @@ from setuptools import setup
 """
 
 if sys.version_info < (3, 9):
-    print('ERROR: CN-Wheat requires at least Python 3.9 to run.')
+    print('ERROR: Root-CyNAPS requires at least Python 3.9 to run.')
     sys.exit(1)
 
 current_file_dir = os.path.dirname(__file__)

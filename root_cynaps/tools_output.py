@@ -1,7 +1,7 @@
 # Import
 import openalea.plantgl.all as pgl
 
-from root_cynaps.tools import plot_mtg
+from root_cynaps.root_cynaps.tools import plot_mtg
 
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import MouseButton

@@ -33,7 +33,7 @@ class MeanConcentrations:
 
 @dataclass
 class SoilPatch:
-    patch: bool = True  # To set if soil N conditions are patchy or homogeneous (equals soil_Nm_max)
+    patch: bool = False  # To set if soil N conditions are patchy or homogeneous (equals soil_Nm_max)
     soil_Nm_max: float = 0.01
     patch_dilution: float = 0
     # z_soil_Nm_max: float = 0 Testing varying depths
@@ -44,21 +44,23 @@ class SoilPatch:
 class HydroMinSoil:
     def __init__(self, g, soil_water_pressure, soil_temperature, soil_Nm, soil_AA):
 
+        self.g = g
+
         # New properties' creation in MTG
-        keywords = dict(
+        self.keywords = dict(
             soil_water_pressure=soil_water_pressure, # soil water content could be added to relate to water pressure
             soil_temperature=soil_temperature,
             soil_Nm=soil_Nm,
             soil_AA=soil_AA)
 
         props = g.properties()
-        for name in keywords:
+        for name in self.keywords:
             props.setdefault(name, {})
 
         # vertices storage for future calls in for loops
         self.vertices = g.vertices(scale=g.max_scale())
         for vid in self.vertices:
-            for name, value in keywords.items():
+            for name, value in self.keywords.items():
                 # Effectively creates the new property
                 props[name][vid] = value
         
@@ -68,14 +70,20 @@ class HydroMinSoil:
                     soil_AA
                     soil_water_pressure
                     soil_temperature
-                    z1
                     """.split()
         # soil water pressure, temperature and AA are not imported here because we keep it constant for now
         
         for name in states:
             setattr(self, name, props[name])
 
+    def add_properties_to_new_segments(self):
+        for vid in self.g.vertices(scale=self.g.max_scale()):
+            if vid not in list(self.soil_Nm.keys()):
+                for prop in list(self.keywords.keys()):
+                    getattr(self, prop)[vid] = 0
+
     def update_patches(self, patch_age, patch, soil_Nm_max, patch_dilution, z_soil_Nm_max, lixiviation_speed, soil_Nm_variance):
+        self.add_properties_to_new_segments()
         # if chosen option is homegeneous conditions
         if not patch:
             # for all root segments in MTG...

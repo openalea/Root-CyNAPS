@@ -242,9 +242,8 @@ class WaterModel:
                 else:
                     HP = [0 for k in child]
                     for k in range(len(child)):
-                        if self.struct_mass[child[k]] > 0:
-                            # compute Hagen-Poiseuille coefficient
-                            HP[k] = np.pi * (self.radius[child[k]]**4) / (8 * sap_viscosity)
+                        # compute Hagen-Poiseuille coefficient
+                        HP[k] = np.pi * (self.radius[child[k]]**4) / (8 * sap_viscosity)
 
                     HP_tot = sum(HP)
                     for k in range(len(child)):
@@ -262,6 +261,12 @@ class WaterModel:
     def update_sums(self):
         self.xylem_total_water[1] = sum(self.xylem_water.values())
 
+    def add_properties_to_new_segments(self):
+        for vid in self.g.vertices(scale=self.g.max_scale()):
+            if vid not in list(self.xylem_water.keys()):
+                for prop in list(self.keywords.keys()):
+                    getattr(self, prop)[vid] = 0
+
     def exchanges_and_balance(self):
         """
         Description
@@ -270,6 +275,7 @@ class WaterModel:
 
         """
         for k in range(int(self.time_step/self.sub_time_step)):
+            self.add_properties_to_new_segments()
             self.transport_water(**asdict(TransportWater()))
             self.update_sums()
 

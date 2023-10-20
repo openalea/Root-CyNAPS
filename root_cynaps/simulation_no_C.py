@@ -3,27 +3,26 @@ import pickle
 import os
 import shutil
 import xarray as xr
-from random import random
 from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
-from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
-from root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
+from root_cynaps.root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
+from root_cynaps.root_cynaps.model_water import InitWater, WaterModel
+from root_cynaps.root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
 
-from Data_enforcer.model import InitShootNitrogen, InitShootWater, ShootModel
+from root_cynaps.Data_enforcer.model import ShootModel
 
-import root_cynaps.converter as converter
-from root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
-from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
+import root_cynaps.root_cynaps.converter as converter
+from root_cynaps.root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
+from root_cynaps.tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 
 
 '''FUNCTIONS'''
 
 
-def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_dir, init, n, time_step, echo=False,
+def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_dir, init, steps_number, time_step, echo=False,
                  plantgl=False, plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
     # Store this before anything else to ensure the locals order is right
     Loc = locals()
@@ -39,7 +38,7 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
     root_water = WaterModel(g, time_step, **asdict(InitWater()))
     root_nitrogen = DiscreteVessels(g, time_step, **asdict(InitDiscreteVesselsN()))
-    shoot = ShootModel(g, **asdict(InitShootNitrogen()), **asdict(InitShootWater()))
+    shoot = ShootModel(g)
 
     # Linking modules
     # Spatialized root MTG interactions between soil, structure, nitrogen and water
@@ -65,7 +64,7 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
 
     root_water.init_xylem_water()
     # Scheduler : actual computation loop
-    for i in range(n):
+    for i in range(steps_number):
         # Update soil state
         soil.update_patches(patch_age=i*time_step, z_soil_Nm_max=z_soil_Nm_max, **asdict(SoilPatch()))
         # Update topological surfaces and volumes based on other evolved structural properties
