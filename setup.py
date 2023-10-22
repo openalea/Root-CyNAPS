@@ -1,53 +1,69 @@
-# -*- coding: latin-1 -*-
-import sys
-import os
-from setuptools import setup
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-"""
+# {# pkglts, pysetup.kwds
+# format setup arguments
 
-    setup
-    ~~~~~
+from os import walk
+from os.path import abspath, normpath, splitext
+from os.path import join as pj
 
-    Setup script for installation.
+from setuptools import setup, find_packages
 
-    See README.md for installing procedure.
+short_descr = "Root-CyNAPS model"
+readme = open('README.md').read()
 
-    :copyright: Copyright 2023-2024 INRA-ECOSYS, see AUTHORS.
-    :license: CeCILL-C, see LICENSE for details.
+# find packages
+pkgs = find_packages('root_cynaps')
 
-    **Acknowledgments**: The research leading these results has received funding through the 
-    Investment for the Future programme managed by the Research National Agency 
-    (BreedWheat project ANR-10-BTBR-03).
+pkg_data = {}
 
-    .. seealso:: 1st article et al.
-"""
+nb = len(normpath(abspath("root_cynaps"))) + 1
+data_rel_pth = lambda pth: normpath(abspath(pth))[nb:]
 
-"""
-    Information about this versioned file:
-        $LastChangedBy$
-        $LastChangedDate$
-        $LastChangedRevision$
-        $URL$
-        $Id$
-"""
+data_files = []
+for root, dnames, fnames in walk("root_cynaps"):
+    for name in fnames:
+        if splitext(name)[-1] in [u'.json', u'.ini']:
+            data_files.append(data_rel_pth(pj(root, name)))
 
-if sys.version_info < (3, 9):
-    print('ERROR: Root-CyNAPS requires at least Python 3.9 to run.')
-    sys.exit(1)
+pkg_data['root_cynaps'] = data_files
 
-current_file_dir = os.path.dirname(__file__)
+setup_kwds = dict(
+    name='root_cynaps',
+    version="0.0.1",
+    description=short_descr,
+    long_description=readme,
+    author="Tristan GÃ©rault",
+    author_email="tristan.gerault@inrae.fr",
+    url='',
+    license='cecill-c',
+    zip_safe=False,
 
-setup(
-    name="Root-CyNAPS",
-    version="0.1.0",
-    packages=[current_file_dir+"/Data_enforcer", current_file_dir+"/root_cynaps"],
-    include_package_data=True,
-    author="T.Gérault, F.Rees, R.Barillot and C.Pradal",
-    author_email="tristan.gerault@inrae.fr, frederic.rees@inrae.fr, romain.barillot@inrae.fr, christophe.pradal@cirad.fr",
-    description="Root-CyNAPS is a model of N physiology at root segment scale",
-    long_description="""TODO""",
-    license="CeCILL-C",
-    keywords="functional-structural plant model, wheat, uptake, rhizodeposition, trophic status, carbon, nitrogen, metabolism, remobilisation, source-sink relation, resource allocation",
-    url="https://forgemia.inra.fr/tristan.gerault/root_cynaps.git",
-    download_url="https://forgemia.inra.fr/tristan.gerault/root_cynaps.git"
+    packages=pkgs,
+    #namespace_packages=['openalea'],
+    package_dir={'': 'root_cynaps'},
+
+    package_data=pkg_data,
+    setup_requires=[
+        "pytest-runner",
+    ],
+    install_requires=[
+    ],
+    tests_require=[
+        "pytest",
+        "pytest-mock",
+    ],
+    entry_points={},
+    keywords='',
 )
+# #}
+# change setup_kwds below before the next pkglts tag
+
+# do not change things below
+# {# pkglts, pysetup.call
+setup_kwds['setup_requires'] = []
+setup_kwds['tests_requires'] = []
+
+setup(**setup_kwds)
+# #}

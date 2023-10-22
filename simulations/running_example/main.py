@@ -2,7 +2,7 @@ import os
 import shutil
 from datetime import datetime
 
-from root_cynaps.root_cynaps.simulation_no_C import N_simulation
+from root_cynaps.simulation_no_C import N_simulation
 
 
 def previous_outputs_clearing():

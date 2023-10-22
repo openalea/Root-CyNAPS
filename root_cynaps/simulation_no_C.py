@@ -7,16 +7,16 @@ from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
-from root_cynaps.root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
-from root_cynaps.root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
-from root_cynaps.root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
+from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
+from root_cynaps.model_water import InitWater, WaterModel
+from root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
 
-from root_cynaps.Data_enforcer.model import ShootModel
+from Data_enforcer.model import ShootModel
 
-import root_cynaps.root_cynaps.converter as converter
-from root_cynaps.root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
-from root_cynaps.tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
+import root_cynaps.converter as converter
+from root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
+from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
 
 
 '''FUNCTIONS'''
