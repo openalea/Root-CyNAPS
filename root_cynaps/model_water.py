@@ -28,9 +28,8 @@ class InitWater:
 @dataclass
 class TransportWater:
     water_molar_mass: float = 18  # g.mol-1
-    radial_water_conductivity: float = 1e-14 * 1e6  # Artif m.s-1.Pa-1
-    reflexion_coef: float = 0.85    # adim
-    R: float = 8.314
+    cortex_water_conductivity: float = 1e-14 * 1e5  # Artif m.s-1.Pa-1
+    apoplasmic_water_conductivity: float = 1e-14 * 1e6  # Artif m.s-1.Pa-1
     xylem_tear: float = 9e5  # (Pa) maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)
     sap_viscosity: float = 1.3e6    # Pa
 
@@ -129,7 +128,8 @@ class WaterModel:
             ],
             "structure": [
                 "xylem_volume",
-                "cylinder_exchange_surface",
+                "cortex_exchange_surface",
+                "apoplasmic_exchange_surface",
                 "apoplasmic_stele"
             ],
             "shoot_water": [
@@ -161,7 +161,7 @@ class WaterModel:
             if self.struct_mass[vid] > 0:
                 self.xylem_water[vid] = self.xylem_total_water[1] * self.xylem_volume[vid] / sum_volume
 
-    def transport_water(self, water_molar_mass, radial_water_conductivity, reflexion_coef, R, xylem_tear, sap_viscosity):
+    def transport_water(self, water_molar_mass, cortex_water_conductivity, apoplasmic_water_conductivity, xylem_tear, sap_viscosity):
         # Using previous time-step flows, we compute current time-step pressure for flows computation
 
         # Compute the minimal water content for current dimensions
@@ -185,7 +185,11 @@ class WaterModel:
         # Loop computing individual segments' water exchange
         for vid in self.vertices:
             # radial exchanges are only hydrostatic-driven for now
-            self.radial_import_water[vid] = radial_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cylinder_exchange_surface[vid] * self.sub_time_step
+            apoplastic_water_import = apoplasmic_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.apoplasmic_exchange_surface[vid]
+
+            cross_membrane_water_import = cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
+
+            self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.sub_time_step
             # We suppose uptake is evenly reparted over the xylem to avoid over contribution of apexes in
             # the down propagation of transpiration (computed below)
             self.shoot_uptake[vid] = self.axial_export_water_up[1] * self.xylem_water[vid] / self.xylem_total_water[1]

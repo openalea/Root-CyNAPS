@@ -16,13 +16,13 @@ from Data_enforcer.model import ShootModel
 
 import root_cynaps.converter as converter
 from root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
-from tools.mtg_dict_to_xarray import mtg_to_dataset, props_metadata
+from tools.mtg_dict_to_xarray import mtg_to_dataset
 
 
 '''FUNCTIONS'''
 
 
-def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_dir, init, steps_number, time_step, echo=False,
+def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_number, time_step, echo=False,
                  plantgl=False, plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
     # Store this before anything else to ensure the locals order is right
     Loc = locals()
@@ -32,6 +32,11 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
     # Loading mtg file
     with open(current_file_dir + "/inputs/" + init, 'rb') as f:
         g = pickle.load(f)
+
+    # Output variables for logs
+    log_outputs = {}
+    for d in [state_extracts, flow_extracts, global_state_extracts, global_flow_extracts]:
+        log_outputs.update(d)
 
     # Initialization of modules
     soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
@@ -59,7 +64,7 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
     # Init output xarray list
     if logging:
         os.mkdir(output_path[:-3])
-        time_xrs = [mtg_to_dataset(g, variables=props_metadata, time=0)]
+        time_xrs = [mtg_to_dataset(g, variables=log_outputs, time=0)]
         # xarray_output[0].to_netcdf(output_path + f"/xarray_used_input_{start_time}.nc")
 
     root_water.init_xylem_water()
@@ -71,7 +76,7 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
         root_topo.update_topology(**asdict(TissueTopology()))
         # Compute state variations for water (if selected) and then nitrogen
         root_water.exchanges_and_balance()
-        root_nitrogen.exchanges_and_balance(hexose_decrease_rate)
+        root_nitrogen.exchanges_and_balance()
 
         shoot.exchanges_and_balance(time=i)
 
@@ -103,7 +108,7 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
         if logging:
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
             # However, it might be necessary to empty this and save .nc files every X time steps for memory management
-            time_xrs += [mtg_to_dataset(g, variables=props_metadata, time=i+1)]
+            time_xrs += [mtg_to_dataset(g, variables=log_outputs, time=i+1)]
             if len(time_xrs) >= max_time_steps_for_memory:
                 interstitial_dataset = xr.concat(time_xrs, dim="t")
                 interstitial_dataset.to_netcdf(output_path[:-3] + f'/t={i+1}.nc')
@@ -125,8 +130,8 @@ def N_simulation(hexose_decrease_rate, z_soil_Nm_max, output_path, current_file_
 
         if plotting_2D:
             time_dataset = xr.load_dataset(output_path)
-            #plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(state_extracts.keys()))
-            #plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 7, 9], selection=list(flow_extracts.keys()))
+            plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 105, 123], selection=list(state_extracts.keys()))
+            plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 105, 123], selection=list(flow_extracts.keys()))
             plot_xr(datasets=time_dataset, selection=list(global_state_extracts.keys()))
             plot_xr(datasets=time_dataset, selection=list(global_flow_extracts.keys()))
             plt.show()

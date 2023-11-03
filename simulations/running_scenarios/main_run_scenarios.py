@@ -26,10 +26,10 @@ def previous_outputs_clearing():
             shutil.rmtree(root_path + '/outputs')
             print("Deleted the 'outputs' folder...")
             print("Creating a new 'outputs' folder...")
-            os.mkdir('outputs')
+            os.mkdir(root_path + '/outputs')
         except OSError:
             print("Creating a new 'outputs' folder...")
-            os.mkdir('outputs')
+            os.mkdir(root_path + '/outputs')
     except OSError as e:
         print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
 
@@ -65,6 +65,10 @@ def run_multiple_scenarios(scenarios_list="scenarios_variables.xlsx"):
         folder_name = " X ".join(list(scenarios_df["variable_name"])) + " S " + start_time
         print("Launching combinations for " + folder_name)
         os.mkdir(root_path + '/outputs/' + folder_name)
+
+        # Copying base MTG
+        main_path = root_path[:root_path.find("running_scenarios")] + "running_example"
+        shutil.copy(main_path + "/inputs/root00020.pckl", root_path + "/outputs/" + folder_name + "/root00020.pckl")
 
         distribution = []
         for sc in range(scenarios_df.shape[0]):

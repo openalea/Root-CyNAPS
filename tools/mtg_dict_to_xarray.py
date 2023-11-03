@@ -211,7 +211,8 @@ props_metadata = dict(
     axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
     # Topology model
     root_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
-    cylinder_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    cortex_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    apoplasmic_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     stele_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     phloem_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     apoplasmic_stele=dict(unit="adim", value_example=float(0.5), description="not provided"),
@@ -245,7 +246,7 @@ props_metadata = dict(
 )
 
 
-def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=description, time=0):
+def mtg_to_dataset(mtg, variables=props_metadata, coordinates=mtg_coordinates, description=description, time=0):
     # convert dict to dataframe with index corresponding to coordinates in topology space
     # (not just x, y, z, t thanks to MTG structure)
     props_df = pd.DataFrame.from_dict(mtg.properties())

@@ -33,7 +33,8 @@ from dataclasses import dataclass, asdict
 @dataclass
 class InitSurfaces:
     root_exchange_surface: float = 0  # (m2)
-    cylinder_exchange_surface: float = 0  # (m2)
+    cortex_exchange_surface: float = 0  # (m2)
+    apoplasmic_exchange_surface: float = 0  # (m2)
     stele_exchange_surface: float = 0  # (m2)
     phloem_exchange_surface: float = 0  # (m2)
     apoplasmic_stele: float = 0  # (adim)
@@ -55,7 +56,7 @@ class TissueTopology:
 
 
 class RadialTopology:
-    def __init__(self, g, root_exchange_surface, cylinder_exchange_surface, stele_exchange_surface,
+    def __init__(self, g, root_exchange_surface, cortex_exchange_surface, apoplasmic_exchange_surface, stele_exchange_surface,
                  phloem_exchange_surface, apoplasmic_stele, xylem_volume):
 
         self.g = g
@@ -63,7 +64,8 @@ class RadialTopology:
         # New properties' creation in MTG
         self.keywords = dict(
             root_exchange_surface=root_exchange_surface,
-            cylinder_exchange_surface=cylinder_exchange_surface,
+            cortex_exchange_surface=cortex_exchange_surface,
+            apoplasmic_exchange_surface=apoplasmic_exchange_surface,
             stele_exchange_surface=stele_exchange_surface,
             phloem_exchange_surface=phloem_exchange_surface,
             apoplasmic_stele=apoplasmic_stele,
@@ -83,7 +85,8 @@ class RadialTopology:
         # Accessing properties once, pointing to g for further modifications
         states = """
                         root_exchange_surface
-                        cylinder_exchange_surface
+                        cortex_exchange_surface
+                        apoplasmic_exchange_surface
                         stele_exchange_surface
                         phloem_exchange_surface
                         apoplasmic_stele
@@ -151,14 +154,21 @@ class RadialTopology:
 
                 # Update exchange surfaces
 
-                # Exchanges between soil and symplasmic parenchyma
+                # N exchanges between soil and symplasmic parenchyma
                 self.root_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * (
                         cortex_ratio * epidermis_differentiation +
                         stele_ratio * endodermis_differentiation
                 )  # + self.root_hairs_external_surface[vid]
+                #   NO ROOT HAIR PROPERTY
+
+                # Water exchanges between soil and symplasmic cortex at equilibrium with stele
+
+                self.cortex_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * (
+                        cortex_ratio * epidermis_differentiation)  # + self.root_hairs_external_surface[vid]
                 # NO ROOT HAIR PROPERTY
-                self.cylinder_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * \
-                                                      epidermis_differentiation
+
+                # Water exchanges between soil and xylem
+                self.apoplasmic_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * endodermis_differentiation
 
                 # Exchanges between symplamic parenchyma and xylem
                 self.stele_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[

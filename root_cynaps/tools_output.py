@@ -1,7 +1,7 @@
 # Import
 import openalea.plantgl.all as pgl
 
-from root_cynaps.root_cynaps.tools import plot_mtg
+from root_cynaps.tools import plot_mtg
 
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import MouseButton
@@ -35,34 +35,38 @@ state_extracts = dict(
     #soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),
     #soil_Nm=dict(unit="mol N.m-3", value_example=float(0.5), description="not provided"),
     #soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
+    # Rhizodep properties
+    struct_mass=dict(unit="g", value_example=0.000134696, description="not provided"),
+    C_hexose_root=dict(unit="mol.g-1", value_example=0.000134696, description="not provided")
 )
 
 flow_extracts = dict(
-    import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # import_AA=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
+    # import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    import_AA=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_Nm_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_Nm_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_Nm_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     diffusion_AA_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_AA_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    displaced_Nm_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    # displaced_Nm_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # displaced_Nm_out=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # displaced_AA_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # displaced_AA_out=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # cumulated_radial_exchanges_Nm=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # cumulated_radial_exchanges_AA=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
-    # AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # # Water model
     # radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    # axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    # axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided")
+    # axial_export_water_up=dict(unit="mol H2O.h-1", value_example=float(0), description="not provided"),
+    # axial_import_water_down=dict(unit="mol H2O.h-1", value_example=float(0), description="not provided"),
+    # shoot_uptake=dict(unit="mol H2O.h-1", value_example=float(0), description="not provided")
 )
 
 global_state_extracts = dict(
@@ -74,8 +78,8 @@ global_state_extracts = dict(
     xylem_total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
     phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
-    #xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
-    #xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+    xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
 )
 
 global_flow_extracts = dict(
@@ -167,7 +171,11 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
                     text_annot[0] += [ax.text(0, 0, ""), ax.text(0, 0, "")]
             else:
                 for prop in selection:
-                    getattr(datasets[d], prop).sel(vid=1).plot.line(x='t', ax=ax, label=prop + supplementary_legend[d])
+                    dataset_to_plot = getattr(datasets[d], prop).sel(vid=1)
+                    for dim in dataset_to_plot.dims:
+                        if dim != "t":
+                            dataset_to_plot = dataset_to_plot.squeeze(dim)
+                    dataset_to_plot.plot.line(x='t', ax=ax, label=prop + supplementary_legend[d])
                     text_annot[0] += [ax.text(0, 0, ""), ax.text(0, 0, "")]
 
         # If we plot local properties
@@ -181,6 +189,7 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
                 legend = list(v_extract.coords["stk"].values) * len(selection)
                 for prop in selection:
                     # TODO Also check order in legend, atomatic legend colors did not matched pointer legend
+
                     getattr(v_extract, prop).plot.line(x='t', ax=ax[k], label=prop + supplementary_legend[d], add_legend=False)
                     text_annot[k] += [ax[k].text(0, 0, ""), ax[k].text(0, 0, "")]
 

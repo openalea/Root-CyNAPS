@@ -91,12 +91,12 @@ class TransportCommonN:
     span_N_regulation: float = 2e-4    # mol N.g-1 range corresponding to observed variation range within segment
     Km_Nm_xylem: float = 8e-5   # mol N.g-1
     vmax_AA_root: float = 1e-7     # mol AA.s-1.m-2
-    Km_AA_root: float = 1e-3    # mol AA.m-3
+    Km_AA_root: float = 1e-1    # mol AA.m-3
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
-    Km_AA_xylem: float = 1e-3   # mol AA.g-1
+    Km_AA_xylem: float = 8e-5  # mol AA.g-1
     diffusion_soil: float = 1e-12   # Artif g.m-2.s-1 while there is no soil model balance
     diffusion_xylem: float = 1e-4   # g.m-2.s-1 more realistic ranges
-    diffusion_phloem: float = 1e-5  # Artif -1 g.m-2.s-1 more realistic ranges
+    diffusion_phloem: float = 1e-5  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 while there is no soil model balance
     # metabolism-related parameters
     transport_C_regulation: float = 7e-3    # mol.g-1
@@ -111,7 +111,7 @@ class TransportAxialN(TransportCommonN):
 class MetabolismN:
     # TODO : introduce nitrogen fixation
     # kinetic parameters
-    smax_AA: float = 1e-6   # Artif mol.s-1.g-1 DW
+    smax_AA: float = 1e-5   # Artif mol.s-1.g-1 DW
     Km_Nm_AA: float = 3e-6  # mol.g-1 DW
     Km_C_AA: float = 350e-6     # mol.g-1 DW
     smax_struct: float = 1e-9    # mol.s-1.g-1 DW
@@ -120,9 +120,9 @@ class MetabolismN:
     Km_AA_stor: float = 250e-6    # mol.g-1 DW
     cmax_stor: float = 1e-9   # mol.s-1.g-1 DW
     Km_stor_catab: float = 250e-6    # mol.g-1 DW
-    cmax_AA: float = 1.2e-8    # mol.s-1.g-1 DW
+    cmax_AA: float = 5e-9    # mol.s-1.g-1 DW
     Km_AA_catab: float = 2.5e-6     # mol.g-1 DW
-    storage_C_regulation: float = 7e-3  # mol.g-1
+    storage_C_regulation: float = 3e1  # mol.g-1 Changed to avoid reaching Vmax with slight decrease in hexose content
 
 @dataclass
 class MetabolismHormones:
@@ -474,9 +474,6 @@ class CommonNitrogenModel:
                 - self.AA_catabolism[v]
                 )
 
-        if self.AA[v] < 0:
-            print("error")
-
         self.struct_protein[v] += (self.sub_time_step / self.struct_mass[v]) * (
                 self.struct_synthesis[v]
                 )
@@ -487,6 +484,12 @@ class CommonNitrogenModel:
                 )
 
         self.phloem_total_AA[1] += - (self.sub_time_step * self.diffusion_AA_phloem[v]) / (self.total_struct_mass[1] * phloem_cross_area_ratio)
+
+        if self.Nm[v] < 0:
+            print(f"ERROR! vid {v} Nm is negative")
+
+        if self.AA[v] < 0:
+            print(f"ERROR! vid {v} AA is negative")
 
     def update_sums(self):
         self.total_struct_mass[1] = sum(self.struct_mass.values())
@@ -566,7 +569,6 @@ class DiscreteVessels(CommonNitrogenModel):
             # water column
             turnover = self.axial_export_water_up[v] / self.xylem_water[v]
             if turnover <= 1:
-                #print("Uturnover <1")
                 # Transport only affects considered segment
                 self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.sub_time_step
                 self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.sub_time_step
@@ -807,6 +809,10 @@ class DiscreteVessels(CommonNitrogenModel):
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
+
+                # To avoid misregulation by wrong carbon content given by MTG
+                if self.C_hexose_root[vid] == 0.0:
+                    self.C_hexose_root[vid] = 4.16e-1
 
                 # Local nitrogen concentration update
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, phloem_cross_area_ratio)
