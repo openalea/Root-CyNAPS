@@ -14,21 +14,27 @@ description_glob = "Rhizodep global root MTG properties over time"
 mtg_coordinates = dict(
     vid=dict(unit="adim", value_example=1, description="Root segment identifier index"),
     t=dict(unit="h", value_example=1, description="Model time step")
+    # distance_from_tip=dict(unit="m", value_example=0.026998706,
+    #                       description="Distance between the root segment and the considered root axis tip")
     # for now only t and vid coordinates have been chosen to match original mtg's properties' structure.
     # Using another topology coordinates as proposed above will need to be motivated by process regulation and code efficiency
     # Indeed, it needs to be parcimonious as storage size increase dramatically with too much dimensions
     # (filling unused space with nan) analysis dimensions rather should be built afterwards from xarray stack/unstack methods
+    # (or be stored as regular variable like now)
 )
 
-# Properties of interest
-# TODO : issues with RGB values (idea [0,1]?), list (idea computation from mtg topology?) and boolean properties (idea 0/1?)
+# Properties of interest (Note that for now categorial variables have been excluded)
 props_metadata = dict(
-    edge_type=dict(unit="adim", value_example="<", description="if '<': belongs to the same axis as the previous element; if '+': corresponds to the first element of a new axis"),
-    label=dict(unit="adim", value_example="Segment", description="either Apex or Segment"),
+    # NOTE : This first one is used as a coordinate, but is not defined as a dimension to avoid too large storage size and useless nan
+    distance_from_tip=dict(unit="m", value_example=0.026998706, description="Distance between the root segment and the considered root axis tip"),
+
+    # NOTE : STARTING HERE, NORMAL VARIABLES EXPORT
+    # edge_type=dict(unit="adim", value_example="<", description="if '<': belongs to the same axis as the previous element; if '+': corresponds to the first element of a new axis"),
+    # label=dict(unit="adim", value_example="Segment", description="either Apex or Segment"),
     global_sucrose_deficit=dict(unit="adim", value_example="", description="not provided"),
-    type=dict(unit="adim", value_example="Normal_root_after_emergence", description="Several possibilities, including Root_before_emergence (i.e. a primordium)"),
+    # type=dict(unit="adim", value_example="Normal_root_after_emergence", description="Several possibilities, including Root_before_emergence (i.e. a primordium)"),
     root_order=dict(unit="adim", value_example=1, description="Root classes ordering according to successive branching events"),
-    lateral_root_emergence_possibility=dict(unit="adim", value_example="Impossible", description="not provided"),
+    # lateral_root_emergence_possibility=dict(unit="adim", value_example="Impossible", description="not provided"),
     emergence_cost=dict(unit="mol of hexose", value_example=0, description="not provided"),
     angle_down=dict(unit="°", value_example=8.94314236715159, description="not provided"),
     angle_roll=dict(unit="°", value_example=116.691298481059, description="not provided"),
@@ -47,7 +53,7 @@ props_metadata = dict(
     thermal_time_since_root_hairs_emergence_started=dict(unit="s", value_example=131927, description="not provided"),
     actual_time_since_root_hairs_emergence_stopped=dict(unit="s", value_example=221967, description="not provided"),
     thermal_time_since_root_hairs_emergence_stopped=dict(unit="s", value_example=110983, description="not provided"),
-    #all_root_hairs_formed=dict(unit="adim", value_example=True, description="not provided"),
+    # all_root_hairs_formed=dict(unit="adim", value_example=True, description="not provided"),
     root_hairs_lifespan=dict(unit="s", value_example=165600, description="not provided"),
     root_hairs_external_surface=dict(unit="m2", value_example=1.7318E-05, description="not provided"),
     root_hairs_volume=dict(unit="m3", value_example=5.19541E-11, description="not provided"),
@@ -59,7 +65,6 @@ props_metadata = dict(
     external_surface=dict(unit="m2", value_example=7.49286E-06, description="External surface developed by the main root cyclinder (excluding the surface of root hairs)"),
     initial_external_surface=dict(unit="m2", value_example=7.49286E-06, description="not provided"),
     volume=dict(unit="m3", value_example=1.34696E-09, description="not provided"),
-    distance_from_tip=dict(unit="m", value_example=0.026998706, description="Distance between the root segment and the considered root axis tip"),
     former_distance_from_tip=dict(unit="m", value_example=0.026998706, description="Distance between the bottom of this element and the extremity of the root axis"),
     dist_to_ramif=dict(unit="m", value_example=0.00324, description="Distance between the root segment and the considered root axis tip"),
     actual_elongation=dict(unit="m", value_example="0", description="not provided"),
@@ -206,7 +211,8 @@ props_metadata = dict(
     axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided"),
     # Topology model
     root_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
-    cylinder_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    cortex_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
+    apoplasmic_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     stele_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     phloem_exchange_surface=dict(unit="m2", value_example=float(0), description="not provided"),
     apoplasmic_stele=dict(unit="adim", value_example=float(0.5), description="not provided"),
@@ -240,7 +246,7 @@ props_metadata = dict(
 )
 
 
-def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=description, time=0):
+def mtg_to_dataset(mtg, variables=props_metadata, coordinates=mtg_coordinates, description=description, time=0):
     # convert dict to dataframe with index corresponding to coordinates in topology space
     # (not just x, y, z, t thanks to MTG structure)
     props_df = pd.DataFrame.from_dict(mtg.properties())
@@ -250,7 +256,7 @@ def mtg_to_dataset(mtg, variables, coordinates=mtg_coordinates, description=desc
 
     # Select properties actually used in the current version of the target model
     props_df = props_df[list(variables.keys())]
-    # df = df[list(variables.keys())].fillna(0)
+
     # Filter duplicated indexes
     props_df = props_df[~props_df.index.duplicated()]
 

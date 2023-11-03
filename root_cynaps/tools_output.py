@@ -4,8 +4,10 @@ import openalea.plantgl.all as pgl
 from root_cynaps.tools import plot_mtg
 
 import matplotlib.pyplot as plt
+from matplotlib.backend_bases import MouseButton
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import tkinter as tk
 import numpy as np
-import nextcloud_client
 
 
 ### Output parameters
@@ -33,34 +35,38 @@ state_extracts = dict(
     #soil_temperature=dict(unit="K", value_example=float(283.15), description="not provided"),
     #soil_Nm=dict(unit="mol N.m-3", value_example=float(0.5), description="not provided"),
     #soil_AA=dict(unit="mol AA.m-3", value_example=float(0), description="not provided")
+    # Rhizodep properties
+    struct_mass=dict(unit="g", value_example=0.000134696, description="not provided"),
+    C_hexose_root=dict(unit="mol.g-1", value_example=0.000134696, description="not provided")
 )
 
 flow_extracts = dict(
-    import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # import_AA=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
+    # import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    import_AA=dict(unit="mol AA.s-1", value_example=float(0), description="not provided"),
     # export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_Nm_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_Nm_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_Nm_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     diffusion_AA_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # diffusion_AA_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    displaced_Nm_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
+    # displaced_Nm_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # displaced_Nm_out=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # displaced_AA_in=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # displaced_AA_out=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # cumulated_radial_exchanges_Nm=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
     # cumulated_radial_exchanges_AA=dict(unit="mol N.time_step-1", value_example=float(0), description="not provided"),
-    # AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
+    storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
     # # Water model
     # radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    # axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    # axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided")
+    # axial_export_water_up=dict(unit="mol H2O.h-1", value_example=float(0), description="not provided"),
+    # axial_import_water_down=dict(unit="mol H2O.h-1", value_example=float(0), description="not provided"),
+    # shoot_uptake=dict(unit="mol H2O.h-1", value_example=float(0), description="not provided")
 )
 
 global_state_extracts = dict(
@@ -72,8 +78,8 @@ global_state_extracts = dict(
     xylem_total_Nm=dict(unit="mol", value_example="not provided", description="not provided"),
     xylem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
     phloem_total_AA=dict(unit="mol", value_example="not provided", description="not provided"),
-    #xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
-    #xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
+    xylem_total_water=dict(unit="mol", value_example="not provided", description="not provided"),
+    xylem_total_pressure=dict(unit="Pa", value_example="not provided", description="not provided")
 )
 
 global_flow_extracts = dict(
@@ -88,7 +94,7 @@ global_flow_extracts = dict(
 )
 
 
-def plot_N(g, p, axs, span_slider):
+def plot_N(g, p, axs, span_slider=0.1):
 
     range_min, range_max = [0 for k in flow_extracts], [0 for k in flow_extracts]
     scene = pgl.Scene()
@@ -103,7 +109,7 @@ def plot_N(g, p, axs, span_slider):
         cm = plt.cm.get_cmap('jet')
         ax = axs[k]
         ax.clear()
-        y,x = np.histogram(plot_range, 20)
+        y, x = np.histogram(plot_range, 20)
         colors = [cm(((j - range_min[k]) / (range_max[k] - range_min[k]))) for j in x]
         ax.bar(x[:-1], y, color=colors, width=x[1]-x[0])
 
@@ -119,30 +125,38 @@ def plot_N(g, p, axs, span_slider):
     return range_min, range_max
 
 
-def print_g(g, select, vertice):
-    if vertice != 0:
-        # extract MTG properties only once
-        props = g.properties()
-        extract = [props[k] for k in select]
-        # print only selected segment
-        print(vertice, end=' ')
-        for k in range(len(extract)):
-            print(' / ' + select[k] + ' :', end=' ')
-            print("{:1.3e}".format(extract[k][vertice]), end=' ')
-        print('')
+def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=[""]):
+    # TODO : convert to class
+    root = tk.Tk()
+    root.title(f'2D data from vertices {str(vertice)[1:-1]}')
+    root.rowconfigure(1, weight=1)
+    root.rowconfigure(2, weight=10)
+    root.columnconfigure(1, weight=10)
+    root.columnconfigure(2, weight=1)
 
-    else:
-        for k in select:
-            print(k, getattr(g, k))
+    # Listbox widget to add plots
+    lb = tk.Listbox(root)
+    for k in range(len(selection)):
+        lb.insert(k, selection[k])
 
-
-def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=[]):
+    # Check the number of plots for right subplot divisions
     if len(vertice) == 0:
         fig, ax = plt.subplots()
     else:
-        fig, ax = plt.subplots(len(vertice), 2)
+        fig, ax = plt.subplots(len(vertice), 1)
 
-    if type(datasets) != list:
+    # Embed figure in the tkinter window
+    canvas = FigureCanvasTkAgg(fig, master=root)
+
+    # TODO: Keep the interactive toolbar in the window
+    toolbar = NavigationToolbar2Tk(canvas, root, pack_toolbar=False)
+    toolbar.update()
+
+    toolbar.grid(row=1, column=1, sticky="NSEW")
+    canvas.get_tk_widget().grid(row=2, column=1, sticky="NSEW")
+    lb.grid(row=2, column=2, sticky="NSEW", columnspan=2)
+
+    if supplementary_legend == [""]:
         datasets = [datasets]
     for d in range(len(datasets)):
         # If we plot global properties
@@ -157,23 +171,27 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
                     text_annot[0] += [ax.text(0, 0, ""), ax.text(0, 0, "")]
             else:
                 for prop in selection:
-                    getattr(datasets[d], prop).sel(vid=1).plot.line(x='t', ax=ax, label=prop + supplementary_legend[d])
+                    dataset_to_plot = getattr(datasets[d], prop).sel(vid=1)
+                    for dim in dataset_to_plot.dims:
+                        if dim != "t":
+                            dataset_to_plot = dataset_to_plot.squeeze(dim)
+                    dataset_to_plot.plot.line(x='t', ax=ax, label=prop + supplementary_legend[d])
                     text_annot[0] += [ax.text(0, 0, ""), ax.text(0, 0, "")]
 
         # If we plot local properties
         else:
+            if len(vertice) == 1:
+                ax = [ax]
             text_annot = [[] for k in range(len(vertice))]
             for k in range(len(vertice)):
-                if len(vertice) > 1:
-                    modified_ax = ax[k]
-                else:
-                    modified_ax = ax
-                v_extract = datasets[d].sel(vid=vertice[k])
-                std_v_extract = (v_extract - np.mean(v_extract))/np.std(v_extract)
+                v_extract = datasets[d].stack(stk=[dim for dim in datasets[d].dims if dim != "t"]).sel(vid=vertice[k])
+                # automatic legends from xarray are structured the following way : modalities x properties
+                legend = list(v_extract.coords["stk"].values) * len(selection)
                 for prop in selection:
-                    getattr(v_extract, prop).plot.line(x='t', ax=modified_ax[0], label=prop + supplementary_legend[d])
-                    getattr(std_v_extract, prop).plot.line(x='t', ax=modified_ax[1], label=prop + supplementary_legend[d])
-                    text_annot[k] += [modified_ax[0].text(0, 0, ""), modified_ax[1].text(0, 0, "")]
+                    # TODO Also check order in legend, atomatic legend colors did not matched pointer legend
+
+                    getattr(v_extract, prop).plot.line(x='t', ax=ax[k], label=prop + supplementary_legend[d], add_legend=False)
+                    text_annot[k] += [ax[k].text(0, 0, ""), ax[k].text(0, 0, "")]
 
     if len(vertice) == 0:
         def hover_global(event):
@@ -199,39 +217,65 @@ def plot_xr(datasets, vertice=[], summing=0, selection=[], supplementary_legend=
         def hover_local(event):
             # for each row
             for axe in range(len(ax)):
-                # for each column
-                for norm in range(2):
-                    # if mouse event is in the ax
-                    if event.inaxes == ax[axe][norm]:
-                        # At call remove all annotations to prevent overlap
-                        for k in text_annot[axe]: k.set_visible(False)
-                        # for all variables lines in the axe
-                        for line in ax[axe][norm].get_lines():
-                            # if the mouse pointer is on the line
-                            cont, ind = line.contains(event)
-                            if cont:
-                                # get the position
-                                posx, posy = [line.get_xdata()[ind['ind'][0]], line.get_ydata()[ind['ind'][0]]]
-                                # get variable name
-                                label = "{}:{}, {}".format(line.get_label(), posx, posy)
-                                print(label)
-                                # add text annotation to the axe and refresh
-                                text_annot[axe] += [ax[axe][norm].text(x=posx, y=posy, s=label)]
-                                fig.canvas.draw_idle()
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe]:
+                    # At call remove all annotations to prevent overlap
+                    for k in text_annot[axe]: k.set_visible(False)
+                    # for all variables lines in the axe
+                    lines = ax[axe].get_lines()
+                    for l in range(len(lines)):
+                        # if the mouse pointer is on the line
+                        cont, ind = lines[l].contains(event)
+                        if cont:
+                            # get the position
+                            posx, posy = [lines[l].get_xdata()[ind['ind'][0]], lines[l].get_ydata()[ind['ind'][0]]]
+                            # get variable name
+                            label = "{}_{}\n{},{}".format(lines[l].get_label(), ["{:.2e}".format(s) for s in legend[l]], posx, "{:.2e}".format(posy))
+                            # add text annotation to the axe and refresh
+                            text_annot[axe] += [ax[axe].text(x=posx, y=posy, s=label)]
+                            fig.canvas.draw_idle()
 
         fig.canvas.mpl_connect("motion_notify_event", hover_local)
 
+    def on_click(event):
+        if event.button is MouseButton.LEFT:
+            # for each row
+            for axe in range(len(ax)):
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe]:
+                    # for all variables lines in the axe
+                    for line in ax[axe].get_lines():
+                        # if the mouse pointer is on the line
+                        cont, ind = line.contains(event)
+                        if cont:
+                            line.set_visible(False)
+                            ax[axe].relim(visible_only=True)
+                            ax[axe].autoscale()
+        elif event.button is MouseButton.LEFT:
+            for axe in range(len(ax)):
+                # if mouse event is in the ax
+                if event.inaxes == ax[axe]:
+                    ax[axe].relim(visible_only=True)
+                    ax[axe].autoscale()
+        canvas.draw()
 
-def export_nextcloud(link='https://nextcloud.inrae.fr', user='tigerault', password='', file=""):
-    """
-    Description : This function aims at exporting output files and snapshot towards a nextcloud shared server
+    def on_lb_select(event):
+        # TODO maybe add possibility to normalize-add a plot for ease of reading
+        w = event.widget
+        index = int(w.curselection()[0])
+        value = w.get(index)
+        # for each row
+        for axe in range(len(ax)):
+            for line in ax[axe].get_lines():
+                if line.get_label() == value:
+                    line.set_visible(True)
+            ax[axe].relim(visible_only=True)
+            ax[axe].autoscale()
+        canvas.draw()
 
-    param: link : always use https
-    """
+    lb.bind('<<ListboxSelect>>', on_lb_select)
 
-    # ! always use https
-    nc = nextcloud_client.Client(link)
+    fig.canvas.mpl_connect('button_press_event', on_click)
 
-    nc.login(user_id=user, password=password)
-
-    nc.put_file('Dossier_Thèse_Tristan_Gérault/' + file, file)
+    # Finally show figure
+    root.mainloop()

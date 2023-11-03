@@ -3,21 +3,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 
-@dataclass
-class InitShootNitrogen:
-    Nm_root_shoot_xylem: float = 0
-    AA_root_shoot_xylem: float = 0
-    AA_root_shoot_phloem: float = 0
-    cytokinins_root_shoot_xylem: float = 0
-
-@dataclass
-class InitShootWater:
-    water_root_shoot_xylem: float = 0
-
-
 class ShootModel:
-    def __init__(self, g, Nm_root_shoot_xylem, AA_root_shoot_xylem, AA_root_shoot_phloem, cytokinins_root_shoot_xylem,
-                 water_root_shoot_xylem):
+    def __init__(self, g):
 
         self.g = g
         self.dataset = pd.read_csv(os.path.dirname(__file__) + "/inputs/cnwheat_outputs.csv", sep=";")
@@ -38,7 +25,11 @@ class ShootModel:
 
         self.Export_cytokinins[1] = self.dataset["Export_cytokinins"][time]
 
+    def transportC(self, time):
+        self.Unloading_Sucrose[1] = self.dataset["Unloading_Sucrose"][time] * 1e-6 / 3600  # micromol.h-1 inputs
+
     def exchanges_and_balance(self, time):
         # Water flow first for advection computation
         self.transportW(time)
         self.transportN(time)
+        self.transportC(time)
