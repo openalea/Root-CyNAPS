@@ -21,7 +21,7 @@ def previous_outputs_clearing():
         print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
 
 
-def main(z_soil_Nm_max, output_path,  init='root00020.pckl', steps_number=144, time_step=3600, echo=False):
+def main(z_soil_Nm_max, output_path,  init='root00020.pckl', steps_number=1500, time_step=3600, echo=False):
     """
     :Parameters
     Every unchanged argument should be placed as default parameter for ease of multiprocessing

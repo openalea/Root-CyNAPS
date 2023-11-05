@@ -8,11 +8,13 @@ import hdbscan
 import tools.analysis.time_series_projection
 from tools.analysis.time_series_projection import Preprocessing, DCAE
 
+from root_cynaps.tools_output import flow_extracts
+
 '''SCRIPT'''
 input_type = "mtg"
 
 # DCAE parameters
-import_model, train_model = False, True
+import_model, train_model = True, False
 dev = True
 window = 24
 EPOCHS = 25
@@ -26,33 +28,6 @@ min_dist = 0.05  #
 # HDBSCAN Parameters
 min_cluster_size = 5000
 min_samples = 10
-
-
-# Properties of interest (Remove constant variables or training will fail)
-# TODO actualize
-flow_extracts = dict(
-    # SUPPLEMENTARY COORDINATES
-    distance_from_tip=dict(unit="m", value_example=float(0.026998706), description="Distance between the root segment and the considered root axis tip"),
-    # REAL VARIABLES OF INTEREST
-    import_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    export_Nm=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    export_AA=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # diffusion_Nm_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    diffusion_Nm_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # diffusion_Nm_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # diffusion_AA_soil=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    diffusion_AA_phloem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # diffusion_AA_soil_xylem=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    AA_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    struct_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    storage_synthesis=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    AA_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # storage_catabolism=dict(unit="mol N.s-1", value_example=float(0), description="not provided"),
-    # Water model
-    radial_import_water=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    axial_export_water_up=dict(unit="mol H2O.s-1", value_example=float(0), description="not provided"),
-    axial_import_water_down=dict(unit="mol H2P.s-1", value_example=float(0), description="not provided")
-)
 
 
 def run_analysis(file, output_path, input_type=input_type, import_model=import_model, train_model=train_model, dev=dev, window=window,

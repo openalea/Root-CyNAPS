@@ -26,7 +26,7 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
                  plantgl=False, plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
     # Store this before anything else to ensure the locals order is right
     Loc = locals()
-    real_parameters = ["output_path", "current_file_dir", "init", "n", "time_step", "echo", "plantgl", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
+    real_parameters = ["output_path", "current_file_dir", "init", "steps_number", "time_step", "echo", "plantgl", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
     scenario = dict([(key, value) for key, value in Loc.items() if key not in real_parameters])
 
     # Loading mtg file
