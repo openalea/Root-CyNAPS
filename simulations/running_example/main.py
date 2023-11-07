@@ -21,7 +21,7 @@ def previous_outputs_clearing():
         print("An error occured when trying to delete the output folder: %s - %s." % (e.filename, e.strerror))
 
 
-def main(z_soil_Nm_max, output_path,  init='root00020.pckl', steps_number=1500, time_step=3600, echo=False):
+def main(z_soil_Nm_max, output_path,  init='root00020.pckl', steps_number=2400, time_step=3600, echo=False):
     """
     :Parameters
     Every unchanged argument should be placed as default parameter for ease of multiprocessing
@@ -29,16 +29,14 @@ def main(z_soil_Nm_max, output_path,  init='root00020.pckl', steps_number=1500, 
     # This step is essential to ensure a systematic reference of subdirectories
     current_file_dir = os.path.dirname(__file__)
     if echo:
-        plantgl = False
         plotting_2D = True
-        plotting_STM = False
+        plotting_STM = True
     else:
-        plantgl = False
         plotting_2D = False
         plotting_STM = False
 
     N_simulation(z_soil_Nm_max, output_path, current_file_dir=current_file_dir, init=init, steps_number=steps_number, time_step=time_step, echo=echo,
-                 plantgl=plantgl, plotting_2D=plotting_2D, plotting_STM=plotting_STM, logging=True)
+                 plotting_2D=plotting_2D, plotting_STM=plotting_STM, logging=True)
 
 
 if __name__ == '__main__':
