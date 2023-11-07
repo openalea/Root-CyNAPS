@@ -332,7 +332,7 @@ class MainMenu:
 
     def cluster_sensitivity_test(self, alpha=0.05):
         # Starting with multivariate anova assuming normality
-        # Dataframe formating...
+        # Dataframe formatting...
         classes = []
         selected_groups = []
         # Tuple is necessary here because this call is "Frozen"
@@ -340,18 +340,21 @@ class MainMenu:
         for c in range(len(self.clusters)):
             classes += [str(c) for j in range(len(self.clusters[c]))]
             selected_groups += [self.sensitivity_coordinates[k] for k in self.clusters[c]]
+
         cluster_sensi_values = pd.DataFrame(data=selected_groups, columns=sensi_names)
         cluster_sensi_values['cluster'] = classes
 
-        # MANOVA for sensitivity factors across the cluster factor
-        sensi_sum = ""
-        for name in sensi_names:
-            sensi_sum += f"{name} + "
-        sensi_sum = sensi_sum[:-3]
-
-        fit = MANOVA.from_formula(f'{sensi_sum} ~ cluster', data=cluster_sensi_values)
-        manova_df = pd.DataFrame((fit.mv_test().results['cluster']['stat']))
-        manova_pv = float(manova_df.loc[["Wilks' lambda"]]["Pr > F"])
+        if len(sensi_names) > 1:
+            # MANOVA for sensitivity factors across the cluster factor
+            sensi_sum = ""
+            for name in sensi_names:
+                sensi_sum += f"{name} + "
+            sensi_sum = sensi_sum[:-3] # just to remove the + sign
+            fit = MANOVA.from_formula(f'{sensi_sum} ~ cluster', data=cluster_sensi_values)
+            manova_df = pd.DataFrame((fit.mv_test().results['cluster']['stat']))
+            manova_pv = float(manova_df.loc[["Wilks' lambda"]]["Pr > F"])
+        else:
+            manova_pv = 0
 
         # If there is a significant difference between clusters regarding sensitivity variables...
         if manova_pv < alpha:
@@ -380,20 +383,10 @@ class MainMenu:
             fig_tuckey.savefig(self.output_path + "/pairwise_tucker.png", dpi=400)
             fig_tuckey.show()
 
-            significant_sensitivity = [False]
-        else:
-            significant_sensitivity = [False]
-        return significant_sensitivity
-
-    def plantGL_map(self):
-        # TODO
-        return
-
     def build_app(self, plot=False):
         # time is an axis as others, rather, default color corresponding coordinates on structure
         # For a given cluster, it wil enable user to select 2D plots of interest for targeted layers, WITH corresponding clusters highlighted (and refreshed)
 
         self.cluster_info()
         self.cluster_sensitivity_test()
-        self.plantGL_map()
         self.root.mainloop()

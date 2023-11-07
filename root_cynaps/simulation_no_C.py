@@ -15,18 +15,19 @@ from root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
 from Data_enforcer.model import ShootModel
 
 import root_cynaps.converter as converter
-from root_cynaps.tools_output import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts, plot_xr, plot_N
+from root_cynaps.output_properties import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts
 from tools.mtg_dict_to_xarray import mtg_to_dataset
 
+from statistical_tools.main import launch_analysis
 
 '''FUNCTIONS'''
 
 
 def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_number, time_step, echo=False,
-                 plantgl=False, plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
+                 plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
     # Store this before anything else to ensure the locals order is right
     Loc = locals()
-    real_parameters = ["output_path", "current_file_dir", "init", "n", "time_step", "echo", "plantgl", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
+    real_parameters = ["output_path", "current_file_dir", "init", "steps_number", "time_step", "echo", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
     scenario = dict([(key, value) for key, value in Loc.items() if key not in real_parameters])
 
     # Loading mtg file
@@ -83,28 +84,6 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
         if echo:
             print("time step : {}h".format(i))
 
-        if plantgl:
-            if i == 0:
-                plt.ion()
-                # legend plot
-                fig, axs = plt.subplots(len(flow_extracts), 1)
-                fig.subplots_adjust(left=0.2, bottom=0.2)
-
-                ax_slider = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-                span_slider = Slider(
-                    ax=ax_slider,
-                    label='Vmax [umol.s-1.m-2]',
-                    valmin=0,
-                    valmax=1,
-                    valinit=0.1)
-
-                list_flow = list(flow_extracts.keys())
-                [fig.text(0, 0.85 - 0.1 * k, list_flow[k]) for k in range(len(list_flow))]
-                # actual plot
-                plot_N(g, list_flow, axs)
-            else:
-                plot_N(g, list_flow, axs, span_slider=span_slider.val)
-
         if logging:
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
             # However, it might be necessary to empty this and save .nc files every X time steps for memory management
@@ -122,26 +101,21 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
             interstitial_dataset.to_netcdf(output_path[:-3] + f'/tf.nc')
             del interstitial_dataset
             del time_xrs
+
+        # SAVING and merging
         # NOTE : merging is slower but way less space is needed
         time_step_files = [output_path[:-3] + '/' + name for name in os.listdir(output_path[:-3])]
         time_dataset = xr.open_mfdataset(time_step_files)
         time_dataset = time_dataset.assign_coords(coords=scenario).expand_dims(dim=dict(zip(list(scenario.keys()), [1 for k in scenario])))
-        time_dataset.to_netcdf(output_path)
-
-        if plotting_2D:
-            time_dataset = xr.load_dataset(output_path)
-            plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 105, 123], selection=list(state_extracts.keys()))
-            plot_xr(datasets=time_dataset, vertice=[1, 3, 5, 105, 123], selection=list(flow_extracts.keys()))
-            plot_xr(datasets=time_dataset, selection=list(global_state_extracts.keys()))
-            plot_xr(datasets=time_dataset, selection=list(global_flow_extracts.keys()))
-            plt.show()
-
-        if plotting_STM:
-            from tools import STM_analysis
-            STM_analysis.run(path=output_path)
-
+        time_dataset.to_netcdf(output_path[:-3] + '/merged.nc')
         del time_dataset
-        shutil.rmtree(output_path[:-3])
+        for file in os.listdir(output_path[:-3]):
+            if '.nc' in file and file != "merged.nc":
+                os.remove(output_path[:-3] + '/' + file)
 
-        if plantgl:
-            input("end?")
+        time_dataset = xr.load_dataset(output_path[:-3] + '/merged.nc')
+        # Launching outputs analyses
+        launch_analysis(dataset=time_dataset, mtg=g, output_dir=output_path[:-3],
+                        global_state_extracts=global_state_extracts, global_flow_extracts=global_flow_extracts,
+                        state_extracts=state_extracts, flow_extracts=flow_extracts,
+                        global_sensitivity=False, global_plots=plotting_2D, STM_clustering=plotting_STM)
