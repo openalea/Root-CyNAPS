@@ -6,6 +6,7 @@ import xarray as xr
 from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+import inspect
 
 from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
@@ -33,6 +34,25 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
     # Loading mtg file
     with open(current_file_dir + "/inputs/" + init, 'rb') as f:
         g = pickle.load(f)
+
+    #g._properties = mtg_to_dataset(g, variables=dict(struct_mass=dict(unit="g", value_example=0.000134696, description="not provided")), time=0)
+    #test = g.properties()
+
+    #vm = 10
+    #km = 1
+    #def f(i, v):
+    #    return i.struct_mass * v
+
+    #test["struct_mass"].loc[dict(vid=1, t=0)] = 0
+    #test.update(test.assign(dict(struct_m2=lambda x: f(x, vm), struct_m3=lambda x: f(x, vm))))
+
+    #with open(current_file_dir + "/outputs/test.pckl", "wb") as f:
+    #    pickle.dump(g, f)
+
+    # with open(current_file_dir + "/outputs/test.pckl", 'rb') as f:
+    #     g = pickle.load(f)
+
+    # print(g.properties())
 
     # Output variables for logs
     log_outputs = {}
