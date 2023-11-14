@@ -203,7 +203,7 @@ class CommonNitrogenModel:
             props.setdefault(name, {})
 
         # vertices storage for future calls in for loops
-        self.vertices = self.g.vertices(scale=g.max_scale())
+        self.vertices = self.g.vertices(scale=self.g.max_scale())
         for vid in self.vertices:
             for name, value in self.keywords.items():
                 # Effectively creates the new property
@@ -740,8 +740,8 @@ class DiscreteVessels(CommonNitrogenModel):
                                 # Actualize the repartition of water when there is a new branching
                                 for k in range(1, len(children_radius_prop)):
                                     axis_proportion.insert(p + 1, axis_proportion[p] * children_radius_prop[-k])
+
                                 axis_proportion[p] = axis_proportion[p] * children_radius_prop[0]
-                                print(axis_proportion, sum(axis_proportion))
                                 for ch in range(len(down_children)):
                                     # If the considered child have been completely filled with water from the parent
                                     if children_down_flow[ch] - self.xylem_water[down_children[ch]] > 0 :
@@ -812,7 +812,7 @@ class DiscreteVessels(CommonNitrogenModel):
 
                 # To avoid misregulation by wrong carbon content given by MTG
                 if self.C_hexose_root[vid] == 0.0:
-                    self.C_hexose_root[vid] = 4.16e-1
+                    self.C_hexose_root[vid] = 1e-1
 
                 # Local nitrogen concentration update
                 self.update_N_local(vid, r_Nm_AA, r_AA_struct, r_AA_stor, phloem_cross_area_ratio)
@@ -849,10 +849,11 @@ class DiscreteVessels(CommonNitrogenModel):
             self.displaced_AA_in[vid] = 0
 
     def add_properties_to_new_segments(self):
-        for vid in self.g.vertices(scale=self.g.max_scale()):
+        self.vertices = self.g.vertices(scale=self.g.max_scale())
+        for vid in self.vertices:
             if vid not in list(self.Nm.keys()):
                 for prop in list(self.keywords.keys()):
-                    getattr(self, prop)[vid] = 0
+                    getattr(self, prop)[vid] = self.keywords[prop]
 
     def exchanges_and_balance(self):
 

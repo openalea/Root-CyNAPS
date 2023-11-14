@@ -106,7 +106,6 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
 
         if logging:
             # we build a list of xarray at each time_step as it more efficient than concatenation at each time step
-            # However, it might be necessary to empty this and save .nc files every X time steps for memory management
             time_xrs += [mtg_to_dataset(g, variables=log_outputs, time=i+1)]
             if len(time_xrs) >= max_time_steps_for_memory:
                 interstitial_dataset = xr.concat(time_xrs, dim="t")

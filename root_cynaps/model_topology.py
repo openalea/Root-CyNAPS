@@ -107,7 +107,8 @@ class RadialTopology:
         self.update_topology(**asdict(TissueTopology()))
 
     def add_properties_to_new_segments(self):
-        for vid in self.g.vertices(scale=self.g.max_scale()):
+        self.vertices = self.g.vertices(scale=self.g.max_scale())
+        for vid in self.vertices:
             if vid not in list(self.root_exchange_surface.keys()):
                 for prop in list(self.keywords.keys()):
                     getattr(self, prop)[vid] = 0
