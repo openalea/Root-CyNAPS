@@ -95,7 +95,7 @@ class TransportCommonN:
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_xylem: float = 8e-5  # mol AA.g-1
     diffusion_soil: float = 1e-12   # Artif g.m-2.s-1 while there is no soil model balance
-    diffusion_xylem: float = 1e-4   # g.m-2.s-1 more realistic ranges
+    diffusion_xylem: float = 0  # 1e-6   # Artif g.m-2.s-1 It was noticed it only contributed to xylem loading
     diffusion_phloem: float = 1e-5  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 while there is no soil model balance
     # metabolism-related parameters
@@ -116,11 +116,11 @@ class MetabolismN:
     Km_C_AA: float = 350e-6     # mol.g-1 DW
     smax_struct: float = 1e-9    # mol.s-1.g-1 DW
     Km_AA_struct: float = 250e-6    # mol.g-1 DW
-    smax_stor: float = 0  # 1e-9  # mol.s-1.g-1 DW 0 for wheat
+    smax_stor: float = 0  # Artif 1e-9  # mol.s-1.g-1 DW 0 for wheat
     Km_AA_stor: float = 250e-6    # mol.g-1 DW
     cmax_stor: float = 1e-9   # mol.s-1.g-1 DW
     Km_stor_catab: float = 250e-6    # mol.g-1 DW
-    cmax_AA: float = 5e-9    # mol.s-1.g-1 DW
+    cmax_AA: float = 0  # Artif 5e-9    # mol.s-1.g-1 DW for now not relevant as it doesn't contribute to C_hexose_root balance
     Km_AA_catab: float = 2.5e-6     # mol.g-1 DW
     storage_C_regulation: float = 3e1  # mol.g-1 Changed to avoid reaching Vmax with slight decrease in hexose content
 
@@ -236,7 +236,7 @@ class CommonNitrogenModel:
                         struct_mass
                         C_hexose_root
                         C_hexose_reserve
-                        C_hexose_reserve
+                        struct_mass_produced
                         living_root_hairs_external_surface
                         thermal_time_since_emergence
                         """.split()
@@ -429,9 +429,9 @@ class CommonNitrogenModel:
         else:
             self.AA_synthesis[v] = 0.0
 
-        # Organic structure synthesis
-        self.struct_synthesis[v] = self.struct_mass[v] * (smax_struct * self.AA[v]
-                                       / (Km_AA_struct + self.AA[v]))
+        # Organic structure synthesis (REPLACED BY RHIZODEP struct_mass_produced)
+        # self.struct_synthesis[v] = self.struct_mass[v] * (smax_struct * self.AA[v]
+        #                                / (Km_AA_struct + self.AA[v]))
 
         # Organic storage synthesis (Michaelis-Menten kinetic)
         self.storage_synthesis[v] = self.struct_mass[v] * (smax_stor * self.AA[v]
@@ -468,11 +468,14 @@ class CommonNitrogenModel:
                 - self.diffusion_AA_soil[v]
                 - self.export_AA[v]
                 + self.AA_synthesis[v]
-                - self.struct_synthesis[v] * r_AA_struct
                 - self.storage_synthesis[v] * r_AA_stor
                 + self.storage_catabolism[v] / r_AA_stor
                 - self.AA_catabolism[v]
-                )
+                ) - self.struct_mass_produced[v] * 0.2 / 146  # g.mol-1 glutamine
+        # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
+        # Sachant C:N struct environ de 10 = (Chex + CAA)/NAA Chex = 10*28 - 60 = 220 g Chex.
+        # Sachang qu'un hexose contient 12*6=72 gC.mol-1 hex, c'est donc environ 3 hexoses pour 1 AA qui seraient consommés.
+        # La proportion d'AA consommée par g de struct mass est donc de 1*146/(3*180 + 1*146) = 0.2 (180 g.mol-1 pour le glucose)
 
         self.struct_protein[v] += (self.sub_time_step / self.struct_mass[v]) * (
                 self.struct_synthesis[v]
@@ -487,9 +490,37 @@ class CommonNitrogenModel:
 
         if self.Nm[v] < 0:
             print(f"ERROR! vid {v} Nm is negative")
+            for_time_step = float(self.sub_time_step / self.struct_mass[v])
+            process_list = [
+                self.import_Nm[v],
+                -self.diffusion_Nm_soil[v],
+                self.diffusion_Nm_xylem[v],
+                -self.export_Nm[v],
+                -self.AA_synthesis[v],
+                self.AA_catabolism[v] * r_AA_struct / for_time_step,
+            ]
+            process_list = [k * for_time_step for k in process_list]
+            process_names = ["import_Nm", "diffusion_Nm_soil", "diffusion_Nm_xylem", "export_Nm",
+                             "AA_synthesis", "AA_catabolism"]
+            print(process_names[process_list.index(min(process_list))], min(process_list))
 
         if self.AA[v] < 0:
             print(f"ERROR! vid {v} AA is negative")
+            for_time_step = float(self.sub_time_step / self.struct_mass[v])
+            process_list =  [
+                self.diffusion_AA_phloem[v],
+                self.import_AA[v],
+                -self.diffusion_AA_soil[v],
+                -self.export_AA[v],
+                self.AA_synthesis[v],
+                -self.struct_mass_produced[v] * r_AA_struct / for_time_step,
+                -self.storage_synthesis[v] * r_AA_stor,
+                self.storage_catabolism[v] / r_AA_stor,
+                -self.AA_catabolism[v]
+            ]
+            process_list = [k*for_time_step for k in process_list]
+            process_names = ["diffusion_AA_phloem", "import_AA", "diffusion_AA_soil", "export_AA", "AA_synthesis", "struct_mass_produced", "storage_synthesis", "storage_catabolism", "AA_catabolism"]
+            print(process_names[process_list.index(min(process_list))], min(process_list))
 
     def update_sums(self):
         self.total_struct_mass[1] = sum(self.struct_mass.values())
@@ -649,7 +680,6 @@ class DiscreteVessels(CommonNitrogenModel):
             # water column
             turnover = - self.axial_import_water_down[v] / self.xylem_water[v]
             if turnover <= 1:
-                #print("D<1")
                 # Transport only affects considered segment
                 self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.sub_time_step
                 self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.sub_time_step
@@ -665,6 +695,7 @@ class DiscreteVessels(CommonNitrogenModel):
                     self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * children_radius_prop[ch]
 
             else:
+                # Transport affects several segments, and we verified it often happens under high transpiration
                 # Exported matter corresponds to the whole segment's water content
                 self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
                 self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
@@ -730,7 +761,7 @@ class DiscreteVessels(CommonNitrogenModel):
                                     # Break the loop
                                     children_exported_water += [0]
 
-                            # Else if there are several children.
+                            # Else if there are several children
                             else:
                                 # Water repartition is done according to radius,
                                 # as this is the main criteria used in the water model
@@ -854,7 +885,9 @@ class DiscreteVessels(CommonNitrogenModel):
             if vid not in list(self.Nm.keys()):
                 for prop in list(self.keywords.keys()):
                     getattr(self, prop)[vid] = self.keywords[prop]
-
+        # WARNING? OPTIONAL AND TO REMOVE WHEN NO SIMULATION FROM FILE
+        for name in self.states:
+            setattr(self, name, self.g.properties()[name])
     def exchanges_and_balance(self):
 
         """

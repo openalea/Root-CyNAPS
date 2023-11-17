@@ -271,6 +271,8 @@ class WaterModel:
             if vid not in list(self.xylem_water.keys()):
                 for prop in list(self.keywords.keys()):
                     getattr(self, prop)[vid] = 0
+        for name in self.states:
+            setattr(self, name, self.g.properties()[name])
 
     def exchanges_and_balance(self):
         """

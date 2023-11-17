@@ -83,7 +83,7 @@ class RadialTopology:
                 props[name][vid] = value
 
         # Accessing properties once, pointing to g for further modifications
-        states = """
+        self.states = """
                         root_exchange_surface
                         cortex_exchange_surface
                         apoplasmic_exchange_surface
@@ -97,7 +97,7 @@ class RadialTopology:
                         """.split()
         # NO ROOT HAIR PROPERTY
 
-        for name in states:
+        for name in self.states:
             setattr(self, name, props[name])
 
         # Collar geometry corrective
@@ -112,6 +112,9 @@ class RadialTopology:
             if vid not in list(self.root_exchange_surface.keys()):
                 for prop in list(self.keywords.keys()):
                     getattr(self, prop)[vid] = 0
+        # WARNING? OPTIONAL AND TO REMOVE WHEN NO SIMULATION FROM FILE
+        for name in self.states:
+            setattr(self, name, self.g.properties()[name])
 
     def update_topology(self, begin_xylem_diff, span_xylem_diff, endodermis_diff_rate, epidermis_diff_rate,
                         cortex_ratio, stele_ratio, phloem_ratio, xylem_cross_area_ratio):
