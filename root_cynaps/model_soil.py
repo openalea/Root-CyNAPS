@@ -26,7 +26,7 @@ import numpy as np
 class MeanConcentrations:
     soil_water_pressure: float = -0.1e6  # (Pa) mean soil water pressure
     soil_temperature: float = 283.15    # (K) mean soil temperature
-    soil_Nm: float = 2e-1   # mol.m-3
+    soil_Nm: float = 5   # mol.m-3
     soil_AA: float = 1e-4   # Artif mol.m-3
 
 # External conditions parameters

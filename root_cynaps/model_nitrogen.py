@@ -83,8 +83,8 @@ class InitDiscreteVesselsN(InitCommonN):
 @dataclass
 class TransportCommonN:
     # kinetic parameters
-    vmax_Nm_root: float = 1e-7     # mol N.s-1.m-2
-    vmax_Nm_xylem: float = 1e-7     # mol N.s-1.m-2
+    vmax_Nm_root: float = 1e-6     # mol N.s-1.m-2
+    vmax_Nm_xylem: float = 1e-6     # mol N.s-1.m-2
     Km_Nm_root_LATS: float = 1e-1   # mol N.m-3 Changed to increase diminution
     Km_Nm_root_HATS: float = 1e-6  # mol N.m-3
     begin_N_regulation: float = 1e1   # Artif mol N.g-1 changed so that import_Nm variation may occur in Nm variation range
@@ -94,7 +94,7 @@ class TransportCommonN:
     Km_AA_root: float = 1e-1    # mol AA.m-3
     vmax_AA_xylem: float = 1e-7     # mol AA.s-1.m-2
     Km_AA_xylem: float = 8e-5  # mol AA.g-1
-    diffusion_soil: float = 1e-12   # Artif g.m-2.s-1 while there is no soil model balance
+    diffusion_soil: float = 1e-11   # Artif g.m-2.s-1 while there is no soil model balance
     diffusion_xylem: float = 0  # 1e-6   # Artif g.m-2.s-1 It was noticed it only contributed to xylem loading
     diffusion_phloem: float = 1e-5  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 while there is no soil model balance

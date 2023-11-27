@@ -1,6 +1,7 @@
 # Images and MTG output
 *.png
 *.nc
+*.pckl
 
 # All output files
 *outputs/*
