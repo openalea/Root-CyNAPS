@@ -25,6 +25,7 @@ DiscreteVessels(CommonNitrogenModel)
 # Imports
 import numpy as np
 from dataclasses import dataclass, asdict
+from time import time
 
 # Dataclass for initialisation and parametrization.
 # For readability's sake, only units are displayed. See functions' documentation for descriptions.
@@ -537,7 +538,8 @@ class DiscreteVessels(CommonNitrogenModel):
                  displaced_AA_out, cumulated_radial_exchanges_Nm, cumulated_radial_exchanges_AA, phloem_struct_mass, **kwargs):
 
         self.g = g
-
+        self.radial_sum = 0
+        self.axial_sum = 0
         # New properties' creation in MTG
         self.keywords = dict(xylem_Nm=xylem_Nm,
                             xylem_AA=xylem_AA,
@@ -589,8 +591,11 @@ class DiscreteVessels(CommonNitrogenModel):
         #  it may be already working well
 
         # RADIAL TRANSPORT
-
+        t_start = time()
         self.transport_radial_N(v=v, **kwargs)
+        t_end = time()
+        self.radial_sum += t_end - t_start
+        t_start = t_end
 
         # AXIAL TRANSPORT
 
@@ -814,6 +819,9 @@ class DiscreteVessels(CommonNitrogenModel):
             self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.sub_time_step
             self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.sub_time_step
 
+        t_end = time()
+        self.axial_sum += t_end - t_start
+
     def update_N(self, r_Nm_AA, r_AA_struct, r_AA_stor, xylem_cross_area_ratio, phloem_cross_area_ratio):
         """
         Description
@@ -909,5 +917,7 @@ class DiscreteVessels(CommonNitrogenModel):
                 if self.struct_mass[vid] > 0:
                     self.transport_N(vid, **asdict(TransportAxialN()))
                     self.metabolism_N(vid, **asdict(MetabolismN()))
-
+            print(self.radial_sum, self.axial_sum)
+            self.radial_sum = 0
+            self.axial_sum = 0
             self.update_N(**asdict(UpdateN()))
