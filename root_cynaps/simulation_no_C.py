@@ -12,7 +12,7 @@ from time import time
 from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
 from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
 from root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.model_nitrogen import InitDiscreteVesselsN, DiscreteVessels
+from root_cynaps.model_nitrogen import RootNitrogenModel, InitNitrogen
 
 from Data_enforcer.model import ShootModel
 
@@ -64,7 +64,7 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
     soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
     root_topo = RadialTopology(g, **asdict(InitSurfaces()))
     root_water = WaterModel(g, time_step, **asdict(InitWater()))
-    root_nitrogen = DiscreteVessels(g, time_step, **asdict(InitDiscreteVesselsN()))
+    root_nitrogen = RootNitrogenModel(g, time_step, **asdict(InitNitrogen()))
     shoot = ShootModel(g)
 
     # Linking modules
@@ -92,42 +92,18 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
     root_water.init_xylem_water()
     # Scheduler : actual computation loop
     for i in range(steps_number):
-        time_prop = {}
-        t_start = time()
         # Update soil state
         soil.update_patches(patch_age=i*time_step, z_soil_Nm_max=z_soil_Nm_max, **asdict(SoilPatch()))
-        t_end = time()
-        time_prop.update(dict(soil=time() - t_start))
-        t_start = t_end
 
         # Update topological surfaces and volumes based on other evolved structural properties
         root_topo.update_topology(**asdict(TissueTopology()))
-        t_end = time()
-        time_prop.update(dict(topo=time() - t_start))
-        t_start = t_end
 
         # Compute state variations for water (if selected) and then nitrogen
         root_water.exchanges_and_balance()
-        t_end = time()
-        time_prop.update(dict(water=time() - t_start))
-        t_start = t_end
 
         root_nitrogen.exchanges_and_balance()
-        t_end = time()
-        time_prop.update(dict(nitrogen=time() - t_start))
-        t_start = t_end
 
         shoot.exchanges_and_balance(time=i)
-        t_end = time()
-        time_prop.update(dict(shoot=time() - t_start))
-        t_start = t_end
-
-        #print(time_prop)
-        tot_time = sum(time_prop.values())
-        for model in time_prop.keys():
-            time_prop[model] /= tot_time
-
-        #print(time_prop)
 
         if echo:
             print("time step : {}h".format(i))
