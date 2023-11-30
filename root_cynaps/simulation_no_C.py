@@ -100,9 +100,9 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
 
         # Compute state variations for water (if selected) and then nitrogen
         root_water.exchanges_and_balance()
-
+        start = time()
         root_nitrogen.exchanges_and_balance()
-
+        print((time()-start)/len(root_nitrogen.vertices))
         shoot.exchanges_and_balance(time=i)
 
         if echo:

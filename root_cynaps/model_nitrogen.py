@@ -326,20 +326,21 @@ class RootNitrogenModel:
         }
 
         # Storing function calls
-        self.process_methods = [func for func in dir(self) if
+        #
+        self.process_methods = [getattr(self, func) for func in dir(self) if
                            (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
-        self.plant_scale_processes_methods = [func for func in dir(self) if
+        self.plant_scale_processes_methods = [getattr(self, func) for func in dir(self) if
                                 (callable(getattr(self, func)) and '__' not in func and 'total_flow' in func)]
-        self.update_methods = [func for func in dir(self) if
+        self.update_methods = [getattr(self, func) for func in dir(self) if
                           (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
-        self.plant_scale_update_methods = [func for func in dir(self) if
+        self.plant_scale_update_methods = [getattr(self, func) for func in dir(self) if
                                (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
 
         num_processes = mp.cpu_count()
         self.p = mp.Pool(num_processes)
 
 
-    def exchanges_and_balance(self, parallel=True):
+    def exchanges_and_balance(self, parallel=False):
         """
         Description
         ___________
@@ -353,7 +354,7 @@ class RootNitrogenModel:
         for k in range(int(self.time_step/self.sub_time_step)):
             # Compute global processes
             for method in self.plant_scale_processes_methods:
-                getattr(self, method)(**asdict(ProcessNitrogen()))
+                method(**asdict(ProcessNitrogen()))
 
             if parallel:
                 chunk_size = 1000
@@ -371,7 +372,7 @@ class RootNitrogenModel:
 
             # Perform global properties' update
             for method in self.plant_scale_update_methods:
-                getattr(self, method)(**asdict(UpdateNitrogen()))
+                method(**asdict(UpdateNitrogen()))
 
     def prc_resolution(self, chunk):
         self.resolution_over_vertices(chunk, fncs=self.process_methods, **asdict(ProcessNitrogen()))
@@ -383,7 +384,7 @@ class RootNitrogenModel:
         for vid in chunk:
             if self.struct_mass[vid] > 0:
                 for method in fncs:
-                    getattr(self, method)(v=vid, **kwargs)
+                    method(v=vid, **kwargs)
 
     def add_properties_to_new_segments(self):
         self.vertices = self.g.vertices(scale=self.g.max_scale())
