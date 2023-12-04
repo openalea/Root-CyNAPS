@@ -27,6 +27,8 @@ import numpy as np
 from dataclasses import dataclass, asdict
 import multiprocessing as mp
 from multiprocessing import shared_memory
+import inspect as ins
+from functools import partial
 
 
 # Dataclass for initialisation and parametrization.
@@ -165,6 +167,7 @@ class RootNitrogenModel:
         """
 
         self.g = g
+        self.props = self.g.properties()
         self.time_step = time_step
         self.sub_time_step = sub_time_step
 
@@ -201,16 +204,15 @@ class RootNitrogenModel:
             phloem_struct_mass=phloem_struct_mass
         )
 
-        props = self.g.properties()
         for name in self.keywords:
-            props.setdefault(name, {})
+            self.props.setdefault(name, {})
 
         # vertices storage for future calls in for loops
         self.vertices = self.g.vertices(scale=self.g.max_scale())
         for vid in self.vertices:
             for name, value in self.keywords.items():
                 # Effectively creates the new property
-                props[name][vid] = value
+                self.props[name][vid] = value
 
         # Accessing properties once, pointing to g for further modifications
         self.states = """
@@ -256,7 +258,7 @@ class RootNitrogenModel:
 
         # Declare MTG properties in self
         for name in self.states:
-            setattr(self, name, props[name])
+            setattr(self, name, self.props[name])
 
         # Repeat the same process for total root system properties
 
@@ -276,8 +278,8 @@ class RootNitrogenModel:
                                     )
 
         for name, value in self.totals_keywords.items():
-            props.setdefault(name, {})
-            props[name][1] = value
+            self.props.setdefault(name, {})
+            self.props[name][1] = value
 
         # Accessing properties once, pointing to g for further modifications
         self.totals_states = """
@@ -297,7 +299,7 @@ class RootNitrogenModel:
 
         # Declare MTG properties in self
         for name in self.totals_states:
-            setattr(self, name, props[name])
+            setattr(self, name, self.props[name])
 
         # Declare to outside modules which variables are needed
         self.inputs = {
@@ -325,20 +327,45 @@ class RootNitrogenModel:
             ]
         }
 
+    def store_functions_call(self):
         # Storing function calls
         #
-        self.process_methods = [getattr(self, func) for func in dir(self) if
-                           (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
-        self.plant_scale_processes_methods = [getattr(self, func) for func in dir(self) if
-                                (callable(getattr(self, func)) and '__' not in func and 'total_flow' in func)]
-        self.update_methods = [getattr(self, func) for func in dir(self) if
-                          (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
-        self.plant_scale_update_methods = [getattr(self, func) for func in dir(self) if
-                               (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
+        # Local and plant scale processes...
+        self.process_param = asdict(ProcessNitrogen())
+        self.process_methods = [partial(getattr(self, func), **self.process_param)
+                                for func in dir(self) if
+                                (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
+        self.process_args = [[partial(self.get_up_to_date, arg) for arg in ins.getfullargspec(getattr(self, func))[0] if arg != "self"]
+                                for func in dir(self) if
+                                (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
+        self.process_names = [func[8:] for func in dir(self) if
+                                (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
 
+        # Local and plant scale update...
+        self.update_param = asdict(UpdateNitrogen())
+        self.update_methods = [partial(getattr(self, func), **self.update_param)
+                                for func in dir(self) if
+                                (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
+        self.update_args = [[partial(self.get_up_to_date, arg) for arg in ins.getfullargspec(getattr(self, func))[0] if arg != "self"]
+                             for func in dir(self) if
+                             (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
+        self.update_names = [func[7:] for func in dir(self) if
+                              (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
+        print(self.update_args)
+
+
+        self.plant_scale_update_methods = [partial(getattr(self, func), **self.update_param)
+                                              for func in dir(self) if
+                                (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
+        self.plant_scale_update_args = [[partial(self.get_up_to_date, arg) for arg in ins.getfullargspec(getattr(self, func))[0] if arg != "self"]
+                             for func in dir(self) if
+                             (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
+        self.plant_scale_update_names = [func[10:] for func in dir(self) if
+                              (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
+
+        # TODO : Chunk with map function across vid or processes chunks
         num_processes = mp.cpu_count()
         self.p = mp.Pool(num_processes)
-
 
     def exchanges_and_balance(self, parallel=False):
         """
@@ -347,15 +374,12 @@ class RootNitrogenModel:
         Model time-step processes and balance for nitrogen to be called by simulation files.
 
         """
+
         self.add_properties_to_new_segments()
         self.initialize_cumulative()
 
         # For each sub_time_step
         for k in range(int(self.time_step/self.sub_time_step)):
-            # Compute global processes
-            for method in self.plant_scale_processes_methods:
-                method(**asdict(ProcessNitrogen()))
-
             if parallel:
                 chunk_size = 1000
                 vertices_chunks = [self.vertices[i:i + chunk_size] if i + chunk_size < len(self.vertices) else self.vertices[i:] for i in range(0, len(self.vertices), chunk_size)]
@@ -365,20 +389,31 @@ class RootNitrogenModel:
                 result.wait()
                 # TODO Share objects between processes to avoid copies slowing down the computation and modify self
                 # Might be easier with xarray around a shared dataset with Dask implementation.
-
             else:
-                self.prc_resolution(chunk=self.vertices)
-                self.upd_resolution(chunk=self.vertices)
-
+                self.props.update(self.prc_resolution())
+                self.resolution_over_vertices(self.vertices, fncs=[self.axial_transport_N])
+                self.props.update(self.upd_resolution())
             # Perform global properties' update
-            for method in self.plant_scale_update_methods:
-                method(**asdict(UpdateNitrogen()))
+            self.props.update(self.tot_upd_resolution())
 
-    def prc_resolution(self, chunk):
-        self.resolution_over_vertices(chunk, fncs=self.process_methods, **asdict(ProcessNitrogen()))
+    def prc_resolution(self):
+        return dict(zip([name for name in self.process_names], map(self.dict_mapper, *(self.process_methods, self.process_args))))
 
-    def upd_resolution(self, chunk):
-        self.resolution_over_vertices(chunk, fncs=self.update_methods, **asdict(UpdateNitrogen()))
+    def upd_resolution(self):
+        # TODO, ask if the struct_mass > 0 should be operated here and not in each mapped function
+        return dict(zip([name for name in self.update_names], map(self.dict_mapper, *(self.update_methods, self.update_args))))
+
+    def tot_upd_resolution(self):
+        return dict(zip([name for name in self.plant_scale_update_names], map(self.dict_no_mapping, *(self.plant_scale_update_methods, self.plant_scale_update_args))))
+
+    def dict_mapper(self, fcn, args):
+        return dict(zip(args[0](), map(fcn, *(d().values() for d in args))))
+
+    def dict_no_mapping(self, fcn, args):
+        return {1: fcn(*(d() for d in args))}
+
+    def get_up_to_date(self, prop):
+        return getattr(self, prop)
 
     def resolution_over_vertices(self, chunk, fncs, **kwargs):
         for vid in chunk:
@@ -413,8 +448,7 @@ class RootNitrogenModel:
 
     # RADIAL TRANSPORT PROCESSES
     # MINERAL NITROGEN TRANSPORT
-    def process_import_Nm(self, v, vmax_Nm_root, Km_Nm_root_LATS, Km_Nm_root_HATS, begin_N_regulation,
-                          span_N_regulation, transport_C_regulation, **kwargs):
+    def process_import_Nm(self, Nm, soil_Nm, root_exchange_surface, C_hexose_root, living_root_hairs_external_surface, **kwargs):
         """
                 Description
                 ___________
@@ -442,71 +476,72 @@ class RootNitrogenModel:
                 """
         # We define mineral nitrogen active uptake from soil
         precision = 0.99
-        Km_Nm_root = (Km_Nm_root_LATS - Km_Nm_root_HATS) / (
-                1 + (precision / ((1 - precision) * np.exp(-begin_N_regulation))
-                     * np.exp(-self.Nm[v] / span_N_regulation))
-        ) + Km_Nm_root_HATS
-
+        Km_Nm_root = (kwargs["Km_Nm_root_LATS"] - kwargs["Km_Nm_root_HATS"]) / (
+                1 + (precision / ((1 - precision) * np.exp(-kwargs["begin_N_regulation"]))
+                     * np.exp(-Nm / kwargs["span_N_regulation"]))
+        ) + kwargs["Km_Nm_root_HATS"]
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.import_Nm[v] = ((self.soil_Nm[v] * vmax_Nm_root / (self.soil_Nm[v] + Km_Nm_root))
-                * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v])
-                * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
+        return ((soil_Nm * kwargs["vmax_Nm_root"] / (soil_Nm + Km_Nm_root))
+                * (root_exchange_surface + living_root_hairs_external_surface)
+                * (C_hexose_root / (C_hexose_root + kwargs["transport_C_regulation"])))
 
-    def process_diffusion_Nm_soil(self, v, diffusion_soil, **kwargs):
+    def process_diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, living_root_hairs_external_surface, **kwargs):
         # Passive radial diffusion between soil and cortex.
         # It happens only through root segment external surface.
         # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-        self.diffusion_Nm_soil[v] = (diffusion_soil * (self.Nm[v] * 10e5 - self.soil_Nm[v]) * (
-                self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v]))
+        return (kwargs["diffusion_soil"] * (Nm * 10e5 - soil_Nm) * (
+                root_exchange_surface + living_root_hairs_external_surface))
 
-    def process_export_Nm(self, v, vmax_Nm_xylem, Km_Nm_xylem, transport_C_regulation, **kwargs):
+    def process_export_Nm(self, Nm, stele_exchange_surface, C_hexose_root, **kwargs):
         # We define active export to xylem from root segment
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.export_Nm[v] = ((self.Nm[v] * vmax_Nm_xylem) / (self.Nm[v] + Km_Nm_xylem)) * self.stele_exchange_surface[v] * (
-                self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation))
+        return ((Nm * kwargs["vmax_Nm_xylem"]) / (Nm + kwargs["Km_Nm_xylem"])) * stele_exchange_surface * (
+                C_hexose_root / (C_hexose_root + kwargs["transport_C_regulation"]))
 
-    def process_diffusion_Nm_xylem(self, v, diffusion_xylem, **kwargs):
+    def process_diffusion_Nm_xylem(self, xylem_Nm, Nm, stele_exchange_surface, **kwargs):
         # Passive radial diffusion between xylem and cortex through plasmalema
-        self.diffusion_Nm_xylem[v] = diffusion_xylem * (self.xylem_Nm[v] - self.Nm[v]) * self.stele_exchange_surface[v]
+        return kwargs["diffusion_xylem"] * (xylem_Nm - Nm) * stele_exchange_surface
 
-    def process_diffusion_Nm_soil_xylem(self, v, diffusion_apoplasm, **kwargs):
+    def process_diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, apoplasmic_stele, **kwargs):
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         # Here, surface is not really representative of a structure as everything is apoplasmic
-        self.diffusion_Nm_soil_xylem[v] = diffusion_apoplasm * (
-                self.soil_Nm[v] - self.xylem_Nm[v] * 10e5) * 2 * np.pi * self.radius[v] * self.length[v] * self.apoplasmic_stele[v]
+        return kwargs["diffusion_apoplasm"] * (
+                soil_Nm - xylem_Nm * 10e5) * 2 * np.pi * radius * length * apoplasmic_stele
 
     # AMINO ACID TRANSPORT
-    def process_import_AA(self, v, vmax_AA_root, Km_AA_root, transport_C_regulation, **kwargs):
+    def process_import_AA(self, soil_AA, root_exchange_surface, living_root_hairs_external_surface, C_hexose_root, **kwargs):
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.import_AA[v] = ((self.soil_AA[v] * vmax_AA_root / (self.soil_AA[v] + Km_AA_root))
-                * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v])
-                * (self.C_hexose_root[v] / (self.C_hexose_root[v] + transport_C_regulation)))
+        return ((soil_AA * kwargs["vmax_AA_root"] / (soil_AA + kwargs["Km_AA_root"]))
+                * (root_exchange_surface + living_root_hairs_external_surface)
+                * (C_hexose_root / (C_hexose_root + kwargs["transport_C_regulation"])))
 
-    def process_diffusion_AA_soil(self, v, diffusion_soil, **kwargs):
+    def process_diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, living_root_hairs_external_surface, **kwargs):
         # We define amino acid passive diffusion to soil
-        self.diffusion_AA_soil[v] = (diffusion_soil * (self.AA[v] * 10e5 - self.soil_AA[v])
-                * (self.root_exchange_surface[v] + self.living_root_hairs_external_surface[v]))
+        return (kwargs["diffusion_soil"] * (AA * 10e5 - soil_AA)
+                * (root_exchange_surface + living_root_hairs_external_surface))
 
-    def process_export_AA(self, v, vmax_AA_xylem, Km_AA_xylem, transport_C_regulation, **kwargs):
+    def process_export_AA(self, AA, stele_exchange_surface, C_hexose_root, **kwargs):
         # We define active export to xylem from root segment
         # Km is defined as a constant here
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        self.export_AA[v] = ((self.AA[v] * vmax_AA_xylem / (self.AA[v] + Km_AA_xylem))
-                * self.stele_exchange_surface[v] * (self.C_hexose_root[v] / (
-                        self.C_hexose_root[v] + transport_C_regulation)))
+        return ((AA * kwargs["vmax_AA_xylem"] / (AA + kwargs["Km_AA_xylem"]))
+                * stele_exchange_surface * (C_hexose_root / (
+                        C_hexose_root + kwargs["transport_C_regulation"])))
 
-    def process_diffusion_AA_soil_xylem(self, v, diffusion_apoplasm, **kwargs):
+    def process_diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, apoplasmic_stele, **kwargs):
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        self.diffusion_AA_soil_xylem[v] = (diffusion_apoplasm * (self.soil_AA[v] - self.xylem_AA[v] * 10e5)
-                * 2 * np.pi * self.radius[v] * self.length[v] * self.apoplasmic_stele[v])
+        return (kwargs["diffusion_apoplasm"] * (soil_AA - xylem_AA * 10e5)
+                * 2 * np.pi * radius * length * apoplasmic_stele)
 
-    def process_diffusion_AA_phloem(self, v, diffusion_phloem, **kwargs):
+    def process_diffusion_AA_phloem(self, AA, phloem_exchange_surface, **kwargs):
         # Passive radial diffusion between phloem and cortex through plasmodesmata
-        self.diffusion_AA_phloem[v] = (diffusion_phloem * (self.total_phloem_AA[1] - self.AA[v])
-                * self.phloem_exchange_surface[v])
+        # TODO : Change diffusive flow to enable realistic ranges, now, unloading is limited by a ping pong bug related to diffusion
+        # TODO : resolve exception when mapping has to deal with plant scale properties AND local ones
+        return (kwargs["diffusion_phloem"] * (self.total_phloem_AA[1] - AA)
+                * phloem_exchange_surface)
 
     # AXIAL TRANSPORT PROCESSES
-    def process_axial_transport_N(self, v, **kwargs):
+    def axial_transport_N(self, v, **kwargs):
         """
                 Description
                 ___________
@@ -739,125 +774,145 @@ class RootNitrogenModel:
             self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.sub_time_step
 
     # METABOLIC PROCESSES
-    def process_AA_synthesis(self, v, smax_AA, Km_Nm_AA, Km_C_AA, **kwargs):
+    def process_AA_synthesis(self, C_hexose_root, struct_mass, Nm, **kwargs):
         # amino acid synthesis
-        if self.C_hexose_root[v] > 0:
-            self.AA_synthesis[v] = self.struct_mass[v] * smax_AA / (
-                    ((1 + Km_Nm_AA) / self.Nm[v]) + ((1 + Km_C_AA) / self.C_hexose_root[v]))
+        if C_hexose_root > 0 and Nm > 0:
+            return struct_mass * kwargs["smax_AA"] / (
+                    ((1 + kwargs["Km_Nm_AA"]) / Nm) + ((1 + kwargs["Km_C_AA"]) / C_hexose_root))
+        else:
+            return 0
 
     # def process_struct_synthesis(self, v, smax_struct, Km_AA_struct, **kwargs):
     #     # Organic structure synthesis (REPLACED BY RHIZODEP struct_mass_produced)
-    #     self.struct_synthesis[v] = self.struct_mass[v] * (smax_struct * self.AA[v] / (Km_AA_struct + self.AA[v]))
+    #     struct_synthesis = struct_mass * (smax_struct * AA / (Km_AA_struct + AA))
 
-    def process_storage_synthesis(self, v, smax_stor, Km_AA_stor, **kwargs):
+    def process_storage_synthesis(self, struct_mass, AA, **kwargs):
         # Organic storage synthesis (Michaelis-Menten kinetic)
-        self.storage_synthesis[v] = self.struct_mass[v] * (smax_stor * self.AA[v] / (Km_AA_stor + self.AA[v]))
+        return struct_mass * (kwargs["smax_stor"] * AA / (kwargs["Km_AA_stor"] + AA))
 
-    def process_storage_catabolism(self, v, cmax_stor, Km_stor_catab, storage_C_regulation, **kwargs):
+    def process_storage_catabolism(self, struct_mass, C_hexose_root, C_hexose_reserve, **kwargs):
         # Organic storage catabolism through proteinase
-        Km_stor_root = Km_stor_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
-        self.storage_catabolism[v] = self.struct_mass[v] * cmax_stor * self.C_hexose_reserve[v] / (Km_stor_root + self.C_hexose_reserve[v])
+        Km_stor_root = kwargs["Km_stor_catab"] * np.exp(kwargs["storage_C_regulation"] * C_hexose_root)
+        return struct_mass * kwargs["cmax_stor"] * C_hexose_reserve / (Km_stor_root + C_hexose_reserve)
 
-    def process_AA_catabolism(self, v, cmax_AA, Km_AA_catab, storage_C_regulation, **kwargs):
+    def process_AA_catabolism(self, C_hexose_root, struct_mass, AA, **kwargs):
         # AA catabolism through GDH
-        Km_stor_root = Km_AA_catab * np.exp(storage_C_regulation * self.C_hexose_root[v])
-        self.AA_catabolism[v] = self.struct_mass[v] * cmax_AA * self.AA[v] / (Km_stor_root + self.AA[v])
+        Km_stor_root = kwargs["Km_AA_catab"] * np.exp(kwargs["storage_C_regulation"] * C_hexose_root)
+        return struct_mass * kwargs["cmax_AA"] * AA / (Km_stor_root + AA)
 
-    def total_flow_cytokinin_synthesis(self, smax_cytok, Km_C_cytok, Km_N_cytok, **kwargs):
-        self.cytokinin_synthesis[1] = self.total_struct_mass[1] * smax_cytok * (
-                self.total_hexose[1] / (self.total_hexose[1] + Km_C_cytok)) * (
-                self.total_Nm[1] / (self.total_Nm[1] + Km_N_cytok))
+    def process_cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm, **kwargs):
+        return total_struct_mass * kwargs["smax_cytok"] * (
+                total_hexose / (total_hexose + kwargs["Km_C_cytok"])) * (
+                total_Nm / (total_Nm + kwargs["Km_N_cytok"]))
 
     # UPDATE NITROGEN POOLS
-    def update_Nm(self, v, r_Nm_AA, **kwargs):
-        self.Nm[v] += (self.sub_time_step / self.struct_mass[v]) * (
-                self.import_Nm[v]
-                - self.diffusion_Nm_soil[v]
-                + self.diffusion_Nm_xylem[v]
-                - self.export_Nm[v]
-                - self.AA_synthesis[v] * r_Nm_AA
-                + self.AA_catabolism[v] / r_Nm_AA)
+    def update_Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, **kwargs):
+        if struct_mass > 0:
+            return Nm + (self.sub_time_step / struct_mass) * (
+                    import_Nm
+                    - diffusion_Nm_soil
+                    + diffusion_Nm_xylem
+                    - export_Nm
+                    - AA_synthesis * kwargs["r_Nm_AA"]
+                    + AA_catabolism / kwargs["r_Nm_AA"])
+        else:
+            return 0
 
-    def update_AA(self, v, r_AA_struct, r_AA_stor, **kwargs):
-        self.AA[v] += (self.sub_time_step / self.struct_mass[v]) * (
-                self.diffusion_AA_phloem[v]
-                + self.import_AA[v]
-                - self.diffusion_AA_soil[v]
-                - self.export_AA[v]
-                + self.AA_synthesis[v]
-                - self.struct_synthesis[v] * r_AA_struct
-                - self.storage_synthesis[v] * r_AA_stor
-                + self.storage_catabolism[v] / r_AA_stor
-                - self.AA_catabolism[v]
-        ) - self.struct_mass_produced[v] * 0.2 / 146
+    def update_AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, struct_mass_produced, **kwargs):
+        if struct_mass > 0:
+            return AA + (self.sub_time_step / struct_mass) * (
+                    diffusion_AA_phloem
+                    + import_AA
+                    - diffusion_AA_soil
+                    - export_AA
+                    + AA_synthesis
+                    - struct_synthesis * kwargs["r_AA_struct"]
+                    - storage_synthesis * kwargs["r_AA_stor"]
+                    + storage_catabolism / kwargs["r_AA_stor"]
+                    - AA_catabolism
+            ) - struct_mass_produced * 0.2 / 146
         # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
         # Sachant C:N struct environ de 10 = (Chex + CAA)/NAA Chex = 10*28 - 60 = 220 g Chex.
         # Sachang qu'un hexose contient 12*6=72 gC.mol-1 hex, c'est donc environ 3 hexoses pour 1 AA qui seraient consommés.
         # La proportion d'AA consommée par g de struct mass est donc de 1*146/(3*180 + 1*146) = 0.2 (180 g.mol-1 pour le glucose)
 
+        else:
+            return 0
+
     # def update_struct_protein(self, v, **kwargs):
-    #     self.struct_protein[v] += (self.sub_time_step / self.struct_mass[v]) * (
-    #         self.struct_synthesis[v])
+    #     struct_protein += (sub_time_step / struct_mass) * (
+    #         struct_synthesis)
 
-    def update_storage_protein(self, v, **kwargs):
-        self.storage_protein[v] += (self.sub_time_step / self.struct_mass[v]) * (
-                self.storage_synthesis[v]
-                - self.storage_catabolism[v]
-        )
+    def update_storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism, **kwargs):
+        if struct_mass > 0:
+            return storage_protein + (self.sub_time_step / struct_mass) * (
+                    storage_synthesis
+                    - storage_catabolism
+            )
+        else:
+            return 0
 
-    def update_xylem_Nm(self, v, **kwargs):
-        # Vessel's nitrogen pool update
-        # Xylem balance accounting for exports from all neighbors accessible by water flow
-        self.xylem_Nm[v] += (
-                    self.displaced_Nm_in[v] - self.displaced_Nm_out[v] + self.cumulated_radial_exchanges_Nm[v]) / self.struct_mass[v]
+    def update_xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, struct_mass, **kwargs):
+        if struct_mass > 0:
+            # Vessel's nitrogen pool update
+            # Xylem balance accounting for exports from all neighbors accessible by water flow
+            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / struct_mass
+        else:
+            return 0
 
-    def update_xylem_AA(self, v, **kwargs):
-        self.xylem_AA[v] += (
-                    self.displaced_AA_in[v] - self.displaced_AA_out[v] + self.cumulated_radial_exchanges_AA[v]) / self.struct_mass[v]
+    def update_xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, struct_mass, **kwargs):
+        if struct_mass > 0:
+            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / struct_mass
+        else:
+            return 0
 
     # PLANT SCALE PROPERTIES UPDATE
-    def actualize_total_phloem_AA(self, phloem_cross_area_ratio, **kwargs):
-        self.total_phloem_AA[1] += (- self.sub_time_step * sum(self.diffusion_AA_phloem.values()) + self.AA_root_shoot_phloem[1]) / (
-                self.total_struct_mass[1] * phloem_cross_area_ratio)
+    def actualize_total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem, total_struct_mass, **kwargs):
+        return total_phloem_AA[1] + (- self.sub_time_step * sum(diffusion_AA_phloem.values()) + AA_root_shoot_phloem[1]) / (
+                total_struct_mass[1] * kwargs["phloem_cross_area_ratio"])
 
-    def actualize_total_cytokinins(self, **kwargs):
-        self.total_cytokinins[1] += (self.cytokinin_synthesis[1] * self.sub_time_step -
-                                     self.cytokinins_root_shoot_xylem[1]) / self.total_struct_mass[1]
+    def actualize_total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem,
+                                   total_struct_mass, **kwargs):
+        return total_cytokinins[1] + (cytokinin_synthesis[1] * self.sub_time_step -
+                                     cytokinins_root_shoot_xylem[1]) / total_struct_mass[1]
 
     # UPDATE CUMULATIVE VALUES
     # TODO : Retrieve the total struct mass from Rhizodep, otherwise, computation order is messed up here.
-    def actualize_total_struct_mass(self, **kwargs):
+    def actualize_total_struct_mass(self, struct_mass, **kwargs):
         # WARNING, do not parallelize otherwise other pool updates will be based on previous time-step
-        self.total_struct_mass[1] = sum(self.struct_mass.values())
+        return sum(struct_mass.values())
 
-    def actualize_total_Nm(self, **kwargs):
-        self.total_Nm[1] = sum([x*y for x, y in zip(self.Nm.values(), self.struct_mass.values())]) / self.total_struct_mass[1]
+    def actualize_total_Nm(self, Nm, struct_mass, total_struct_mass, **kwargs):
+        return sum([x*y for x, y in zip(Nm.values(), struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_AA(self, **kwargs):
-        self.total_AA[1] = sum([x * y for x, y in zip(self.AA.values(), self.struct_mass.values())]) / self.total_struct_mass[1]
+    def actualize_total_AA(self, AA, struct_mass, total_struct_mass, **kwargs):
+        return sum([x * y for x, y in zip(AA.values(), struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_xylem_Nm(self, **kwargs):
-        self.total_xylem_Nm[1] = sum([x*y for x, y in zip(self.xylem_Nm.values(), self.xylem_struct_mass.values())]) / self.total_struct_mass[1]
+    def actualize_total_xylem_Nm(self, xylem_Nm, xylem_struct_mass, total_struct_mass, **kwargs):
+        return sum([x*y for x, y in zip(xylem_Nm.values(), xylem_struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_xylem_AA(self, **kwargs):
-        self.total_xylem_AA[1] = sum([x*y for x, y in zip(self.xylem_AA.values(), self.xylem_struct_mass.values())]) / self.total_struct_mass[1]
+    def actualize_total_xylem_AA(self, xylem_AA, xylem_struct_mass, total_struct_mass, **kwargs):
+        return sum([x*y for x, y in zip(xylem_AA.values(), xylem_struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_AA_rhizodeposition(self, **kwargs):
-        self.total_AA_rhizodeposition[1] = self.sub_time_step * (sum(self.diffusion_AA_soil.values()) - sum(self.import_AA.values()))
+    def actualize_total_AA_rhizodeposition(self, diffusion_AA_soil, import_AA, **kwargs):
+        return self.sub_time_step * (sum(diffusion_AA_soil.values()) - sum(import_AA.values()))
 
-    def actualize_total_hexose(self, **kwargs):
-        self.total_hexose[1] = sum([x*y for x, y in zip(self.C_hexose_root.values(), self.struct_mass.values())]) / self.total_struct_mass[1]
+    def actualize_total_hexose(self, C_hexose_root, struct_mass, total_struct_mass, **kwargs):
+        return sum([x*y for x, y in zip(C_hexose_root.values(), struct_mass.values())]) / total_struct_mass[1]
 
     # UPDATE STRUCTURAL VALUES TODO : do not keep in this module
-    def update_xylem_struct_mass(self, v, xylem_cross_area_ratio, **kwargs):
-        self.xylem_struct_mass[v] = self.struct_mass[v] * xylem_cross_area_ratio
+    def update_xylem_struct_mass(self, struct_mass, **kwargs):
+        return struct_mass * kwargs["xylem_cross_area_ratio"]
 
-    def update_phloem_struct_mass(self, v, phloem_cross_area_ratio, **kwargs):
-        self.phloem_struct_mass[v] = self.struct_mass[v] * phloem_cross_area_ratio
+    def update_phloem_struct_mass(self, struct_mass, **kwargs):
+        return struct_mass * kwargs["phloem_cross_area_ratio"]
 
     # CARBON UPDATE
-    def update_C_hexose_root(self, v, **kwargs):
+    def update_C_hexose_root(self, C_hexose_root, **kwargs):
         # Minimum to avoid issues with zero values
-        if self.C_hexose_root[v] <= 0:
-            self.C_hexose_root[v] = 1e-1
+        if C_hexose_root <= 0:
+            return 1e-1
+        else:
+            return C_hexose_root
 

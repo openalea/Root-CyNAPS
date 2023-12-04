@@ -6,7 +6,6 @@ import xarray as xr
 from dataclasses import asdict
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
-import inspect
 from time import time
 
 from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
@@ -27,7 +26,9 @@ from statistical_tools.main import launch_analysis
 
 def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_number, time_step, echo=False,
                  plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
+    print(output_path)
     # Store this before anything else to ensure the locals order is right
+    print(output_path)
     Loc = locals()
     real_parameters = ["output_path", "current_file_dir", "init", "steps_number", "time_step", "echo", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
     scenario = dict([(key, value) for key, value in Loc.items() if key not in real_parameters])
@@ -83,6 +84,8 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
 
     converter.link_mtg(root_water, shoot, category="shoot_water", translator=converter.water_flows, same_names=False)
 
+    root_nitrogen.store_functions_call()
+
     # Init output xarray list
     if logging:
         os.mkdir(output_path[:-3])
@@ -100,9 +103,9 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
 
         # Compute state variations for water (if selected) and then nitrogen
         root_water.exchanges_and_balance()
-        start = time()
+        # start = time()
         root_nitrogen.exchanges_and_balance()
-        print((time()-start)/len(root_nitrogen.vertices))
+        # print((time()-start)/len(root_nitrogen.vertices))
         shoot.exchanges_and_balance(time=i)
 
         if echo:
