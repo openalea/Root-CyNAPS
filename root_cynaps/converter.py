@@ -26,6 +26,11 @@ water_state = {
 }
 
 
+rhizospherous_C_flows = {
+    "soil_temperature": "soil_temperature"
+}
+
+
 def link_mtg(receiver, applier, category, translator={}, same_names=True):
     """
     Description : linker function that will enable properties sharing through MTG.

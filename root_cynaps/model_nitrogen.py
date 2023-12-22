@@ -10,42 +10,73 @@ Main functions
 ______________
 Classes' names represent accounted hypothesis in the progressive development of the model.
 Methods' names are systematic through all class for ease of use :
-
-TODO : report functions descriptions
-CommonNitrogenModel
-    init_N()
-    transport_N()
-    metabolism_N()
-    update_N()
-
-DiscreteVessels(CommonNitrogenModel)
-
-
 """
+
 # Imports
 import numpy as np
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field, asdict
 import multiprocessing as mp
 from multiprocessing import shared_memory
 import inspect as ins
 from functools import partial
 
 
-# Dataclass for initialisation and parametrization.
-# For readability's sake, only units are displayed. See functions' documentation for descriptions.
+def set_value(value: float, min_value: float, max_value: float) -> float:
+    if min_value <= value <= max_value:
+        return value
+    else:
+        raise ValueError("The provided value is outside boundaries")
 
-# Properties' initial values
+
 @dataclass
-class InitNitrogen:
+class RootNitrogenModel:
+    # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
+
+    # FROM SOIL MODEL
+    soil_Nm: float =            field(default=0, metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="input", by="model_soil"))
+    soil_AA: float =            field(default=0, metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="input", by="model_soil"))
+
+    # FROM ANATOMY MODEL
+    root_exchange_surface: float =      field(default=0, metadata=dict(unit="m2", unit_comment="of cell membrane", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    stele_exchange_surface: float =     field(default=0, metadata=dict(unit="m2", unit_comment="of cell membrane", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    phloem_exchange_surface: float =    field(default=0, metadata=dict(unit="m2", unit_comment="of vessel membrane", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    living_root_hairs_external_surface: float = field(default=0, metadata=dict(unit="m2", unit_comment="of root hair", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    apoplasmic_stele: float =           field(default=0.5, metadata=dict(unit="adim.", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+
+    # FROM CARBON BALANCE MODEL
+    C_hexose_root: float =     field(default=0, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="input", by="model_carbon"))
+    C_hexose_reserve: float =  field(default=0, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="input", by="model_carbon"))
+
+    # FROM WATER BALANCE MODEL
+    xylem_water: float = field(default=0, metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
+    axial_export_water_up: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
+    axial_import_water_down: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
+
+    # FROM GROWTH MODEL
+    length: float =                     field(default=0, metadata=dict(unit="m", unit_comment="of root segment", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    radius: float =                     field(default=0, metadata=dict(unit="m", unit_comment="of root segment", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    struct_mass: float =                field(default=0, metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    phloem_struct_mass: float =         field(default=5e-7, metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    struct_mass_produced: float =       field(default=0, metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    thermal_time_since_emergence: float = field(default=0, metadata=dict(unit="°C", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+
+    # FROM SHOOT MODEL
+    AA_root_shoot_phloem: float =       field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    cytokinins_root_shoot_xylem: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+
+    # --- INITIALIZE MODEL STATE VARIABLES ---
+
+    # LOCAL VARIABLES
+
     # time resolution
-    sub_time_step: int = 3600  # (second) MUST be a multiple of base time_step
+    sub_time_step: int =        field(default=set_value(3600, min_value=1, max_value=24*3600), metadata=dict(unit="s", unit_comment="", description="MUST be a multiple of base time_step", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     # Pools initial size
-    Nm: float = 1e-4  # mol N.g-1
-    AA: float = 9e-4  # mol AA.g-1
-    struct_protein: float = 0  # mol prot struct.g-1
-    storage_protein: float = 0  # mol prot stor.g-1
-    xylem_Nm: float = 1e-4  # mol N.g-1
-    xylem_AA: float = 1e-4  # mol AA.g-1
+    Nm: float =                 field(default=set_value(1e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    AA: float =                 field(default=set_value(9e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", references="", variable_type="state_variable", by="model_nitrogen"))
+    struct_protein: float =     field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of structural proteins", description="", value_comment="0 value for wheat", references="", variable_type="state_variable", by="model_nitrogen"))
+    storage_protein: float =    field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of storage proteins", description="", value_comment="0 value for wheat", references="", variable_type="state_variable", by="model_nitrogen"))
+    xylem_Nm: float =           field(default=set_value(1e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of structural nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    xylem_AA: float =           field(default=set_value(1e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     # Transport processes
     import_Nm: float = 0  # mol N.s-1
     import_AA: float = 0  # mol AA.s-1
@@ -63,9 +94,6 @@ class InitNitrogen:
     storage_synthesis: float = 0  # mol stor.s-1
     AA_catabolism: float = 0  # mol AA.s-1
     storage_catabolism: float = 0  # mol stor.s-1
-    phloem_total_AA: float = 9e-4  # mol AA.g-1
-    total_cytokinins: float = 100  # Artif UA.g-1
-    cytokinin_synthesis: float = 0  # UA cytokinin.s-1
     xylem_struct_mass: float = 1e-6  # g
     displaced_Nm_in: float = 0  # mol Nm.time_step-1
     displaced_Nm_out: float = 0  # mol Nm.time_step-1
@@ -73,14 +101,25 @@ class InitNitrogen:
     displaced_AA_out: float = 0  # mol Nm.time_step-1
     cumulated_radial_exchanges_Nm: float = 0  # mol Nm.time_step-1
     cumulated_radial_exchanges_AA: float = 0  # mol AA.time_step-1
-    phloem_struct_mass: float = 5e-7  # g
 
+    # SUMMED STATE VARIABLES
 
-# Parameters' default value
-@dataclass
-class ProcessNitrogen:
+    total_Nm: float =                   field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_AA: float =                   field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_hexose: float =               field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_cytokinins: float =           field(default=set_value(100, min_value=1, max_value=200), metadata=dict(unit="UA.s-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_struct_mass: float =          field(default=0., metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_xylem_Nm: float =             field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_xylem_AA: float =             field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_phloem_AA: float =            field(default=set_value(0, min_value=0, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    Nm_root_shoot_xylem: float =        field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    AA_root_shoot_xylem: float =        field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    total_AA_rhizodeposition: float =   field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+    cytokinin_synthesis: float =        field(default=0., metadata=dict(unit="UA.s-1", unit_comment="of cytokinin", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
+
+    # --- INITIALIZES MODEL PARAMETERS ---
+
     # N TRANSPORT PROCESSES
-
     # kinetic parameters
     vmax_Nm_root: float = 1e-6  # mol N.s-1.m-2
     vmax_Nm_xylem: float = 1e-6  # mol N.s-1.m-2
@@ -103,7 +142,6 @@ class ProcessNitrogen:
 
     # N METABOLISM PROCESSES
     # TODO : introduce nitrogen fixation
-
     # kinetic parameters
     smax_AA: float = 1e-5  # Artif mol.s-1.g-1 DW
     Km_Nm_AA: float = 3e-6  # mol.g-1 DW
@@ -119,30 +157,19 @@ class ProcessNitrogen:
     storage_C_regulation: float = 3e1  # mol.g-1 Changed to avoid reaching Vmax with slight decrease in hexose content
 
     # HORMONES METABOLISM PROCESSES
-
     # kinetic parameters
     smax_cytok: float = 9e-4  # UA.g DW-1.s-1
     Km_C_cytok: float = 1.2e-3
     Km_N_cytok: float = 5e-5
 
-
-@dataclass
-class UpdateNitrogen:
+    # CONVERSION RATIO FOR STATE VARIABLES
     r_Nm_AA: float = 1.4
     r_AA_struct: float = 65
     r_AA_stor: float = 65
     xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
     phloem_cross_area_ratio: float = 0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
 
-
-class RootNitrogenModel:
-    def __init__(self, g, time_step, sub_time_step, Nm, AA, struct_protein, storage_protein, import_Nm, import_AA,
-                 export_Nm, export_AA, diffusion_Nm_soil, diffusion_Nm_xylem, diffusion_Nm_soil_xylem,
-                 diffusion_AA_soil, diffusion_AA_phloem, diffusion_AA_soil_xylem, AA_synthesis, struct_synthesis,
-                 storage_synthesis, AA_catabolism, storage_catabolism, phloem_total_AA, total_cytokinins,
-                 cytokinin_synthesis, xylem_Nm, xylem_AA, xylem_struct_mass, displaced_Nm_in, displaced_Nm_out,
-                 displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_Nm, cumulated_radial_exchanges_AA,
-                 phloem_struct_mass):
+    def __init__(self, g, time_step, sub_time_step) -> None:
 
         """
         Description
@@ -150,20 +177,6 @@ class RootNitrogenModel:
 
         Parameters
         :param g: MTG
-        :param Nm: Local mineral nitrogen volumic concentration (mol.m-3)
-        :param import_Nm: Local mineral nitrogen influx from soil (mol.s-1)
-        :param export_Nm: Local mineral nitrogen loading to xylem (mol.s-1)
-        :param diffusion_Nm_phloem: Local mineral nitrogen diffusion between cortex and phloem (mol.s-1)
-        :param xylem_Nm: Global xylem mineral nitrogen volumic concentration (mol.m-3)
-        :param xylem_volume: Global xylem vessel volume (m3)
-        :param phloem_Nm: Global phloem mineral nitrogen volumic concentration (mol.m-3)
-        :param phloem_volume: Global phloem vessel volume (m3)
-        :param Nm_root_shoot_xylem: Mineral nitrogen transport to shoot from root xylem (mol.s-1)
-        :param Nm_root_shoot_phloem: Mineral nitrogen transport from shoot to root phloem (mol.s-1)
-
-        Hypothesis
-        H1 :
-        H2 :
         """
 
         self.g = g
@@ -171,169 +184,39 @@ class RootNitrogenModel:
         self.time_step = time_step
         self.sub_time_step = sub_time_step
 
-        # New properties' creation in MTG
-        self.keywords = dict(
-            Nm=Nm,
-            AA=AA,
-            struct_protein=struct_protein,
-            storage_protein=storage_protein,
-            import_Nm=import_Nm,
-            import_AA=import_AA,
-            export_Nm=export_Nm,
-            export_AA=export_AA,
-            diffusion_Nm_soil=diffusion_Nm_soil,
-            diffusion_Nm_xylem=diffusion_Nm_xylem,
-            diffusion_Nm_soil_xylem=diffusion_Nm_soil_xylem,
-            diffusion_AA_soil=diffusion_AA_soil,
-            diffusion_AA_phloem=diffusion_AA_phloem,
-            diffusion_AA_soil_xylem=diffusion_AA_soil_xylem,
-            AA_synthesis=AA_synthesis,
-            struct_synthesis=struct_synthesis,
-            storage_synthesis=storage_synthesis,
-            AA_catabolism=AA_catabolism,
-            storage_catabolism=storage_catabolism,
-            xylem_Nm=xylem_Nm,
-            xylem_AA=xylem_AA,
-            xylem_struct_mass=xylem_struct_mass,
-            displaced_Nm_in=displaced_Nm_in,
-            displaced_Nm_out=displaced_Nm_out,
-            displaced_AA_in=displaced_AA_in,
-            displaced_AA_out=displaced_AA_out,
-            cumulated_radial_exchanges_Nm=cumulated_radial_exchanges_Nm,
-            cumulated_radial_exchanges_AA=cumulated_radial_exchanges_AA,
-            phloem_struct_mass=phloem_struct_mass
-        )
+        self.state_variables = [name for name, value in self.__dataclass__fields__ if value.metadata["variable_type"] == "state_variable"]
+        print(self.state_variables)
 
-        for name in self.keywords:
-            self.props.setdefault(name, {})
-
-        # vertices storage for future calls in for loops
-        self.vertices = self.g.vertices(scale=self.g.max_scale())
-        for vid in self.vertices:
-            for name, value in self.keywords.items():
-                # Effectively creates the new property
-                self.props[name][vid] = value
-
-        # Accessing properties once, pointing to g for further modifications
-        self.states = """
-                        Nm
-                        AA
-                        struct_protein
-                        storage_protein
-                        volume
-                        import_Nm
-                        import_AA
-                        export_Nm
-                        export_AA
-                        diffusion_Nm_soil
-                        diffusion_Nm_xylem
-                        diffusion_Nm_soil_xylem
-                        diffusion_AA_soil
-                        diffusion_AA_phloem
-                        diffusion_AA_soil_xylem
-                        AA_synthesis
-                        struct_synthesis
-                        storage_synthesis
-                        AA_catabolism
-                        storage_catabolism
-                        xylem_Nm
-                        xylem_AA
-                        xylem_struct_mass
-                        displaced_Nm_in
-                        displaced_Nm_out
-                        displaced_AA_in
-                        displaced_AA_out
-                        cumulated_radial_exchanges_Nm
-                        cumulated_radial_exchanges_AA
-                        phloem_struct_mass
-                        length
-                        radius
-                        struct_mass
-                        C_hexose_root
-                        C_hexose_reserve
-                        struct_mass_produced
-                        living_root_hairs_external_surface
-                        thermal_time_since_emergence
-                        """.split()
-
-        # Declare MTG properties in self
-        for name in self.states:
+        for name in self.state_variables:
+            if name not in self.props.keys():
+                self.props.setdefault(name, {})
+            # set default in mtg
+            self.props[name].update({key: getattr(self, name) for key in self.vertices})
+            # link mtg dict to self dict
             setattr(self, name, self.props[name])
 
         # Repeat the same process for total root system properties
+        self.summed_variables = [name for name, value in self.__dataclass__fields__ if value.metadata["variable_type"] == "summed_variable"]
 
-        # Creating variables for
-        self.totals_keywords = dict(total_Nm=0,
-                                    total_AA=0,
-                                    total_hexose=0,
-                                    total_cytokinins=total_cytokinins,
-                                    total_struct_mass=sum(self.struct_mass.values()),
-                                    total_xylem_Nm=0,
-                                    total_xylem_AA=0,
-                                    total_phloem_AA=phloem_total_AA,
-                                    Nm_root_shoot_xylem=0,
-                                    AA_root_shoot_xylem=0,
-                                    total_AA_rhizodeposition=0,
-                                    cytokinin_synthesis=cytokinin_synthesis
-                                    )
-
-        for name, value in self.totals_keywords.items():
-            self.props.setdefault(name, {})
-            self.props[name][1] = value
-
-        # Accessing properties once, pointing to g for further modifications
-        self.totals_states = """
-                                    total_Nm
-                                    total_AA
-                                    total_hexose
-                                    total_cytokinins
-                                    total_struct_mass
-                                    total_xylem_Nm
-                                    total_xylem_AA
-                                    total_phloem_AA
-                                    Nm_root_shoot_xylem
-                                    AA_root_shoot_xylem
-                                    total_AA_rhizodeposition
-                                    cytokinin_synthesis
-                                    """.split()
-
-        # Declare MTG properties in self
-        for name in self.totals_states:
+        for name in self.summed_variables:
+            if name not in self.props.keys():
+                self.props.setdefault(name, {})
+            # set default in mtg
+            self.props[name].update({1: getattr(self, name)})
+            # link mtg dict to self dict
             setattr(self, name, self.props[name])
 
-        # Declare to outside modules which variables are needed
-        self.inputs = {
-            # Common
-            "soil": [
-                "soil_Nm",
-                "soil_AA"
-            ],
-            "structure": [
-                "root_exchange_surface",
-                "stele_exchange_surface",
-                "phloem_exchange_surface",
-                "apoplasmic_stele"
-            ],
-            "carbon": [
-            ],
-            "shoot_nitrogen": [
-                "AA_root_shoot_phloem",
-                "cytokinins_root_shoot_xylem"
-            ],
-            "water": [
-                "xylem_water",
-                "axial_export_water_up",
-                "axial_import_water_down"
-            ]
-        }
+        # TODO : Chunk with map function across vid or processes chunks
+        num_processes = mp.cpu_count()
+        self.p = mp.Pool(num_processes)
 
     def store_functions_call(self):
-        # Storing function calls
-        #
+        """
+        Storing function calls in selffor later mapping of processes
+        """
+
         # Local and plant scale processes...
-        self.process_param = asdict(ProcessNitrogen())
-        self.process_methods = [partial(getattr(self, func), **self.process_param)
-                                for func in dir(self) if
+        self.process_methods = [getattr(self, func) for func in dir(self) if
                                 (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
         self.process_args = [[partial(self.get_up_to_date, arg) for arg in ins.getfullargspec(getattr(self, func))[0] if arg != "self"]
                                 for func in dir(self) if
@@ -342,30 +225,21 @@ class RootNitrogenModel:
                                 (callable(getattr(self, func)) and '__' not in func and 'process' in func)]
 
         # Local and plant scale update...
-        self.update_param = asdict(UpdateNitrogen())
-        self.update_methods = [partial(getattr(self, func), **self.update_param)
-                                for func in dir(self) if
+        self.update_methods = [getattr(self, func) for func in dir(self) if
                                 (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
         self.update_args = [[partial(self.get_up_to_date, arg) for arg in ins.getfullargspec(getattr(self, func))[0] if arg != "self"]
                              for func in dir(self) if
                              (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
         self.update_names = [func[7:] for func in dir(self) if
                               (callable(getattr(self, func)) and '__' not in func and 'update' in func)]
-        print(self.update_args)
 
-
-        self.plant_scale_update_methods = [partial(getattr(self, func), **self.update_param)
-                                              for func in dir(self) if
+        self.plant_scale_update_methods = [getattr(self, func) for func in dir(self) if
                                 (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
         self.plant_scale_update_args = [[partial(self.get_up_to_date, arg) for arg in ins.getfullargspec(getattr(self, func))[0] if arg != "self"]
                              for func in dir(self) if
                              (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
         self.plant_scale_update_names = [func[10:] for func in dir(self) if
                               (callable(getattr(self, func)) and '__' not in func and 'actualize_total' in func)]
-
-        # TODO : Chunk with map function across vid or processes chunks
-        num_processes = mp.cpu_count()
-        self.p = mp.Pool(num_processes)
 
     def exchanges_and_balance(self, parallel=False):
         """
@@ -387,7 +261,7 @@ class RootNitrogenModel:
                 result.wait()
                 result = self.p.apply_async(self.upd_resolution, vertices_chunks)
                 result.wait()
-                # TODO Share objects between processes to avoid copies slowing down the computation and modify self
+                # TODO Share MTG between processes to avoid copies slowing down the computation and modify self
                 # Might be easier with xarray around a shared dataset with Dask implementation.
             else:
                 self.props.update(self.prc_resolution())
@@ -415,21 +289,20 @@ class RootNitrogenModel:
     def get_up_to_date(self, prop):
         return getattr(self, prop)
 
-    def resolution_over_vertices(self, chunk, fncs, **kwargs):
+    def resolution_over_vertices(self, chunk, fncs):
         for vid in chunk:
             if self.struct_mass[vid] > 0:
                 for method in fncs:
-                    method(v=vid, **kwargs)
+                    method(v=vid)
 
     def add_properties_to_new_segments(self):
         self.vertices = self.g.vertices(scale=self.g.max_scale())
         for vid in self.vertices:
             if vid not in list(self.Nm.keys()):
-                for prop in list(self.keywords.keys()):
-                    getattr(self, prop)[vid] = self.keywords[prop]
-        # WARNING? OPTIONAL AND TO REMOVE WHEN NO SIMULATION FROM FILE
-        for name in self.states:
-            setattr(self, name, self.g.properties()[name])
+                parent = self.g.parent(vid)
+                for prop in self.state_variables:
+                    # Concentrations will be equal to parents and processes will be immediately overwritten
+                    getattr(self, prop).update({vid: getattr(self, prop)[parent]})
 
     def initialize_cumulative(self):
         # Reinitialize for the sum of the next loop
@@ -448,7 +321,7 @@ class RootNitrogenModel:
 
     # RADIAL TRANSPORT PROCESSES
     # MINERAL NITROGEN TRANSPORT
-    def process_import_Nm(self, Nm, soil_Nm, root_exchange_surface, C_hexose_root, living_root_hairs_external_surface, **kwargs):
+    def process_import_Nm(self, Nm, soil_Nm, root_exchange_surface, C_hexose_root, living_root_hairs_external_surface):
         """
                 Description
                 ___________
@@ -476,72 +349,72 @@ class RootNitrogenModel:
                 """
         # We define mineral nitrogen active uptake from soil
         precision = 0.99
-        Km_Nm_root = (kwargs["Km_Nm_root_LATS"] - kwargs["Km_Nm_root_HATS"]) / (
-                1 + (precision / ((1 - precision) * np.exp(-kwargs["begin_N_regulation"]))
-                     * np.exp(-Nm / kwargs["span_N_regulation"]))
-        ) + kwargs["Km_Nm_root_HATS"]
+        Km_Nm_root = (self.Km_Nm_root_LATS - self.Km_Nm_root_HATS) / (
+                1 + (precision / ((1 - precision) * np.exp(-self.begin_N_regulation))
+                     * np.exp(-Nm / self.span_N_regulation))
+        ) + self.Km_Nm_root_HATS
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((soil_Nm * kwargs["vmax_Nm_root"] / (soil_Nm + Km_Nm_root))
+        return ((soil_Nm * self.vmax_Nm_root / (soil_Nm + Km_Nm_root))
                 * (root_exchange_surface + living_root_hairs_external_surface)
-                * (C_hexose_root / (C_hexose_root + kwargs["transport_C_regulation"])))
+                * (C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
-    def process_diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, living_root_hairs_external_surface, **kwargs):
+    def process_diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, living_root_hairs_external_surface):
         # Passive radial diffusion between soil and cortex.
         # It happens only through root segment external surface.
         # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-        return (kwargs["diffusion_soil"] * (Nm * 10e5 - soil_Nm) * (
+        return (self.diffusion_soil * (Nm * 10e5 - soil_Nm) * (
                 root_exchange_surface + living_root_hairs_external_surface))
 
-    def process_export_Nm(self, Nm, stele_exchange_surface, C_hexose_root, **kwargs):
+    def process_export_Nm(self, Nm, stele_exchange_surface, C_hexose_root):
         # We define active export to xylem from root segment
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((Nm * kwargs["vmax_Nm_xylem"]) / (Nm + kwargs["Km_Nm_xylem"])) * stele_exchange_surface * (
-                C_hexose_root / (C_hexose_root + kwargs["transport_C_regulation"]))
+        return ((Nm * self.vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * stele_exchange_surface * (
+                C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
-    def process_diffusion_Nm_xylem(self, xylem_Nm, Nm, stele_exchange_surface, **kwargs):
+    def process_diffusion_Nm_xylem(self, xylem_Nm, Nm, stele_exchange_surface):
         # Passive radial diffusion between xylem and cortex through plasmalema
-        return kwargs["diffusion_xylem"] * (xylem_Nm - Nm) * stele_exchange_surface
+        return self.diffusion_xylem * (xylem_Nm - Nm) * stele_exchange_surface
 
-    def process_diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, apoplasmic_stele, **kwargs):
+    def process_diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, apoplasmic_stele):
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         # Here, surface is not really representative of a structure as everything is apoplasmic
-        return kwargs["diffusion_apoplasm"] * (
+        return self.diffusion_apoplasm * (
                 soil_Nm - xylem_Nm * 10e5) * 2 * np.pi * radius * length * apoplasmic_stele
 
     # AMINO ACID TRANSPORT
-    def process_import_AA(self, soil_AA, root_exchange_surface, living_root_hairs_external_surface, C_hexose_root, **kwargs):
+    def process_import_AA(self, soil_AA, root_exchange_surface, living_root_hairs_external_surface, C_hexose_root):
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((soil_AA * kwargs["vmax_AA_root"] / (soil_AA + kwargs["Km_AA_root"]))
+        return ((soil_AA * self.vmax_AA_root / (soil_AA + self.Km_AA_root))
                 * (root_exchange_surface + living_root_hairs_external_surface)
-                * (C_hexose_root / (C_hexose_root + kwargs["transport_C_regulation"])))
+                * (C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
-    def process_diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, living_root_hairs_external_surface, **kwargs):
+    def process_diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, living_root_hairs_external_surface):
         # We define amino acid passive diffusion to soil
-        return (kwargs["diffusion_soil"] * (AA * 10e5 - soil_AA)
+        return (self.diffusion_soil * (AA * 10e5 - soil_AA)
                 * (root_exchange_surface + living_root_hairs_external_surface))
 
-    def process_export_AA(self, AA, stele_exchange_surface, C_hexose_root, **kwargs):
+    def process_export_AA(self, AA, stele_exchange_surface, C_hexose_root):
         # We define active export to xylem from root segment
         # Km is defined as a constant here
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((AA * kwargs["vmax_AA_xylem"] / (AA + kwargs["Km_AA_xylem"]))
+        return ((AA * self.vmax_AA_xylem / (AA + self.Km_AA_xylem))
                 * stele_exchange_surface * (C_hexose_root / (
-                        C_hexose_root + kwargs["transport_C_regulation"])))
+                        C_hexose_root + self.transport_C_regulation)))
 
-    def process_diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, apoplasmic_stele, **kwargs):
+    def process_diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, apoplasmic_stele):
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        return (kwargs["diffusion_apoplasm"] * (soil_AA - xylem_AA * 10e5)
+        return (self.diffusion_apoplasm * (soil_AA - xylem_AA * 10e5)
                 * 2 * np.pi * radius * length * apoplasmic_stele)
 
-    def process_diffusion_AA_phloem(self, AA, phloem_exchange_surface, **kwargs):
+    def process_diffusion_AA_phloem(self, AA, phloem_exchange_surface):
         # Passive radial diffusion between phloem and cortex through plasmodesmata
         # TODO : Change diffusive flow to enable realistic ranges, now, unloading is limited by a ping pong bug related to diffusion
         # TODO : resolve exception when mapping has to deal with plant scale properties AND local ones
-        return (kwargs["diffusion_phloem"] * (self.total_phloem_AA[1] - AA)
+        return (self.diffusion_phloem * (self.total_phloem_AA[1] - AA)
                 * phloem_exchange_surface)
 
     # AXIAL TRANSPORT PROCESSES
-    def axial_transport_N(self, v, **kwargs):
+    def axial_transport_N(self, v):
         """
                 Description
                 ___________
@@ -774,52 +647,52 @@ class RootNitrogenModel:
             self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.sub_time_step
 
     # METABOLIC PROCESSES
-    def process_AA_synthesis(self, C_hexose_root, struct_mass, Nm, **kwargs):
+    def process_AA_synthesis(self, C_hexose_root, struct_mass, Nm):
         # amino acid synthesis
         if C_hexose_root > 0 and Nm > 0:
-            return struct_mass * kwargs["smax_AA"] / (
-                    ((1 + kwargs["Km_Nm_AA"]) / Nm) + ((1 + kwargs["Km_C_AA"]) / C_hexose_root))
+            return struct_mass * self.smax_AA / (
+                    ((1 + self.Km_Nm_AA) / Nm) + ((1 + self.Km_C_AA) / C_hexose_root))
         else:
             return 0
 
-    # def process_struct_synthesis(self, v, smax_struct, Km_AA_struct, **kwargs):
+    # def process_struct_synthesis(self, v, smax_struct, Km_AA_struct):
     #     # Organic structure synthesis (REPLACED BY RHIZODEP struct_mass_produced)
     #     struct_synthesis = struct_mass * (smax_struct * AA / (Km_AA_struct + AA))
 
-    def process_storage_synthesis(self, struct_mass, AA, **kwargs):
+    def process_storage_synthesis(self, struct_mass, AA):
         # Organic storage synthesis (Michaelis-Menten kinetic)
-        return struct_mass * (kwargs["smax_stor"] * AA / (kwargs["Km_AA_stor"] + AA))
+        return struct_mass * (self.smax_stor * AA / (self.Km_AA_stor + AA))
 
-    def process_storage_catabolism(self, struct_mass, C_hexose_root, C_hexose_reserve, **kwargs):
+    def process_storage_catabolism(self, struct_mass, C_hexose_root, C_hexose_reserve):
         # Organic storage catabolism through proteinase
-        Km_stor_root = kwargs["Km_stor_catab"] * np.exp(kwargs["storage_C_regulation"] * C_hexose_root)
-        return struct_mass * kwargs["cmax_stor"] * C_hexose_reserve / (Km_stor_root + C_hexose_reserve)
+        Km_stor_root = self.Km_stor_catab * np.exp(self.storage_C_regulation * C_hexose_root)
+        return struct_mass * self.cmax_stor * C_hexose_reserve / (Km_stor_root + C_hexose_reserve)
 
-    def process_AA_catabolism(self, C_hexose_root, struct_mass, AA, **kwargs):
+    def process_AA_catabolism(self, C_hexose_root, struct_mass, AA):
         # AA catabolism through GDH
-        Km_stor_root = kwargs["Km_AA_catab"] * np.exp(kwargs["storage_C_regulation"] * C_hexose_root)
-        return struct_mass * kwargs["cmax_AA"] * AA / (Km_stor_root + AA)
+        Km_stor_root = self.Km_AA_catab * np.exp(self.storage_C_regulation * C_hexose_root)
+        return struct_mass * self.cmax_AA * AA / (Km_stor_root + AA)
 
-    def process_cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm, **kwargs):
-        return total_struct_mass * kwargs["smax_cytok"] * (
-                total_hexose / (total_hexose + kwargs["Km_C_cytok"])) * (
-                total_Nm / (total_Nm + kwargs["Km_N_cytok"]))
+    def process_cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm):
+        return total_struct_mass * self.smax_cytok * (
+                total_hexose / (total_hexose + self.Km_C_cytok)) * (
+                total_Nm / (total_Nm + self.Km_N_cytok))
 
     # UPDATE NITROGEN POOLS
-    def update_Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, **kwargs):
+    def update_Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism):
         if struct_mass > 0:
             return Nm + (self.sub_time_step / struct_mass) * (
                     import_Nm
                     - diffusion_Nm_soil
                     + diffusion_Nm_xylem
                     - export_Nm
-                    - AA_synthesis * kwargs["r_Nm_AA"]
-                    + AA_catabolism / kwargs["r_Nm_AA"])
+                    - AA_synthesis * self.r_Nm_AA
+                    + AA_catabolism / self.r_Nm_AA)
         else:
             return 0
 
     def update_AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, struct_mass_produced, **kwargs):
+                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, struct_mass_produced):
         if struct_mass > 0:
             return AA + (self.sub_time_step / struct_mass) * (
                     diffusion_AA_phloem
@@ -827,9 +700,9 @@ class RootNitrogenModel:
                     - diffusion_AA_soil
                     - export_AA
                     + AA_synthesis
-                    - struct_synthesis * kwargs["r_AA_struct"]
-                    - storage_synthesis * kwargs["r_AA_stor"]
-                    + storage_catabolism / kwargs["r_AA_stor"]
+                    - struct_synthesis * self.r_AA_struct
+                    - storage_synthesis * self.r_AA_stor
+                    + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
             ) - struct_mass_produced * 0.2 / 146
         # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
@@ -840,11 +713,11 @@ class RootNitrogenModel:
         else:
             return 0
 
-    # def update_struct_protein(self, v, **kwargs):
+    # def update_struct_protein(self, v):
     #     struct_protein += (sub_time_step / struct_mass) * (
     #         struct_synthesis)
 
-    def update_storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism, **kwargs):
+    def update_storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism):
         if struct_mass > 0:
             return storage_protein + (self.sub_time_step / struct_mass) * (
                     storage_synthesis
@@ -853,7 +726,7 @@ class RootNitrogenModel:
         else:
             return 0
 
-    def update_xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, struct_mass, **kwargs):
+    def update_xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, struct_mass):
         if struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
@@ -861,55 +734,55 @@ class RootNitrogenModel:
         else:
             return 0
 
-    def update_xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, struct_mass, **kwargs):
+    def update_xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, struct_mass):
         if struct_mass > 0:
             return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / struct_mass
         else:
             return 0
 
     # PLANT SCALE PROPERTIES UPDATE
-    def actualize_total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem, total_struct_mass, **kwargs):
+    def actualize_total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem, total_struct_mass):
         return total_phloem_AA[1] + (- self.sub_time_step * sum(diffusion_AA_phloem.values()) + AA_root_shoot_phloem[1]) / (
-                total_struct_mass[1] * kwargs["phloem_cross_area_ratio"])
+                total_struct_mass[1] * self.phloem_cross_area_ratio)
 
     def actualize_total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem,
-                                   total_struct_mass, **kwargs):
+                                   total_struct_mass):
         return total_cytokinins[1] + (cytokinin_synthesis[1] * self.sub_time_step -
                                      cytokinins_root_shoot_xylem[1]) / total_struct_mass[1]
 
     # UPDATE CUMULATIVE VALUES
     # TODO : Retrieve the total struct mass from Rhizodep, otherwise, computation order is messed up here.
-    def actualize_total_struct_mass(self, struct_mass, **kwargs):
+    def actualize_total_struct_mass(self, struct_mass):
         # WARNING, do not parallelize otherwise other pool updates will be based on previous time-step
         return sum(struct_mass.values())
 
-    def actualize_total_Nm(self, Nm, struct_mass, total_struct_mass, **kwargs):
+    def actualize_total_Nm(self, Nm, struct_mass, total_struct_mass):
         return sum([x*y for x, y in zip(Nm.values(), struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_AA(self, AA, struct_mass, total_struct_mass, **kwargs):
+    def actualize_total_AA(self, AA, struct_mass, total_struct_mass):
         return sum([x * y for x, y in zip(AA.values(), struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_xylem_Nm(self, xylem_Nm, xylem_struct_mass, total_struct_mass, **kwargs):
+    def actualize_total_xylem_Nm(self, xylem_Nm, xylem_struct_mass, total_struct_mass):
         return sum([x*y for x, y in zip(xylem_Nm.values(), xylem_struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_xylem_AA(self, xylem_AA, xylem_struct_mass, total_struct_mass, **kwargs):
+    def actualize_total_xylem_AA(self, xylem_AA, xylem_struct_mass, total_struct_mass):
         return sum([x*y for x, y in zip(xylem_AA.values(), xylem_struct_mass.values())]) / total_struct_mass[1]
 
-    def actualize_total_AA_rhizodeposition(self, diffusion_AA_soil, import_AA, **kwargs):
+    def actualize_total_AA_rhizodeposition(self, diffusion_AA_soil, import_AA):
         return self.sub_time_step * (sum(diffusion_AA_soil.values()) - sum(import_AA.values()))
 
-    def actualize_total_hexose(self, C_hexose_root, struct_mass, total_struct_mass, **kwargs):
+    def actualize_total_hexose(self, C_hexose_root, struct_mass, total_struct_mass):
         return sum([x*y for x, y in zip(C_hexose_root.values(), struct_mass.values())]) / total_struct_mass[1]
 
     # UPDATE STRUCTURAL VALUES TODO : do not keep in this module
-    def update_xylem_struct_mass(self, struct_mass, **kwargs):
-        return struct_mass * kwargs["xylem_cross_area_ratio"]
+    def update_xylem_struct_mass(self, struct_mass):
+        return struct_mass * self.xylem_cross_area_ratio
 
-    def update_phloem_struct_mass(self, struct_mass, **kwargs):
-        return struct_mass * kwargs["phloem_cross_area_ratio"]
+    def update_phloem_struct_mass(self, struct_mass):
+        return struct_mass * self.phloem_cross_area_ratio
 
     # CARBON UPDATE
-    def update_C_hexose_root(self, C_hexose_root, **kwargs):
+    def update_C_hexose_root(self, C_hexose_root):
         # Minimum to avoid issues with zero values
         if C_hexose_root <= 0:
             return 1e-1
