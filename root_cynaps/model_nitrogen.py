@@ -48,9 +48,9 @@ class RootNitrogenModel:
     C_hexose_reserve: float =  field(default=0, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="input", by="model_carbon"))
 
     # FROM WATER BALANCE MODEL
-    xylem_water: float = field(default=0, metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
-    axial_export_water_up: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
-    axial_import_water_down: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
+    xylem_water: float =                field(default=0, metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
+    axial_export_water_up: float =      field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
+    axial_import_water_down: float =    field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_water"))
 
     # FROM GROWTH MODEL
     length: float =                     field(default=0, metadata=dict(unit="m", unit_comment="of root segment", description="", value_comment="", references="", variable_type="input", by="model_growth"))
@@ -78,29 +78,29 @@ class RootNitrogenModel:
     xylem_Nm: float =           field(default=set_value(1e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of structural nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     xylem_AA: float =           field(default=set_value(1e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     # Transport processes
-    import_Nm: float = 0  # mol N.s-1
-    import_AA: float = 0  # mol AA.s-1
-    export_Nm: float = 0  # mol N.s-1
-    export_AA: float = 0  # mol AA.s-1
-    diffusion_Nm_soil: float = 0  # mol N.s-1
-    diffusion_Nm_xylem: float = 0  # mol N.s-1
-    diffusion_Nm_soil_xylem: float = 0  # mol N.s-1
-    diffusion_AA_soil: float = 0  # mol AA.s-1
-    diffusion_AA_phloem: float = 0  # mol AA.s-1
-    diffusion_AA_soil_xylem: float = 0  # mol AA.s-1
+    import_Nm: float =                      field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    import_AA: float =                      field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    export_Nm: float =                      field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    export_AA: float =                      field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    diffusion_Nm_soil: float =              field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    diffusion_Nm_xylem: float =             field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    diffusion_Nm_soil_xylem: float =        field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    diffusion_AA_soil: float =              field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    diffusion_AA_phloem: float =            field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    diffusion_AA_soil_xylem: float =        field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     # Metabolic processes
-    AA_synthesis: float = 0  # mol AA.s-1
-    struct_synthesis: float = 0  # mol struct.s-1
-    storage_synthesis: float = 0  # mol stor.s-1
-    AA_catabolism: float = 0  # mol AA.s-1
-    storage_catabolism: float = 0  # mol stor.s-1
-    xylem_struct_mass: float = 1e-6  # g
-    displaced_Nm_in: float = 0  # mol Nm.time_step-1
-    displaced_Nm_out: float = 0  # mol Nm.time_step-1
-    displaced_AA_in: float = 0  # mol Nm.time_step-1
-    displaced_AA_out: float = 0  # mol Nm.time_step-1
-    cumulated_radial_exchanges_Nm: float = 0  # mol Nm.time_step-1
-    cumulated_radial_exchanges_AA: float = 0  # mol AA.time_step-1
+    AA_synthesis: float =                   field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    struct_synthesis: float =               field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of functional structure", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    storage_synthesis: float =              field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of storage", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    AA_catabolism: float =                  field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    storage_catabolism: float =             field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.s-1", unit_comment="of storage", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    xylem_struct_mass: float =              field(default=set_value(1e-6, min_value=0., max_value=1e-3), metadata=dict(unit="g", unit_comment="of structural mass", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    displaced_Nm_in: float =                field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.time_step-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    displaced_Nm_out: float =               field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.time_step-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    displaced_AA_in: float =                field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.time_step-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    displaced_AA_out: float =               field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.time_step-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    cumulated_radial_exchanges_Nm: float =  field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.time_step-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
+    cumulated_radial_exchanges_AA: float =  field(default=set_value(0., min_value=0., max_value=1e-3), metadata=dict(unit="mol.time_step-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
 
     # SUMMED STATE VARIABLES
 
@@ -121,53 +121,53 @@ class RootNitrogenModel:
 
     # N TRANSPORT PROCESSES
     # kinetic parameters
-    vmax_Nm_root: float = 1e-6  # mol N.s-1.m-2
-    vmax_Nm_xylem: float = 1e-6  # mol N.s-1.m-2
-    Km_Nm_root_LATS: float = 1e-1  # mol N.m-3 Changed to increase diminution
-    Km_Nm_root_HATS: float = 1e-6  # mol N.m-3
-    begin_N_regulation: float = 1e1  # Artif mol N.g-1 changed so that import_Nm variation may occur in Nm variation range
-    span_N_regulation: float = 2e-4  # mol N.g-1 range corresponding to observed variation range within segment
-    Km_Nm_xylem: float = 8e-5  # mol N.g-1
-    vmax_AA_root: float = 1e-7  # mol AA.s-1.m-2
-    Km_AA_root: float = 1e-1  # mol AA.m-3
-    vmax_AA_xylem: float = 1e-7  # mol AA.s-1.m-2
-    Km_AA_xylem: float = 8e-5  # mol AA.g-1
-    diffusion_soil: float = 1e-11  # Artif g.m-2.s-1 while there is no soil model balance
-    diffusion_xylem: float = 0  # 1e-6   # Artif g.m-2.s-1 It was noticed it only contributed to xylem loading
-    diffusion_phloem: float = 1e-5  # Artif *1e-1 g.m-2.s-1 more realistic ranges
-    diffusion_apoplasm: float = 2.5e-10  # Artif. g.m-2.s-1 while there is no soil model balance
+    vmax_Nm_root: float = field(default=1e-6, metadata=dict(unit="mol.s-1.m-2", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    vmax_Nm_xylem: float = field(default=1e-6, metadata=dict(unit="mol.s-1.m-2", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_Nm_root_LATS: float = field(default=1e-1, metadata=dict(unit="mol.m-3", unit_comment="of nitrates", description="", value_comment="Changed to increase diminution", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_Nm_root_HATS: float = field(default=1e-6, metadata=dict(unit="mol.m-3", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    begin_N_regulation: float = field(default=1e1, metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="changed so that import_Nm variation may occur in Nm variation range", references="", variable_type="parameter", by="model_nitrogen"))
+    span_N_regulation: float = field(default=2e-4, metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="range corresponding to observed variation range within segment", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_Nm_xylem: float = field(default=8e-5, metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    vmax_AA_root: float = field(default=1e-7, metadata=dict(unit="mol.s-1.m-2", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_AA_root: float = field(default=1e-1, metadata=dict(unit="mol.m-3", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    vmax_AA_xylem: float = field(default=1e-7, metadata=dict(unit="mol.s-1.m-2", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_AA_xylem: float = field(default=8e-5, metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    diffusion_soil: float = field(default=1e-11, metadata=dict(unit="g.s-1.m-2", unit_comment="of solute", description="", value_comment="while there is no soil model balance", references="", variable_type="parameter", by="model_nitrogen"))
+    diffusion_xylem: float = field(default=0., metadata=dict(unit="g.s-1.m-2", unit_comment="of solute", description="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading", references="", variable_type="parameter", by="model_nitrogen"))
+    diffusion_phloem: float = field(default=1e-5, metadata=dict(unit="g.s-1.m-2", unit_comment="of solute", description="", value_comment="more realistic ranges than?", references="", variable_type="parameter", by="model_nitrogen"))  # Artif *1e-1 g.m-2.s-1 more realistic ranges
+    diffusion_apoplasm: float = field(default=2.5e-10, metadata=dict(unit="g.s-1.m-2", unit_comment="of solute", description="", value_comment="while there is no soil model balance", references="", variable_type="parameter", by="model_nitrogen"))
 
     # metabolism-related parameters
-    transport_C_regulation: float = 7e-3  # mol.g-1
+    transport_C_regulation: float = field(default=7e-3, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
 
     # N METABOLISM PROCESSES
     # TODO : introduce nitrogen fixation
     # kinetic parameters
-    smax_AA: float = 1e-5  # Artif mol.s-1.g-1 DW
-    Km_Nm_AA: float = 3e-6  # mol.g-1 DW
-    Km_C_AA: float = 350e-6  # mol.g-1 DW
-    smax_struct: float = 1e-9  # mol.s-1.g-1 DW
-    Km_AA_struct: float = 250e-6  # mol.g-1 DW
-    smax_stor: float = 0  # Artif 1e-9  # mol.s-1.g-1 DW 0 for wheat
-    Km_AA_stor: float = 250e-6  # mol.g-1 DW
-    cmax_stor: float = 1e-9  # mol.s-1.g-1 DW
-    Km_stor_catab: float = 250e-6  # mol.g-1 DW
-    cmax_AA: float = 0  # Artif 5e-9    # mol.s-1.g-1 DW for now not relevant as it doesn't contribute to C_hexose_root balance
-    Km_AA_catab: float = 2.5e-6  # mol.g-1 DW
-    storage_C_regulation: float = 3e1  # mol.g-1 Changed to avoid reaching Vmax with slight decrease in hexose content
+    smax_AA: float = field(default=1e-5, metadata=dict(unit="mol.s-1.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_Nm_AA: float = field(default=3e-6, metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_C_AA: float = field(default=350e-6, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    smax_struct: float = field(default=1e-9, metadata=dict(unit="mol.s-1.g-1", unit_comment="of structure", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_AA_struct: float = field(default=250e-6, metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    smax_stor: float = field(default=0., metadata=dict(unit="mol.s-1.g-1", unit_comment="of storage", description="", value_comment="0 for wheat", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_AA_stor: float = field(default=250e-6, metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    cmax_stor: float = field(default=1e-9, metadata=dict(unit="mol.s-1.g-1", unit_comment="of storage", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_stor_catab: float = field(default=250e-6, metadata=dict(unit="mol.g-1", unit_comment="of storage", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    cmax_AA: float = field(default=0., metadata=dict(unit="mol.s-1.g-1", unit_comment="of amino acids", description="", value_comment="5e-9 for now not relevant as it doesn't contribute to C_hexose_root balance", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_AA_catab: float = field(default=2.5e-6, metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    storage_C_regulation: float = field(default=3e1, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="Changed to avoid reaching Vmax with slight decrease in hexose content", references="", variable_type="parameter", by="model_nitrogen"))
 
     # HORMONES METABOLISM PROCESSES
     # kinetic parameters
-    smax_cytok: float = 9e-4  # UA.g DW-1.s-1
-    Km_C_cytok: float = 1.2e-3
-    Km_N_cytok: float = 5e-5
+    smax_cytok: float = field(default=9e-4, metadata=dict(unit="UA.s-1.g-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_C_cytok: float = field(default=1.2e-3, metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    Km_N_cytok: float = field(default=1.2e-3, metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
 
     # CONVERSION RATIO FOR STATE VARIABLES
-    r_Nm_AA: float = 1.4
-    r_AA_struct: float = 65
-    r_AA_stor: float = 65
-    xylem_cross_area_ratio: float = 0.84 * (0.36 ** 2)  # (adim) apoplasmic cross-section area ratio * stele radius ratio^2
-    phloem_cross_area_ratio: float = 0.15 * (0.36 ** 2)  # (adim) phloem cross-section area ratio * stele radius ratio^2
+    r_Nm_AA: float = field(default=1.4, metadata=dict(unit="adim", unit_comment="concentration ratio", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    r_AA_struct: float = field(default=65, metadata=dict(unit="adim", unit_comment="concentration ratio", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    r_AA_stor: float = field(default=65, metadata=dict(unit="adim", unit_comment="concentration ratio", description="", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    xylem_cross_area_ratio: float = field(default=0.84 * (0.36 ** 2), metadata=dict(unit="adim", unit_comment="surface ratio", description="xylem cross-section area ratio * stele radius ratio^2", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
+    phloem_cross_area_ratio: float = field(default=0.15 * (0.36 ** 2), metadata=dict(unit="adim", unit_comment="surface ratio", description="phloem cross-section area ratio * stele radius ratio^2", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
 
     def __init__(self, g, time_step, sub_time_step) -> None:
 
