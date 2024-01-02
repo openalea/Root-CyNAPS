@@ -14,7 +14,7 @@ Methods' names are systematic through all class for ease of use :
 
 # Imports
 import numpy as np
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 import multiprocessing as mp
 from multiprocessing import shared_memory
 import inspect as ins
@@ -61,15 +61,13 @@ class RootNitrogenModel:
     thermal_time_since_emergence: float = field(default=0, metadata=dict(unit="°C", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_growth"))
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="input", by="model_growth"))
-    cytokinins_root_shoot_xylem: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    AA_root_shoot_phloem: float =       field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="input", by="model_shoot"))
+    cytokinins_root_shoot_xylem: float = field(default=0, metadata=dict(unit="mol.s-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="input", by="model_shoot"))
 
     # --- INITIALIZE MODEL STATE VARIABLES ---
 
     # LOCAL VARIABLES
 
-    # time resolution
-    sub_time_step: int =        field(default=set_value(3600, min_value=1, max_value=24*3600), metadata=dict(unit="s", unit_comment="", description="MUST be a multiple of base time_step", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     # Pools initial size
     Nm: float =                 field(default=set_value(1e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="state_variable", by="model_nitrogen"))
     AA: float =                 field(default=set_value(9e-4, min_value=1e-5, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", references="", variable_type="state_variable", by="model_nitrogen"))
@@ -118,6 +116,9 @@ class RootNitrogenModel:
     cytokinin_synthesis: float =        field(default=0., metadata=dict(unit="UA.s-1", unit_comment="of cytokinin", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen"))
 
     # --- INITIALIZES MODEL PARAMETERS ---
+
+    # time resolution
+    sub_time_step: int = field(default=set_value(3600, min_value=1, max_value=24 * 3600), metadata=dict(unit="s", unit_comment="", description="MUST be a multiple of base time_step", value_comment="", references="", variable_type="parameter", by="model_nitrogen"))
 
     # N TRANSPORT PROCESSES
     # kinetic parameters

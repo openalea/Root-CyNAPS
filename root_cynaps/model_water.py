@@ -1,144 +1,119 @@
 import numpy as np
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field
 
 from openalea.mtg.traversal import pre_order
 
 
 # Properties' initialization
 
+def set_value(value: float, min_value: float, max_value: float) -> float:
+    if min_value <= value <= max_value:
+        return value
+    else:
+        raise ValueError("The provided value is outside boundaries")
+
 
 @dataclass
-class InitWater:
+class RootWaterModel:
+    # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
+
+    # FROM SOIL MODEL
+    soil_water_pressure: float = field(default=0., metadata=dict(unit="Pa", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_soil"))
+    soil_temperature: float = field(default=0., metadata=dict(unit="°C", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_soil"))
+
+    # FROM ANATOMY MODEL
+    xylem_volume: float = field(default=0., metadata=dict(unit="m3", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    cortex_exchange_surface: float = field(default=0., metadata=dict(unit="m2", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    apoplasmic_exchange_surface: float = field(default=0., metadata=dict(unit="m2", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+    apoplasmic_stele: float = field(default=0., metadata=dict(unit="adim", unit_comment="", description="", value_comment="", references="", variable_type="input", by="model_anatomy"))
+
+    # FROM GROWTH MODEL
+    length: float = field(default=0, metadata=dict(unit="m", unit_comment="of root segment", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    radius: float = field(default=0, metadata=dict(unit="m", unit_comment="of root segment", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+    struct_mass: float = field(default=0, metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="input", by="model_growth"))
+
+    # FROM SHOOT MODEL
+    water_root_shoot_xylem: float = field(default=0., metadata=dict(unit="mol.time_step-1", unit_comment="of water", description="", value_comment="", references="", variable_type="input", by="model_shoot"))
+
+    # --- INITIALIZE MODEL STATE VARIABLES ---
+
+    # LOCAL VARIABLES
+
+    # Pools initial values
+    xylem_water: float = field(default=set_value(0., min_value=0., max_value=1e-6), metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="state_variable", by="model_water"))
+
+    # Water transport processes
+    radial_import_water: float = field(default=0., metadata=dict(unit="mol.time_step-1", unit_comment="of water", description="", value_comment="", references="", variable_type="state_variable", by="model_water"))
+    shoot_uptake: float = field(default=0., metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="state_variable", by="model_water"))
+    axial_export_water_up: float = field(default=0., metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="state_variable", by="model_water"))
+    axial_import_water_down: float = field(default=0., metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="state_variable", by="model_water"))
+
+    # SUMMED STATE VARIABLES
+
+    xylem_total_water: float = field(default=0., metadata=dict(unit="mol", unit_comment="of water", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_water"))
+    xylem_total_pressure: float = field(default=set_value(-0.1e6, min_value=-0.5e6, max_value=-0.05e6), metadata=dict(unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", value_comment="", references="", variable_type="plant_scale_state", by="model_water"))
+
+    # --- INITIALIZES MODEL PARAMETERS ---
+
     # time resolution
-    sub_time_step: int = 3600  # (second) MUST be a multiple of base time_step
-    # Pools
-    xylem_water: float = 0  # (mol) water content
-    water_molar_mass: float = 18    # g.mol-1
-    water_volumic_mass: float = 1e6  # g.m-3
-    xylem_total_pressure: float = -0.1e6  # (Pa) apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance
-    # Water transports
-    radial_import_water: float = 0
-    shoot_uptake: float = 0
-    axial_export_water_up: float = 0
-    axial_import_water_down: float = 0
-    # Mechanical properties
-    xylem_young_modulus: float = 1e6  # (Pa) radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)
-    xylem_cross_area_ratio: float = 10  # 0.84 * (0.36 ** 2) # (adim) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio
+    sub_time_step: int = field(default=set_value(3600, min_value=1, max_value=24 * 3600), metadata=dict(unit="s", unit_comment="", description="MUST be a multiple of base time_step", value_comment="", references="", variable_type="parameter", by="model_water"))
 
-@dataclass
-class TransportWater:
-    water_molar_mass: float = 18  # g.mol-1
-    cortex_water_conductivity: float = 1e-14 * 1e5  # Artif m.s-1.Pa-1
-    apoplasmic_water_conductivity: float = 1e-14 * 1e6  # Artif m.s-1.Pa-1
-    xylem_tear: float = 9e5  # (Pa) maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)
-    sap_viscosity: float = 1.3e6    # Pa
+    # Water properties
+    water_molar_mass: float = field(default=18, metadata=dict(unit="g.mol-1", unit_comment="", description="", value_comment="", references="", variable_type="parameter", by="model_water"))
+    water_volumic_mass: float = field(default=1e6, metadata=dict(unit="g.m-3", unit_comment="", description="", value_comment="", references="", variable_type="parameter", by="model_water"))
+    sap_viscosity: float = field(default=1.3e6, metadata=dict(unit="Pa", unit_comment="", description="", value_comment="", references="", variable_type="parameter", by="model_water"))
 
+    # Vessel mechanical properties
+    xylem_young_modulus: float = field(default=1e6, metadata=dict(unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)", value_comment="", references="", variable_type="parameter", by="model_water"))
+    xylem_cross_area_ratio: float = field(default=10, metadata=dict(unit="adim", unit_comment="", description="0.84 * (0.36 ** 2) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio", value_comment="", references="", variable_type="parameter", by="model_water"))
 
-class WaterModel:
-    def __init__(self, g, time_step, sub_time_step, xylem_water, water_molar_mass, water_volumic_mass, xylem_total_pressure,
-                 radial_import_water, shoot_uptake, axial_export_water_up, axial_import_water_down, xylem_young_modulus, xylem_cross_area_ratio):
+    cortex_water_conductivity: float = field(default=1e-14 * 1e5, metadata=dict(unit="m.s-1.Pa-1", unit_comment="", description="", value_comment="", references="", variable_type="parameter", by="model_water"))
+    apoplasmic_water_conductivity: float = field(default=1e-14 * 1e6, metadata=dict(unit="m.s-1.Pa-1", unit_comment="", description="", value_comment="", references="", variable_type="parameter", by="model_water"))
+    xylem_tear: float = field(default=9e5, metadata=dict(unit="Pa", unit_comment="", description="maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)", value_comment="", references="", variable_type="parameter", by="model_water"))
+
+    def __init__(self, g, time_step, sub_time_step):
         """
-                Description :
-    	        
-                This root water model discretized at root segment's scale intends to account for heterogeneous axial and radial water flows observed in the roots (Bauget et al. 2022).
+        Description :
 
-                Parameters
+        This root water model discretized at root segment's scale intends to account for heterogeneous axial and radial water flows observed in the roots (Bauget et al. 2022).
 
-                Hypothesis :
-                
-                Accounting for heterogeneous water flows would improbe the overall nutrient balance for root hydromineral uptake.
-                """
+        Parameters
+
+        Hypothesis :
+
+        Accounting for heterogeneous water flows would improbe the overall nutrient balance for root hydromineral uptake.
+        """
 
         self.g = g
+        self.props = self.g.properties()
         self.time_step = time_step
         self.sub_time_step = sub_time_step
-        # Some parameters are defined in self as they are used in several functions
-        self.xylem_young_modulus = xylem_young_modulus
-        self.xylem_cross_area_ratio = xylem_cross_area_ratio
+        self.vertices = self.g.vertices(scale=self.g.max_scale())
 
-        # New spatialized properties' creation in MTG
-        self.keywords = dict(
-            xylem_water=xylem_water,
-            radial_import_water=radial_import_water,
-            shoot_uptake=shoot_uptake,
-            axial_export_water_up=axial_export_water_up,
-            axial_import_water_down=axial_import_water_down)
+        self.state_variables = [name for name, value in self.__dataclass__fields__ if value.metadata["variable_type"] == "state_variable"]
+        print(self.state_variables)
 
-        props = self.g.properties()
-        for name in self.keywords:
-            props.setdefault(name, {})
-
-        # vertices storage for future calls in for loops
-        self.vertices = self.g.vertices(scale=g.max_scale())
-        for vid in self.vertices:
-            for name, value in self.keywords.items():
-                # Effectively creates the new property
-                props[name][vid] = value
-
-        # Accessing properties once, pointing to g for further modifications
-        self.states = """
-                        C_hexose_soil
-                        xylem_water
-                        C_sucrose_root
-                        radial_import_water
-                        shoot_uptake
-                        axial_export_water_up
-                        axial_import_water_down
-                        length
-                        radius
-                        struct_mass
-                        living_root_hairs_external_surface
-                        xylem_volume
-                        """.split()
-
-        # Declare MTG properties in self
-        for name in self.states:
-            setattr(self, name, props[name])
+        for name in self.state_variables:
+            if name not in self.props.keys():
+                self.props.setdefault(name, {})
+            # set default in mtg
+            self.props[name].update({key: getattr(self, name) for key in self.vertices})
+            # link mtg dict to self dict
+            setattr(self, name, self.props[name])
 
         # Repeat the same process for total root system properties
+        self.plant_scale_states = [name for name, value in self.__dataclass__fields__ if value.metadata["variable_type"] == "plant_scale_state"]
 
-        # Creating variables for global balance and outputs
-        self.totals_keywords = dict(xylem_total_water=0,
-                                    actual_transpiration=0,
-                                    xylem_total_pressure=xylem_total_pressure)
-
-        for name, value in self.totals_keywords.items():
-            props.setdefault(name, {})
-            props[name][1] = value
-
-        # Accessing properties once, pointing to g for further modifications
-        self.totals_states = """
-                                xylem_total_water
-                                actual_transpiration
-                                xylem_total_pressure
-                                """.split()
-
-        # Declare MTG properties in self
-        for name in self.totals_states:
-            setattr(self, name, props[name])
-
-        # proper initialization of the xylem water content
-        self.water_volumic_mass = water_volumic_mass
-
-        # Declare to outside modules which variables are needed
-        self.inputs = {
-            "soil": [
-                "soil_water_pressure",
-                "soil_temperature"
-            ],
-            "structure": [
-                "xylem_volume",
-                "cortex_exchange_surface",
-                "apoplasmic_exchange_surface",
-                "apoplasmic_stele"
-            ],
-            "shoot_water": [
-                "water_root_shoot_xylem"
-            ]
-        }
+        for name in self.plant_scale_states:
+            if name not in self.props.keys():
+                self.props.setdefault(name, {})
+            # set default in mtg
+            self.props[name].update({1: getattr(self, name)})
+            # link mtg dict to self dict
+            setattr(self, name, self.props[name])
 
         # Select real children for collar element (vid == 1).
-        # This is mandatory for right collar-to-tip Hagen-Poiseuille flow partitioning.
+        # This is mandatory for correct collar-to-tip Hagen-Poiseuille flow partitioning.
         self.collar_children, self.collar_skip = [], []
         for vid in self.vertices:
             child = self.g.children(vid)
@@ -146,13 +121,13 @@ class WaterModel:
                 self.collar_skip += [vid]
                 self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
 
-    def init_xylem_water(self, water_molar_mass=18):
+    def init_xylem_water(self):
         # At pressure = soil_pressure, the corresponding xylem volume at rest is
         # filled with water in standard conditions
 
         # We compute the total water amount from the formula used for pressure calculation
         self.xylem_total_water[1] = ((((self.xylem_total_pressure[1] - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus) + 1) ** 2) * (
-                np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / water_molar_mass
+                np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
         sum_volume = sum(self.xylem_volume.values())
 
@@ -161,33 +136,30 @@ class WaterModel:
             if self.struct_mass[vid] > 0:
                 self.xylem_water[vid] = self.xylem_total_water[1] * self.xylem_volume[vid] / sum_volume
 
-    def transport_water(self, water_molar_mass, cortex_water_conductivity, apoplasmic_water_conductivity, xylem_tear, sap_viscosity):
+    def transport_water(self):
         # Using previous time-step flows, we compute current time-step pressure for flows computation
 
         # Compute the minimal water content for current dimensions
-        tearing_xylem_total_water = (((- xylem_tear / self.xylem_young_modulus) + 1) ** 2) * (
+        tearing_xylem_total_water = (((- self.xylem_tear / self.xylem_young_modulus) + 1) ** 2) * (
                   np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(
-              self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / water_molar_mass
+              self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
         # we set collar element the flow provided by shoot model
         potential_transpiration = self.water_root_shoot_xylem[1] * self.sub_time_step
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
         if self.xylem_total_water[1] - potential_transpiration < tearing_xylem_total_water:
-            self.actual_transpiration[1] = self.xylem_total_water[1] - tearing_xylem_total_water
+            actual_transpiration = self.xylem_total_water[1] - tearing_xylem_total_water
         else:
-            self.actual_transpiration[1] = potential_transpiration
+            actual_transpiration = potential_transpiration
 
-        self.axial_export_water_up[1] = self.actual_transpiration[1]
-
-        # For export unit, TODO remove later
-        self.actual_transpiration[1] /= self.sub_time_step
+        self.axial_export_water_up[1] = actual_transpiration
 
         # Loop computing individual segments' water exchange
         for vid in self.vertices:
             # radial exchanges are only hydrostatic-driven for now
-            apoplastic_water_import = apoplasmic_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.apoplasmic_exchange_surface[vid]
+            apoplastic_water_import = self.apoplasmic_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.apoplasmic_exchange_surface[vid]
 
-            cross_membrane_water_import = cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
+            cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
 
             self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.sub_time_step
             # We suppose uptake is evenly reparted over the xylem to avoid over contribution of apexes in
@@ -232,7 +204,7 @@ class WaterModel:
                     HP = [0 for k in self.collar_children]
                     for k in range(len(self.collar_children)):
                         # compute Hagen-Poiseuille coefficient
-                        HP[k] = np.pi * (self.radius[self.collar_children[k]]**4) / (8 * sap_viscosity)
+                        HP[k] = np.pi * (self.radius[self.collar_children[k]]**4) / (8 * self.sap_viscosity)
                     HP_tot = sum(HP)
                     for k in range(len(self.collar_children)):
                         self.axial_export_water_up[self.collar_children[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
@@ -247,7 +219,7 @@ class WaterModel:
                     HP = [0 for k in child]
                     for k in range(len(child)):
                         # compute Hagen-Poiseuille coefficient
-                        HP[k] = np.pi * (self.radius[child[k]]**4) / (8 * sap_viscosity)
+                        HP[k] = np.pi * (self.radius[child[k]]**4) / (8 * self.sap_viscosity)
 
                     HP_tot = sum(HP)
                     for k in range(len(child)):
@@ -257,7 +229,7 @@ class WaterModel:
 
         # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
         self.xylem_total_pressure[1] = self.xylem_young_modulus * (
-                    (((self.xylem_total_water[1] * water_molar_mass) / (
+                    (((self.xylem_total_water[1] * self.water_molar_mass) / (
                             np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) *
                             self.xylem_cross_area_ratio * self.water_volumic_mass)) ** 0.5) - 1) + np.mean(
                             list(self.soil_water_pressure.values()))
@@ -271,8 +243,6 @@ class WaterModel:
             if vid not in list(self.xylem_water.keys()):
                 for prop in list(self.keywords.keys()):
                     getattr(self, prop)[vid] = 0
-        for name in self.states:
-            setattr(self, name, self.g.properties()[name])
 
     def exchanges_and_balance(self):
         """
@@ -283,6 +253,6 @@ class WaterModel:
         """
         for k in range(int(self.time_step/self.sub_time_step)):
             self.add_properties_to_new_segments()
-            self.transport_water(**asdict(TransportWater()))
+            self.transport_water()
             self.update_sums()
 

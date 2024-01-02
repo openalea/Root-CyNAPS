@@ -29,7 +29,7 @@ from dataclasses import dataclass, asdict
 # Dataclass for initialisation and parametrization.
 
 # Properties' init
-
+# TODO merge with rhizodep
 @dataclass
 class InitSurfaces:
     root_exchange_surface: float = 0  # (m2)

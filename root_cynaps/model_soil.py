@@ -21,7 +21,7 @@ import numpy as np
 
 
 # Mean soil concentrations
-
+# TODO merge with rhizodep
 @dataclass
 class MeanConcentrations:
     soil_water_pressure: float = -0.1e6  # (Pa) mean soil water pressure
