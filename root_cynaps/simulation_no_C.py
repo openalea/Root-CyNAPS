@@ -8,14 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from time import time
 
-from root_cynaps.model_soil import MeanConcentrations, SoilPatch, HydroMinSoil
-from root_cynaps.model_topology import InitSurfaces, TissueTopology, RadialTopology
-from root_cynaps.model_water import InitWater, WaterModel
-from root_cynaps.model_nitrogen import RootNitrogenModel, InitNitrogen
 
-from Data_enforcer.model import ShootModel
+from root_cynaps.root_cynaps import Model
 
-import root_cynaps.converter as converter
 from root_cynaps.output_properties import state_extracts, flow_extracts, global_state_extracts, global_flow_extracts
 from tools.mtg_dict_to_xarray import mtg_to_dataset
 
@@ -61,30 +56,8 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
     for d in [state_extracts, flow_extracts, global_state_extracts, global_flow_extracts]:
         log_outputs.update(d)
 
-    # Initialization of modules
-    soil = HydroMinSoil(g, **asdict(MeanConcentrations()))
-    root_topo = RadialTopology(g, **asdict(InitSurfaces()))
-    root_water = WaterModel(g, time_step, **asdict(InitWater()))
-    root_nitrogen = RootNitrogenModel(g, time_step, **asdict(InitNitrogen()))
-    shoot = ShootModel(g)
-
-    # Linking modules
-    # Spatialized root MTG interactions between soil, structure, nitrogen and water
-    converter.link_mtg(root_nitrogen, soil, category="soil", same_names=True)
-    converter.link_mtg(root_nitrogen, root_topo, category="structure", same_names=True)
-
-    converter.link_mtg(root_water, soil, category="soil", same_names=True)
-
-    converter.link_mtg(root_water, root_topo, category="structure", same_names=True)
-
-    converter.link_mtg(root_nitrogen, root_water, category="water", same_names=True)
-
-    # 1 point collar interactions between shoot CN, root nitrogen and root water
-    converter.link_mtg(root_nitrogen, shoot, category="shoot_nitrogen", translator=converter.nitrogen_flows, same_names=False)
-
-    converter.link_mtg(root_water, shoot, category="shoot_water", translator=converter.water_flows, same_names=False)
-
-    root_nitrogen.store_functions_call()
+    # Initialization of model
+    root_cynaps = Model(g=g, time_step=time_step)
 
     # Init output xarray list
     if logging:
@@ -92,21 +65,10 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
         time_xrs = [mtg_to_dataset(g, variables=log_outputs, time=0)]
         # xarray_output[0].to_netcdf(output_path + f"/xarray_used_input_{start_time}.nc")
 
-    root_water.init_xylem_water()
     # Scheduler : actual computation loop
     for i in range(steps_number):
         # Update soil state
-        soil.update_patches(patch_age=i*time_step, z_soil_Nm_max=z_soil_Nm_max, **asdict(SoilPatch()))
-
-        # Update topological surfaces and volumes based on other evolved structural properties
-        root_topo.update_topology(**asdict(TissueTopology()))
-
-        # Compute state variations for water (if selected) and then nitrogen
-        root_water.exchanges_and_balance()
-        # start = time()
-        root_nitrogen.exchanges_and_balance()
-        # print((time()-start)/len(root_nitrogen.vertices))
-        shoot.exchanges_and_balance(time=i)
+        root_cynaps.run()
 
         if echo:
             print("time step : {}h".format(i))
