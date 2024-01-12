@@ -1,19 +1,41 @@
 import pickle
 from functools import partial
 
+
 class ModelWrapper:
-    @property
-    def documentation(self):
+    def get_documentation(self, filters: dict):
         """
         Documentation of the RootCyNAPS parameters
         :return: documentation text
         """
-        return dict(zip((name, value) for name, value in self.root_nitrogen.__dataclassfields__ if
-                        value.metadata["variable_type"] == "state_variable"))
+        to_print = ""
+        for model in self.models:
+            to_print += model.__doc__
+
+            docu = model.__dataclass_fields__
+            first = True
+            for name, value in docu:
+                if first:
+                    headers = value.metadata.keys()
+                    max_format = "{:.10} " * len(headers)
+                    width_format = "{:<10}" * len(headers)
+                    to_print += width_format.format(max_format.format(headers)) + "\n"
+                    first = False
+                filtering = [value.metadata[k] == v for k, v in filters.items()]
+                if False not in filtering or len(filtering) == 0:
+                    to_print += name
+                    to_print += width_format.format(max_format.format(value.metadata.values())) + "\n"
+
+        return to_print
+
+
+    @property
+    def documentation(self):
+        return self.get_documentation(filters={})
 
     @property
     def inputs(self):
-        return
+        return self.get_documentation(filters=dict(variable_type="input"))
 
     def scenario(self, **kwargs):
         """
@@ -21,19 +43,16 @@ class ModelWrapper:
         """
         for model in self.models:
             for changed_parameter, value in kwargs:
-                if changed_parameter in model.__dict__:
+                if changed_parameter in dir(model):
                     setattr(model, changed_parameter, value)
 
-    def link_around_mtg(self, translator={}):
+    def link_around_mtg(self, translator: list, same_names: bool):
         """
         Description : linker function that will enable properties sharing through MTG.
 
         Parameters :
-        :param receiver: (class) model class whose inputs should be provided with the applier class.
-        :param applier: (class) model class whose properties are used to provide inputs to the receiver class.
-        :param category: (sting) word to specify which inputs are to be considered in the receiver model class.
-        :param translator: (dict) translation dict used when receiver and applier properties do not have the same names.
-        :param same_names: (bool) boolean value to be used if a model was developped by another team with different names.
+        :param translator: list matrix containing translator dictionnaries for each model pair
+        :param same_names: boolean value to be used if a model was developped by another team with different names.
 
         Note :  The whole property is transfered, so if only the collar value of a spatial property is needed,
         it will be accessed through the first vertice with the [1] indice. Not spatialized properties like xylem pressure or
@@ -55,11 +74,15 @@ class ModelWrapper:
         else:
             return getattr(source, d.keys()[0])
 
-    def translator_utility(self):
+    def translator_matrix_builder(self):
+        """
+        Translator matrix builder utility, to be used if no translator dictionay is available on modules' directory
+        # TODO surely not working, debug with a working Root-CyNAPS wrapping
+        """
         L = len(self.models)
         translator = [[{} for k in range(L)]]
         for receiver_model in range(L):
-            inputs = dict(zip((name, value) for name, value in self.models[receiver_model].__dataclassfields__ if value.metadata["variable_type"] == "input"))
+            inputs = dict(zip((name, value) for name, value in self.models[receiver_model].__dataclass_fields__ if value.metadata["variable_type"] == "input"))
             needed_models = list(set([value.metadata["by"] for value in inputs.values()]))
             for name in needed_models:
                 print([(self.models.index(k) + 1, k) for k in self.models])

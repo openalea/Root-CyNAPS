@@ -21,7 +21,7 @@ class Model(ModelWrapper):
 
     3. Use Model.scenario(**dict) to pass a set of scenario-specific parameters to the model (optional).
 
-    4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG Files
+    4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG File
     """
 
     def __init__(self, g, time_step: int):

@@ -179,13 +179,12 @@ class RootNitrogenModel:
         Parameters
         :param g: MTG
         """
-
         self.g = g
         self.props = self.g.properties()
         self.time_step = time_step
         self.sub_time_step = sub_time_step
 
-        self.state_variables = [name for name, value in self.__dataclass__fields__ if value.metadata["variable_type"] == "state_variable"]
+        self.state_variables = [name for name, value in self.__dataclass_fields__ if value.metadata["variable_type"] == "state_variable"]
         print(self.state_variables)
 
         for name in self.state_variables:
@@ -197,7 +196,7 @@ class RootNitrogenModel:
             setattr(self, name, self.props[name])
 
         # Repeat the same process for total root system properties
-        self.summed_variables = [name for name, value in self.__dataclass__fields__ if value.metadata["variable_type"] == "summed_variable"]
+        self.summed_variables = [name for name, value in self.__dataclass_fields__ if value.metadata["variable_type"] == "summed_variable"]
 
         for name in self.summed_variables:
             if name not in self.props.keys():
