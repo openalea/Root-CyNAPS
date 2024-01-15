@@ -3,8 +3,8 @@ import pickle
 
 from model_nitrogen import RootNitrogenModel
 from model_water import RootWaterModel
-from model_soil import HydroMinSoil
-from model_topology import RadialTopology
+from rhizodep.model_soil import SoilModel
+from rhizodep.model_anatomy import RootAnatomy
 from Data_enforcer.model import ShootModel
 
 from wrapper import ModelWrapper
@@ -24,7 +24,7 @@ class Model(ModelWrapper):
     4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG File
     """
 
-    def __init__(self, g, time_step: int):
+    def __init__(self, g, time_step: int, **scenario: dict):
         """
         DESCRIPTION
         ----------
@@ -34,43 +34,44 @@ class Model(ModelWrapper):
         :param time_step: the resolution time_step of the model in seconds.
         """
 
-
         # INIT INDIVIDUAL MODULES
-
-        self.soil = HydroMinSoil(g)
-        self.root_topo = RadialTopology(g)
-        self.root_water = RootWaterModel(g, time_step)
-        self.root_nitrogen = RootNitrogenModel(g, time_step, time_step)
+        self.soil = SoilModel(g, time_step, **scenario)
+        self.root_anatomy = RootAnatomy(g, time_step, **scenario)
+        self.root_water = RootWaterModel(g, time_step, time_step, **scenario)
+        self.root_nitrogen = RootNitrogenModel(g, time_step, time_step, **scenario)
         self.shoot = ShootModel(g)
-        # Voir initialiser dedans
-        self.models = (self.soil, self.root_topo, self.root_water, self.root_nitrogen, self.shoot)
+
+        self.models = (self.soil, self.root_anatomy, self.root_water, self.root_nitrogen, self.shoot)
 
         # LINKING MODULES
+        # Get or build translator matrix
         if not os.path.isfile("translator.pckl"):
-            self.translator_utility()
+            print("NOTE : You will now have to provide information about shared variables between the modules composing this model :\n")
+            self.translator_matrix_builder()
         with open("translator.pckl", "rb") as f:
             translator = pickle.load(f)
+
+        # Actually link modules together
         self.link_around_mtg(translator)
 
         # Some initialization must be performed after linking modules
-        self.root_nitrogen.store_functions_call()
-        self.root_water.init_xylem_water()
+
         self.step = 1
 
     def run(self):
         # Update environment boundary conditions
         # Update soil state
-        self.soil.update_patches()
+        self.soil.run_exchanges_and_balance()
 
         # Compute shoot flows and state balance
-        self.shoot.exchanges_and_balance(time=self.step)
+        self.shoot.run_exchanges_and_balance(time=self.step)
 
         # Compute state variations for water and then nitrogen
-        self.root_water.exchanges_and_balance()
-        self.root_nitrogen.exchanges_and_balance()
+        self.root_water.run_exchanges_and_balance()
+        self.root_nitrogen.run_exchanges_and_balance()
 
         # Compute root growth from resulting states
 
         # Update topological surfaces and volumes based on other evolved structural properties
-        self.root_topo.update_topology()
+        self.root_anatomy.run_actualize_anatomy()
         self.step += 1

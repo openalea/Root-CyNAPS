@@ -28,7 +28,7 @@ class ShootModel:
     # def transportC(self, time):
     #     self.Unloading_Sucrose[1] = self.dataset["Unloading_Sucrose"][time] * 1e-6 / 3600  # micromol.h-1 inputs
 
-    def exchanges_and_balance(self, time):
+    def run_exchanges_and_balance(self, time):
         # Water flow first for advection computation
         self.transportW(time)
         self.transportN(time)

@@ -1,58 +1,69 @@
 import pickle
-from functools import partial
+from dataclasses import fields
 
 
 class ModelWrapper:
-    def get_documentation(self, filters: dict):
+    def get_documentation(self, filters: dict, models: list):
         """
         Documentation of the RootCyNAPS parameters
         :return: documentation text
         """
         to_print = ""
-        for model in self.models:
-            to_print += model.__doc__
+        for model in models:
+            to_print += "MODEL DOCUMENTATION : \n"
+            to_print += model.__doc__ + "\n\n"
+            to_print += "MODEL OUTPUT VARIABLES : \n"
 
-            docu = model.__dataclass_fields__
+            docu = fields(model)
             first = True
-            for name, value in docu:
+            for f in docu:
                 if first:
-                    headers = value.metadata.keys()
-                    max_format = "{:.10} " * len(headers)
-                    width_format = "{:<10}" * len(headers)
-                    to_print += width_format.format(max_format.format(headers)) + "\n"
+                    headers = f.metadata.keys()
+                    max_format = "{:.30} "
+                    width_format = "{:<31}"
+                    to_print += width_format.format(max_format.format("name")) + " | "
+                    for header in headers:
+                        if header == "description":
+                            max_format = "{:.90} "
+                            width_format = "{:<91}"
+                        else:
+                            max_format = "{:.30} "
+                            width_format = "{:<31}"
+                        to_print += width_format.format(max_format.format(header)) + " | "
+                    to_print += "\n\n"
                     first = False
-                filtering = [value.metadata[k] == v for k, v in filters.items()]
+                filtering = [f.metadata[k] == v for k, v in filters.items()]
                 if False not in filtering or len(filtering) == 0:
-                    to_print += name
-                    to_print += width_format.format(max_format.format(value.metadata.values())) + "\n"
+                    to_print += width_format.format(max_format.format(f.name)) +  " | "
+                    values = list(f.metadata.values())
+                    for value in values:
+                        if values.index(value) == 2:
+                            max_format = "{:.90} "
+                            width_format = "{:<91}"
+                            if len(value) > 90:
+                                value = value.replace(value[87:], "...")
+                        else:
+                            max_format = "{:.30} "
+                            width_format = "{:<31}"
+                        to_print += width_format.format(max_format.format(value)) + " | "
+                    to_print += "\n"
 
         return to_print
 
-
     @property
     def documentation(self):
-        return self.get_documentation(filters={})
+        return self.get_documentation(filters={}, models=self.models)
 
     @property
     def inputs(self):
-        return self.get_documentation(filters=dict(variable_type="input"))
+        return self.get_documentation(filters=dict(variable_type="input"), models=self.models)
 
-    def scenario(self, **kwargs):
-        """
-        Method
-        """
-        for model in self.models:
-            for changed_parameter, value in kwargs:
-                if changed_parameter in dir(model):
-                    setattr(model, changed_parameter, value)
-
-    def link_around_mtg(self, translator: list, same_names: bool):
+    def link_around_mtg(self, translator: list):
         """
         Description : linker function that will enable properties sharing through MTG.
 
         Parameters :
         :param translator: list matrix containing translator dictionnaries for each model pair
-        :param same_names: boolean value to be used if a model was developped by another team with different names.
 
         Note :  The whole property is transfered, so if only the collar value of a spatial property is needed,
         it will be accessed through the first vertice with the [1] indice. Not spatialized properties like xylem pressure or
@@ -60,19 +71,15 @@ class ModelWrapper:
         """
         L = len(self.models)
         for receiver_index in range(L):
+            receiver = self.models[receiver_index]
+            receiver.available_inputs = []
             for applier_index in range(L):
                 if receiver_index != applier_index:
-                    receiver = self.models[receiver_index]
                     applier = self.models[applier_index]
                     linker = translator[receiver_index][applier_index]
-                    for name, value in linker.items():
-                        setattr(receiver, name, partial(self.single_linker, dict(source=applier, d=value)))
-
-    def single_linker(self, source, d):
-        if len(d.keys()) > 1:
-            return sum([getattr(source, n) * v for n, v in d.items()])
-        else:
-            return getattr(source, d.keys()[0])
+                    # If a model has been targeted on this position
+                    if len(linker.keys()) > 0:
+                        receiver.available_inputs += [dict(applier=applier, linker=linker)]
 
     def translator_matrix_builder(self):
         """
@@ -80,27 +87,30 @@ class ModelWrapper:
         # TODO surely not working, debug with a working Root-CyNAPS wrapping
         """
         L = len(self.models)
-        translator = [[{} for k in range(L)]]
+        translator = [[{} for k in range(L)] for i in range(L)]
         for receiver_model in range(L):
-            inputs = dict(zip((name, value) for name, value in self.models[receiver_model].__dataclass_fields__ if value.metadata["variable_type"] == "input"))
-            needed_models = list(set([value.metadata["by"] for value in inputs.values()]))
+            inputs = [f for f in fields(self.models[receiver_model]) if f.metadata["variable_type"] == "input"]
+            needed_models = list(set([f.metadata["by"] for f in inputs]))
+            needed_models.sort()
             for name in needed_models:
-                print([(self.models.index(k) + 1, k) for k in self.models])
-                which = int(input(f"Which is {name}? : ")) - 1
-                needed_inputs = [name for name, value in inputs if value.metadata["by"] == name]
-                for var in needed_inputs:
-                    print(var, inputs[var])
-                    available = [(name, value) for name, value in self.models[which].__dataclassfields__ if value.metadata["variable_type"] == "state_variable"]
+                print([(model + 1, self.models[model].__class__.__name__) for model in range(len(self.models))])
+                which = int(input(f"[for {self.models[receiver_model].__class__.__name__}] Which is {name}? (0 for None): ")) - 1
+                needed_inputs = [f.name for f in inputs if f.metadata["by"] == name]
+                if 0 <= which < L:
+                    available = self.get_documentation(filters=dict(variable_type="state_variable"), models=[self.models[which]])
                     print(available)
-                    selected = input("Enter target names * unit conversion factor. Separate by ;       -> ").split(";")
-                    com_dict = {}
-                    for expression in selected.replace(" ", ""):
-                        if "*" in expression:
-                            l = expression.split("*")
-                            com_dict[l[0]] = float(l[1])
-                        else:
-                            com_dict[expression] = 1.
-                    translator[receiver_model][which][var] = com_dict
+                    for var in needed_inputs:
+                        selected = input(f"For {var}, Nothing for same name / enter target names * conversion factor / Separate by ; -> ").split(";")
+                        com_dict = {}
+                        for expression in selected:
+                            if "*" in expression:
+                                l = expression.split("*")
+                                com_dict[l[0].replace(" ", "")] = float(l[1])
+                            elif expression.strip() == "":
+                                com_dict[var] = 1.
+                            else:
+                                com_dict[expression.replace(" ", "")] = 1.
+                        translator[receiver_model][which][var] = com_dict
 
         with open("translator.pckl", "wb") as f:
             pickle.dump(translator, f)

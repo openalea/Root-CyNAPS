@@ -20,10 +20,9 @@ from statistical_tools.main import launch_analysis
 
 
 def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_number, time_step, echo=False,
-                 plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100):
-    print(output_path)
+                 plotting_2D=True, plotting_STM=False, logging=False, max_time_steps_for_memory=100, **kwargs):
+
     # Store this before anything else to ensure the locals order is right
-    print(output_path)
     Loc = locals()
     real_parameters = ["output_path", "current_file_dir", "init", "steps_number", "time_step", "echo", "plotting_2D", "plotting_STM", "logging", "max_time_steps_for_memory"]
     scenario = dict([(key, value) for key, value in Loc.items() if key not in real_parameters])
@@ -57,7 +56,7 @@ def N_simulation(z_soil_Nm_max, output_path, current_file_dir, init, steps_numbe
         log_outputs.update(d)
 
     # Initialization of model
-    root_cynaps = Model(g=g, time_step=time_step)
+    root_cynaps = Model(g=g, time_step=time_step, **kwargs)
 
     # Init output xarray list
     if logging:

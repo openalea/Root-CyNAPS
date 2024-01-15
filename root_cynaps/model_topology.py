@@ -178,7 +178,7 @@ class RadialTopology:
                 self.stele_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[
                     vid] * stele_ratio * xylem_differentiation
 
-                # Phloem exchangee surface, accessible from start
+                # Phloem exchange surface, accessible from start
                 self.phloem_exchange_surface[vid] = 2 * np.pi * self.radius[vid] * self.length[vid] * phloem_ratio
 
                 # Apoplasmic exchanges factor between soil and xylem
