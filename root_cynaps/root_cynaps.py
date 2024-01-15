@@ -5,7 +5,7 @@ from model_nitrogen import RootNitrogenModel
 from model_water import RootWaterModel
 from rhizodep.model_soil import SoilModel
 from rhizodep.model_anatomy import RootAnatomy
-from Data_enforcer.model import ShootModel
+from Data_enforcer.model_shoot import ShootModel
 
 from wrapper import ModelWrapper
 
