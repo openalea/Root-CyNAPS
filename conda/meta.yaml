@@ -1,0 +1,51 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: openalea.rhizodep
+  version: {{ data.get('version') }}
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  preserve_egg_dir: True
+  number: 0
+  script: {{PYTHON}} setup.py install #--single-version-externally-managed --record=record.txt
+
+requirements:
+  build:
+    - python {{PY_VER}}
+    - setuptools
+    - openalea.deploy
+  run:
+    - python >=3.9
+    # Model
+    - openalea.plantgl
+    - openalea.mtg
+    - pandas
+    - numpy
+    - scipy
+    # Simulation
+    - matplotlib
+    - xarray
+    - scikit-learn
+    - umap-learn
+    - hdbscan
+    - tensorflow
+
+test:
+  requires:
+    - pytest
+  imports:
+    - rhizodep
+  source_files:
+    - test/**
+  commands:
+    - cd test
+    - pytest -v --ignore=test_aml.py  --ignore=test_stat.py
+
+about:
+  home: {{ data.get('url') }}
+  license: CeCILL-C
+  summary: {{ data.get('description') }}

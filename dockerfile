@@ -34,8 +34,6 @@ RUN mamba install -y -c conda-forge hdbscan==0.8.29
 
 RUN python -m pip install tensorflow==2.12.0
 
-RUN python -m pip install pyncclient
-
 RUN apt-get update && apt-get -y install libgl1
 
 RUN mkdir pp
