@@ -1,11 +1,11 @@
 import os
 import pickle
 
-from model_nitrogen import RootNitrogenModel
-from model_water import RootWaterModel
-from rhizodep.model_soil import SoilModel
-from rhizodep.model_anatomy import RootAnatomy
-from Data_enforcer.model_shoot import ShootModel
+from root_cynaps.root_nitrogen import RootNitrogenModel
+from root_cynaps.root_water import RootWaterModel
+from rhizodep.rhizo_soil import SoilModel
+from rhizodep.root_anatomy import RootAnatomy
+from Data_enforcer.shoot import ShootModel
 
 from wrapper import ModelWrapper
 

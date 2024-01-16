@@ -102,18 +102,18 @@ class RootNitrogenModel:
 
     # SUMMED STATE VARIABLES
 
-    total_Nm: float =                   field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_AA: float =                   field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_hexose: float =               field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_cytokinins: float =           field(default=set_value(100, min_value=1, max_value=200), metadata=dict(unit="UA.s-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_struct_mass: float =          field(default=0., metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_xylem_Nm: float =             field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_xylem_AA: float =             field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_phloem_AA: float =            field(default=set_value(0, min_value=0, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    Nm_root_shoot_xylem: float =        field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    AA_root_shoot_xylem: float =        field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    total_AA_rhizodeposition: float =   field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
-    cytokinin_synthesis: float =        field(default=0., metadata=dict(unit="UA.s-1", unit_comment="of cytokinin", description="", value_comment="", references="", variable_type="summed_variable", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_Nm: float =                   field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_AA: float =                   field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_hexose: float =               field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of hexose", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_cytokinins: float =           field(default=set_value(100, min_value=1, max_value=200), metadata=dict(unit="UA.s-1", unit_comment="of cytokinins", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_struct_mass: float =          field(default=0., metadata=dict(unit="g", unit_comment="of dry weight", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_xylem_Nm: float =             field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_xylem_AA: float =             field(default=0., metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_phloem_AA: float =            field(default=set_value(0, min_value=0, max_value=1e-3), metadata=dict(unit="mol.g-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    Nm_root_shoot_xylem: float =        field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of nitrates", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    AA_root_shoot_xylem: float =        field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    total_AA_rhizodeposition: float =   field(default=0., metadata=dict(unit="mol.s-1", unit_comment="of amino acids", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
+    cytokinin_synthesis: float =        field(default=0., metadata=dict(unit="UA.s-1", unit_comment="of cytokinin", description="", value_comment="", references="", variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user"))
 
     # --- INITIALIZES MODEL PARAMETERS ---
 
@@ -198,9 +198,9 @@ class RootNitrogenModel:
             setattr(self, name, self.props[name])
 
         # Repeat the same process for total root system properties
-        self.summed_variables = [f.name for f in fields(self) if f.metadata["variable_type"] == "summed_variable"]
+        self.plant_scale_states = [f.name for f in fields(self) if f.metadata["variable_type"] == "plant_scale_state"]
 
-        for name in self.summed_variables:
+        for name in self.plant_scale_states:
             if name not in self.props.keys():
                 self.props.setdefault(name, {})
             # set default in mtg

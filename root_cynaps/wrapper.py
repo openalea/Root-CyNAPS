@@ -2,7 +2,7 @@ import pickle
 from dataclasses import fields
 
 
-class ModelWrapper:
+class CompositeModel:
     def get_documentation(self, filters: dict, models: list):
         """
         Documentation of the RootCyNAPS parameters
@@ -72,7 +72,6 @@ class ModelWrapper:
         L = len(self.models)
         for receiver_index in range(L):
             receiver = self.models[receiver_index]
-            receiver.available_inputs = []
             for applier_index in range(L):
                 if receiver_index != applier_index:
                     applier = self.models[applier_index]
@@ -112,5 +111,4 @@ class ModelWrapper:
                                 com_dict[expression.replace(" ", "")] = 1.
                         translator[receiver_model][which][var] = com_dict
 
-        with open("translator.pckl", "wb") as f:
-            pickle.dump(translator, f)
+        return translator
