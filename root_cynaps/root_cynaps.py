@@ -7,10 +7,10 @@ from rhizodep.rhizo_soil import SoilModel
 from rhizodep.root_anatomy import RootAnatomy
 from Data_enforcer.shoot import ShootModel
 
-from wrapper import ModelWrapper
+from generic_fspm.composite_wrapper import CompositeModel
 
 
-class Model(ModelWrapper):
+class Model(CompositeModel):
     """
     Root-CyNAPS model
 
