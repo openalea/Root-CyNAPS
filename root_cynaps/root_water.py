@@ -72,7 +72,7 @@ class RootWaterModel(Model):
 
     # SUMMED STATE VARIABLES
 
-    xylem_total_water: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
+    total_xylem_water: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                        variable_type="plant_scale_state", by="model_water", state_variable_type="", edit_by="user")
     xylem_total_pressure: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
@@ -152,7 +152,7 @@ class RootWaterModel(Model):
         # filled with water in standard conditions
 
         # We compute the total water amount from the formula used for pressure calculation
-        self.xylem_total_water[1] = ((((self.xylem_total_pressure[1] - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus) + 1) ** 2) * (
+        self.total_xylem_water[1] = ((((self.xylem_total_pressure[1] - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus) + 1) ** 2) * (
                 np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
         sum_volume = sum(self.xylem_volume.values())
@@ -160,7 +160,7 @@ class RootWaterModel(Model):
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                self.xylem_water[vid] = self.xylem_total_water[1] * self.xylem_volume[vid] / sum_volume
+                self.xylem_water[vid] = self.total_xylem_water[1] * self.xylem_volume[vid] / sum_volume
 
     @postgrowth
     def post_growth_updating(self):
@@ -187,15 +187,15 @@ class RootWaterModel(Model):
         # Using previous time-step flows, we compute current time-step pressure for flows computation
 
         # Compute the minimal water content for current dimensions
-        tearing_xylem_total_water = (((- self.xylem_tear / self.xylem_young_modulus) + 1) ** 2) * (
+        tearing_total_xylem_water = (((- self.xylem_tear / self.xylem_young_modulus) + 1) ** 2) * (
                   np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(
               self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
         # we set collar element the flow provided by shoot model
         potential_transpiration = self.water_root_shoot_xylem[1] * self.time_step
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
-        if self.xylem_total_water[1] - potential_transpiration < tearing_xylem_total_water:
-            actual_transpiration = self.xylem_total_water[1] - tearing_xylem_total_water
+        if self.total_xylem_water[1] - potential_transpiration < tearing_total_xylem_water:
+            actual_transpiration = self.total_xylem_water[1] - tearing_total_xylem_water
         else:
             actual_transpiration = potential_transpiration
 
@@ -211,7 +211,7 @@ class RootWaterModel(Model):
             self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
             # We suppose uptake is evenly reparted over the xylem to avoid over contribution of apexes in
             # the down propagation of transpiration (computed below)
-            self.shoot_uptake[vid] = self.axial_export_water_up[1] * self.xylem_water[vid] / self.xylem_total_water[1]
+            self.shoot_uptake[vid] = self.axial_export_water_up[1] * self.xylem_water[vid] / self.total_xylem_water[1]
 
         # Finally we compute the axial result of these transpiration fluxes and radial uptake
         # We define "root" as the starting point of the loop below:
@@ -276,12 +276,11 @@ class RootWaterModel(Model):
 
         # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
         self.xylem_total_pressure[1] = self.xylem_young_modulus * (
-                    (((self.xylem_total_water[1] * self.water_molar_mass) / (
+                    (((self.total_xylem_water[1] * self.water_molar_mass) / (
                             np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) *
                             self.xylem_cross_area_ratio * self.water_volumic_mass)) ** 0.5) - 1) + np.mean(
                             list(self.soil_water_pressure.values()))
     
-    @total
-    @state
-    def update_sums(self):
-        self.xylem_total_water[1] = sum(self.xylem_water.values())
+    @totalstate
+    def _total_xylem_water(self, xylem_water):
+        return sum(xylem_water.values())
