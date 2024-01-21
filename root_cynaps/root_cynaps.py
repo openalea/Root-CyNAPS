@@ -7,10 +7,10 @@ from rhizodep.rhizo_soil import SoilModel
 from rhizodep.root_anatomy import RootAnatomy
 from Data_enforcer.shoot import ShootModel
 
-from wrapper import ModelWrapper
+from generic_fspm.composite_wrapper import CompositeModel
 
 
-class Model(ModelWrapper):
+class Model(CompositeModel):
     """
     Root-CyNAPS model
 
@@ -55,10 +55,11 @@ class Model(ModelWrapper):
         self.link_around_mtg(translator)
 
         # Some initialization must be performed after linking modules
-
+        (m.post_coupling_init() for m in self.models)
         self.step = 1
 
     def run(self):
+        (m() for m in self.models)
         # Update environment boundary conditions
         # Update soil state
         self.soil.run_exchanges_and_balance()
@@ -67,8 +68,8 @@ class Model(ModelWrapper):
         self.shoot.run_exchanges_and_balance(time=self.step)
 
         # Compute state variations for water and then nitrogen
-        self.root_water.run_exchanges_and_balance()
-        self.root_nitrogen.run_exchanges_and_balance()
+        self.root_water()
+        self.root_nitrogen()
 
         # Compute root growth from resulting states
 
