@@ -377,23 +377,8 @@ class RootNitrogenModel(Model):
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
-
-    def run_exchanges_and_balance(self):
-        """
-        Description
-        ___________
-        Model time-step processes and balance for nitrogen to be called by simulation script
-
-        """
-        # We have to renew this call at each time step to ensure model inputs are well updated
-        self.get_available_inputs()
-
-        self.add_new_segments_and_reevaluate_concentrations()
-        self.initialize_cumulative()
-
-        self.__call__()
-
-    def add_new_segments_and_reevaluate_concentrations(self):
+    @postgrowth
+    def post_growth_updating(self):
         """
         Description :
             Extend property dictionnary uppon new element partionning and updates concentrations uppon structural_mass change
@@ -418,6 +403,7 @@ class RootNitrogenModel(Model):
                         getattr(self, prop).update({vid: getattr(self, prop)[vid] * (
                                 self.initial_struct_mass[vid] / self.struct_mass[vid])})
 
+    @stepinit
     def initialize_cumulative(self):
         # Reinitialize for the sum of the next loop
         self.Nm_root_shoot_xylem[1] = 0
