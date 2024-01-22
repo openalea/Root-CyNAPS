@@ -1,11 +1,12 @@
 import numpy as np
-from dataclasses import dataclass, field, fields
 from openalea.mtg.traversal import pre_order
+from dataclasses import dataclass
 
 from generic_fspm.component import Model, declare
 from generic_fspm.component_factory import *
 
 
+@dataclass
 class RootWaterModel(Model):
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
@@ -125,7 +126,7 @@ class RootWaterModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.executor.add_data(self.props)
+        self.choregrapher.add_data(self.props)
         self.time_step = time_step
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 

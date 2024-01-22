@@ -1,7 +1,7 @@
 {% set data = load_setup_py_data() %}
 
 package:
-  name: openalea.rhizodep
+  name: openalea.root_cynaps
   version: {{ data.get('version') }}
 
 source:
@@ -19,26 +19,20 @@ requirements:
     - setuptools
     - openalea.deploy
   run:
-    - python >=3.9
+    - python >=3.8
     # Model
-    - openalea.plantgl
     - openalea.mtg
     - pandas
     - numpy
-    - scipy
-    # Simulation
-    - matplotlib
-    - xarray
-    - scikit-learn
-    - umap-learn
-    - hdbscan
-    - tensorflow
+    - dataclasses
 
 test:
   requires:
     - pytest
   imports:
     - rhizodep
+    - root_cynaps
+    - generic_fspm
   source_files:
     - test/**
   commands:

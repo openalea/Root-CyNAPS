@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 import pandas as pd
 
 
@@ -36,7 +36,7 @@ class ShootModel:
     def transportC(self):
         self.Unloading_Sucrose[1] = self.dataset["Unloading_Sucrose"][self.time_step] * 1e-6 / 3600  # micromol.h-1 inputs
 
-    def run_exchanges_and_balance(self):
+    def __call__(self):
         # Water flow first for advection computation
         self.transportW()
         self.transportN()

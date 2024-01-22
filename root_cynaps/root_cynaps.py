@@ -1,6 +1,7 @@
-import os
-import pickle
+import yaml
+import sysconfig
 
+import root_cynaps
 from root_cynaps.root_nitrogen import RootNitrogenModel
 from root_cynaps.root_water import RootWaterModel
 from rhizodep.rhizo_soil import SoilModel
@@ -35,44 +36,32 @@ class Model(CompositeModel):
         """
 
         # INIT INDIVIDUAL MODULES
-        self.soil = SoilModel(g, time_step, **scenario)
-        self.root_anatomy = RootAnatomy(g, time_step, **scenario)
-        self.root_water = RootWaterModel(g, time_step, time_step, **scenario)
-        self.root_nitrogen = RootNitrogenModel(g, time_step, time_step, **scenario)
+        self.soil = self.load(SoilModel, g, time_step, **scenario)
+        self.root_anatomy = self.load(RootAnatomy, g, time_step, **scenario)
+        self.root_water = self.load(RootWaterModel, g, time_step, **scenario)
+        self.root_nitrogen = self.load(RootNitrogenModel, g, time_step, **scenario)
         self.shoot = ShootModel(g)
 
-        self.models = (self.soil, self.root_anatomy, self.root_water, self.root_nitrogen, self.shoot)
+        # Order matters here !
+        self.models = (self.soil, self.shoot, self.root_water, self.root_nitrogen, self.root_anatomy)
 
         # LINKING MODULES
         # Get or build translator matrix
-        if not os.path.isfile("translator.pckl"):
+        
+        try:
+            with open(root_cynaps.__path__[0] + "/coupling_translator.yaml", "r") as f:
+                translator = yaml.safe_load(f)
+        except FileNotFoundError:
             print("NOTE : You will now have to provide information about shared variables between the modules composing this model :\n")
-            self.translator_matrix_builder()
-        with open("translator.pckl", "rb") as f:
-            translator = pickle.load(f)
+            translator = self.translator_matrix_builder()
+            with open(root_cynaps.__path__[0] + "/coupling_translator.yaml", "w") as f:
+                yaml.dump(translator, f)
 
         # Actually link modules together
         self.link_around_mtg(translator)
 
         # Some initialization must be performed after linking modules
         (m.post_coupling_init() for m in self.models)
-        self.step = 1
 
     def run(self):
         (m() for m in self.models)
-        # Update environment boundary conditions
-        # Update soil state
-        self.soil.run_exchanges_and_balance()
-
-        # Compute shoot flows and state balance
-        self.shoot.run_exchanges_and_balance(time=self.step)
-
-        # Compute state variations for water and then nitrogen
-        self.root_water()
-        self.root_nitrogen()
-
-        # Compute root growth from resulting states
-
-        # Update topological surfaces and volumes based on other evolved structural properties
-        self.root_anatomy.run_actualize_anatomy()
-        self.step += 1

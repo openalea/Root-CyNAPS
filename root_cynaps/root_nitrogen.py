@@ -14,15 +14,13 @@ Methods' names are systematic through all class for ease of use :
 
 # Imports
 import numpy as np
-from dataclasses import dataclass, field, fields
-import inspect as ins
-from functools import partial
+from dataclasses import dataclass
 
 from generic_fspm.component import Model, declare
 from generic_fspm.component_factory import *
 
 
-
+@dataclass
 class RootNitrogenModel(Model):
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
@@ -31,8 +29,8 @@ class RootNitrogenModel(Model):
                             min_value="", max_value="", value_comment="", references="", DOI="", 
                             variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
     soil_AA: float = declare(default=0, unit="mol.g-1", unit_comment="of amino acids", description="",
-                            min_value="", max_value="", value_comment="", references="", variable_type="input", by="model_soil", 
-                            state_variable_type="", edit_by="user")
+                            min_value="", max_value="", value_comment="", references="", DOI="", 
+                            variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
     root_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="",
@@ -135,7 +133,7 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     diffusion_Nm_xylem: float =             declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="",
-                                                    min_value="", max_value="", description="", value_comment="", references="", DOI="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     diffusion_Nm_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
@@ -369,7 +367,7 @@ class RootNitrogenModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.executor.add_data(self.props)
+        self.choregrapher.add_data(self.props)
         self.time_step = time_step
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
