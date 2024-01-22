@@ -2,8 +2,8 @@ import numpy as np
 from openalea.mtg.traversal import pre_order
 from dataclasses import dataclass
 
-from generic_fspm.component import Model, declare
-from generic_fspm.component_factory import *
+from genericmodel.component import Model, declare
+from genericmodel.component_factory import *
 
 
 @dataclass
@@ -126,7 +126,7 @@ class RootWaterModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.choregrapher.add_data(self.props)
+        self.choregrapher.add_data(instance=self, data_name="props", filter={"label": ["Segment", "Apex"], "type":["Base_of_the_root_system", "Normal_root_after_emergence", "Stopped", "Just_Stopped", "Root_nodule"]})
         self.time_step = time_step
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 

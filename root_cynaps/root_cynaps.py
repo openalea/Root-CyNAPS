@@ -1,6 +1,3 @@
-import yaml
-import sysconfig
-
 import root_cynaps
 from root_cynaps.root_nitrogen import RootNitrogenModel
 from root_cynaps.root_water import RootWaterModel
@@ -8,7 +5,7 @@ from rhizodep.rhizo_soil import SoilModel
 from rhizodep.root_anatomy import RootAnatomy
 from Data_enforcer.shoot import ShootModel
 
-from generic_fspm.composite_wrapper import CompositeModel
+from genericmodel.composite_wrapper import CompositeModel
 
 
 class Model(CompositeModel):
@@ -46,19 +43,7 @@ class Model(CompositeModel):
         self.models = (self.soil, self.shoot, self.root_water, self.root_nitrogen, self.root_anatomy)
 
         # LINKING MODULES
-        # Get or build translator matrix
-        
-        try:
-            with open(root_cynaps.__path__[0] + "/coupling_translator.yaml", "r") as f:
-                translator = yaml.safe_load(f)
-        except FileNotFoundError:
-            print("NOTE : You will now have to provide information about shared variables between the modules composing this model :\n")
-            translator = self.translator_matrix_builder()
-            with open(root_cynaps.__path__[0] + "/coupling_translator.yaml", "w") as f:
-                yaml.dump(translator, f)
-
-        # Actually link modules together
-        self.link_around_mtg(translator)
+        self.link_around_mtg(translator_path=root_cynaps.__path__[0])
 
         # Some initialization must be performed after linking modules
         (m.post_coupling_init() for m in self.models)
