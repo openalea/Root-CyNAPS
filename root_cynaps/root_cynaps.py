@@ -33,20 +33,22 @@ class Model(CompositeModel):
         """
 
         # INIT INDIVIDUAL MODULES
-        self.soil = self.load(SoilModel, g, time_step, **scenario)
-        self.root_anatomy = self.load(RootAnatomy, g, time_step, **scenario)
-        self.root_water = self.load(RootWaterModel, g, time_step, **scenario)
-        self.root_nitrogen = self.load(RootNitrogenModel, g, time_step, **scenario)
-        self.shoot = ShootModel(g)
+        # NOTE : IT HAS TO BE DONE THROUGH THE LOAD FUNCTION TO ENSURE SEPARATED CHOREGRAPHER INSTANCE
+        self.g = g
+        self.soil = self.load(SoilModel, self.g, time_step, **scenario)
+        self.root_anatomy = self.load(RootAnatomy, self.g, time_step, **scenario)
+        self.root_water = self.load(RootWaterModel, self.g, time_step, **scenario)
+        self.root_nitrogen = self.load(RootNitrogenModel, self.g, time_step, **scenario)
+        self.shoot = ShootModel(self.g)
 
-        # Order matters here !
+        # ORDER MATTERS HERE !
         self.models = (self.soil, self.shoot, self.root_water, self.root_nitrogen, self.root_anatomy)
 
         # LINKING MODULES
         self.link_around_mtg(translator_path=root_cynaps.__path__[0])
 
         # Some initialization must be performed after linking modules
-        (m.post_coupling_init() for m in self.models)
+        [m.post_coupling_init() for m in self.models]
 
     def run(self):
-        (m() for m in self.models)
+        [m() for m in self.models]

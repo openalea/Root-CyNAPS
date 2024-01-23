@@ -6,16 +6,16 @@ RootAnatomy:
   SoilModel: {}
 RootNitrogenModel:
   RootAnatomy:
-    apoplasmic_stele:
-      apoplasmic_stele: 1.0
-    living_root_hairs_external_surface:
-      living_root_hairs_external_surface: 1.0
+    cortex_exchange_surface:
+      cortex_exchange_surface: 1.0
+    endodermis_conductance_factor:
+      endodermis_conductance_factor: 1.0
     phloem_exchange_surface:
       phloem_exchange_surface: 1.0
     root_exchange_surface:
       root_exchange_surface: 1.0
-    stele_exchange_surface:
-      stele_exchange_surface: 1.0
+    xylem_differentiation_factor:
+      xylem_differentiation_factor: 1.0
   RootNitrogenModel: {}
   RootWaterModel:
     axial_export_water_up:
@@ -38,8 +38,6 @@ RootWaterModel:
   RootAnatomy:
     apoplasmic_exchange_surface:
       apoplasmic_exchange_surface: 1.0
-    apoplasmic_stele:
-      apoplasmic_stele: 1.0
     cortex_exchange_surface:
       cortex_exchange_surface: 1.0
     xylem_volume:

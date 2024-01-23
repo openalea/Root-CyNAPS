@@ -2,9 +2,10 @@ import os
 from dataclasses import dataclass, field
 import pandas as pd
 
+from genericmodel.component import Model
 
 @dataclass
-class ShootModel:
+class ShootModel(Model):
     # Just doc
     Total_Transpiration: dict = field(default=0., metadata=dict(unit="mol.h-1", unit_comment="of water", description="Total water transpiration reported at collar", value_comment="", references="Barillot et al., 2016; Gauthier et al., 2020", variable_type="state_variable", by="model_shoot", state_variable_type="extensive", edit_by="user"))
     Unloading_Amino_Acids: dict = field(default=0., metadata=dict(unit="mol.h-1", unit_comment="of amino acids", description="Unloading of amino acids by shoot in phloem", value_comment="", references="Barillot et al., 2016; Gauthier et al., 2020", variable_type="state_variable", by="model_shoot", state_variable_type="extensive", edit_by="user"))
@@ -40,5 +41,8 @@ class ShootModel:
         # Water flow first for advection computation
         self.transportW()
         self.transportN()
-        self.transportC()
+        #self.transportC()
         self.time_step += 1
+
+    def post_coupling_init(self):
+        return
