@@ -161,7 +161,6 @@ class RootWaterModel(Model):
             if self.struct_mass[vid] > 0:
                 self.xylem_water[vid] = self.total_xylem_water[1] * self.xylem_volume[vid] / sum_volume
 
-    @postgrowth
     def post_growth_updating(self):
         """
         Description :

@@ -10,7 +10,7 @@ def test_log():
     mtg = root_cynaps.g
 
     for step in range(10):
-        print(mtg.properties()["total_struct_mass"])
+        assert root_cynaps.root_nitrogen.xylem_water == root_cynaps.root_water.xylem_water == mtg.properties()["xylem_water"]
         root_cynaps.run()
 
 test_log()

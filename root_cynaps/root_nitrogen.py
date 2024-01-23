@@ -378,7 +378,6 @@ class RootNitrogenModel(Model):
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
-    @postgrowth
     def post_growth_updating(self):
         """
         Description :
