@@ -205,7 +205,7 @@ class RootNitrogenModel(Model):
     total_cytokinins: float =           declare(default=100, unit="UA.s-1", unit_comment="of cytokinins", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_struct_mass: float =          declare(default=0., unit="g", unit_comment="of dry weight", description="", 
+    total_struct_mass: float =          declare(default=1e-3, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_xylem_Nm: float =             declare(default=0., unit="mol.g-1", unit_comment="of nitrates", description="", 
@@ -537,225 +537,226 @@ class RootNitrogenModel(Model):
 
         # AXIAL TRANSPORT
         for v in self.vertices:
-            # If this is only an out flow to up parents
-            if self.axial_export_water_up[v] > 0:
-                # Turnover defines a dilution factor of radial transport processes over the axially transported
-                # water column
-                turnover = self.axial_export_water_up[v] / self.xylem_water[v]
-                if turnover <= 1:
-                    # Transport only affects considered segment
-                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
-                    # Exported matter corresponds to the exported water proportion
-                    self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                    self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
-                    up_parent = self.g.parent(v)
-                    # If this is collar, this flow is exported
-                    if up_parent == None:
-                        self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
-                        self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v]
-                    else:
-                        # The immediate parent receives this flow
-                        self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v]
-                        self.displaced_AA_in[up_parent] += self.displaced_AA_out[v]
-                else:
-                    #print("Uturnover >1")
-                    # Exported matter corresponds to the whole segment's water content
-                    self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                    self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
-                    # Transport affects a chain of parents
-                    water_exchange_time = self.time_step / turnover
-                    # Loading of the current vertex into the current vertex's xylem
-                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
-                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time
-
-                    exported_water = self.axial_export_water_up[v]
-                    child = v
-                    # Loading of the current vertex into the vertices who have received water from it
-                    while exported_water > 0:
-                        # We remove the amount of water which has already received loading in previous loop
-                        exported_water -= self.xylem_water[child]
-                        up_parent = self.g.parent(child)
-                        # If we reached collar, this amount is being exported
+            if self.struct_mass[v] > 0 :
+                # If this is only an out flow to up parents
+                if self.axial_export_water_up[v] > 0:
+                    # Turnover defines a dilution factor of radial transport processes over the axially transported
+                    # water column
+                    turnover = self.axial_export_water_up[v] / self.xylem_water[v]
+                    if turnover <= 1:
+                        # Transport only affects considered segment
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
+                        # Exported matter corresponds to the exported water proportion
+                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
+                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        up_parent = self.g.parent(v)
+                        # If this is collar, this flow is exported
                         if up_parent == None:
-                            self.Nm_root_shoot_xylem[1] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
-                            self.AA_root_shoot_xylem[1] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
-                            # If all water content of initial segment is exported through collar
-                            if exported_water > self.xylem_water[v]:
-                                self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
-                                self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v]
-                            else:
-                                parent_proportion = exported_water / self.xylem_water[v]
-                                self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v] * parent_proportion
-                                self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v] * parent_proportion
-                                self.displaced_Nm_in[child] += self.displaced_Nm_out[v] * (1 - parent_proportion)
-                                self.displaced_AA_in[child] += self.displaced_AA_out[v] * (1 - parent_proportion)
-                            # Break the loop
-                            exported_water = 0
+                            self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
+                            self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v]
                         else:
-                            # If the considered parent have been completly filled with water from the child
-                            if exported_water - self.xylem_water[up_parent] > 0:
-                                # The exposition time is longer if the water content of the target neighbour is more important.
-                                self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
-                                self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
-                            # If it's only partial, we account only for the exceeding amount
-                            else:
-                                self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
-                                self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
-                                # If all water content of initial segment is exported to the considered grandparent
+                            # The immediate parent receives this flow
+                            self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v]
+                            self.displaced_AA_in[up_parent] += self.displaced_AA_out[v]
+                    else:
+                        #print("Uturnover >1")
+                        # Exported matter corresponds to the whole segment's water content
+                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
+                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        # Transport affects a chain of parents
+                        water_exchange_time = self.time_step / turnover
+                        # Loading of the current vertex into the current vertex's xylem
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time
+
+                        exported_water = self.axial_export_water_up[v]
+                        child = v
+                        # Loading of the current vertex into the vertices who have received water from it
+                        while exported_water > 0:
+                            # We remove the amount of water which has already received loading in previous loop
+                            exported_water -= self.xylem_water[child]
+                            up_parent = self.g.parent(child)
+                            # If we reached collar, this amount is being exported
+                            if up_parent == None:
+                                self.Nm_root_shoot_xylem[1] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                self.AA_root_shoot_xylem[1] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                # If all water content of initial segment is exported through collar
                                 if exported_water > self.xylem_water[v]:
-                                    self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v]
-                                    self.displaced_AA_in[up_parent] += self.displaced_AA_out[v]
+                                    self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
+                                    self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v]
                                 else:
-                                    # Displaced matter is shared between child and its parent
                                     parent_proportion = exported_water / self.xylem_water[v]
-                                    self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v] * parent_proportion
-                                    self.displaced_AA_in[up_parent] += self.displaced_AA_out[v] * parent_proportion
+                                    self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v] * parent_proportion
+                                    self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v] * parent_proportion
                                     self.displaced_Nm_in[child] += self.displaced_Nm_out[v] * (1 - parent_proportion)
                                     self.displaced_AA_in[child] += self.displaced_AA_out[v] * (1 - parent_proportion)
                                 # Break the loop
                                 exported_water = 0
-                            child = up_parent
-
-            # If this is only a out flow to down children
-            if self.axial_import_water_down[v] < 0:
-                # Turnover defines a dilution factor of radial transport processes over the axially transported
-                # water column
-                turnover = - self.axial_import_water_down[v] / self.xylem_water[v]
-                if turnover <= 1:
-                    # Transport only affects considered segment
-                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
-                    # Exported matter corresponds to the exported water proportion
-                    self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                    self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
-                    down_children = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
-                    # The immediate children receive this flow
-                    radius_sum = sum([self.radius[k] for k in down_children])
-                    children_radius_prop = [self.radius[k] / radius_sum for k in down_children]
-                    for ch in range(len(down_children)):
-                        self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * children_radius_prop[ch]
-                        self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * children_radius_prop[ch]
-
-                else:
-                    # Transport affects several segments, and we verified it often happens under high transpiration
-                    # Exported matter corresponds to the whole segment's water content
-                    self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                    self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
-                    # Transport affects a chain of children
-                    water_exchange_time = self.time_step / turnover
-                    # Loading of the current vertex into the current vertex's xylem
-                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
-                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time
-
-                    parent = [v]
-                    # We initialize a list tracking water repartition among down axes
-                    axis_proportion = [1.0]
-                    # We remove the amount of water which has already been received
-                    exported_water = [-self.axial_import_water_down[v] - self.xylem_water[v]]
-                    # Loading of the current vertex into the vertices who have received water from it
-                    while True in [k > 0 for k in exported_water]:
-                        children_list = []
-                        children_exported_water = []
-                        for p in range(len(parent)):
-                            if exported_water[p] > 0:
-                                down_children = [k for k in self.g.children(parent[p]) if self.struct_mass[k] > 0]
-                                # if the parent is an apex and water has been exported from it,
-                                # it means that the apex concentrates the associated carried and loaded nitrogen matter
-                                if len(down_children) == 0:
-                                    # this water amount has also been subject to loading
-                                    self.cumulated_radial_exchanges_Nm[parent[p]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
-                                    self.cumulated_radial_exchanges_AA[parent[p]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
-                                    # if the translated nitrogen matter has completely ended up in the apex
-                                    if exported_water[p] + self.xylem_water[parent[p]] > self.xylem_water[v] * axis_proportion[p]:
-                                        self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p]
-                                        self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p]
-                                    # else it is shared with grandparent
-                                    else:
-                                        grandparent = self.g.parent(parent[p])
-                                        parent_proportion = (exported_water[p] + self.xylem_water[parent[p]]) / (self.xylem_water[v] * axis_proportion[p])
-                                        self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p] * parent_proportion
-                                        self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p] * parent_proportion
-                                        self.displaced_Nm_in[grandparent] += self.displaced_Nm_out[v] * axis_proportion[p] * (1 - parent_proportion)
-                                        self.displaced_AA_in[grandparent] += self.displaced_AA_out[v] * axis_proportion[p] * (1 - parent_proportion)
-
-                                # If there is only 1 child (root line)
-                                elif len(down_children) == 1:
-                                    # If the considered child have been completely filled with water from the parent
-                                    if exported_water[p] - self.xylem_water[down_children[0]] > 0:
-                                        # The exposition time is longer if the water content of the target neighbour is more important.
-                                        self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
-                                        self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
-                                        children_exported_water += [exported_water[p] - self.xylem_water[down_children[0]]]
-                                    else:
-                                        self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
-                                        self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
-                                        # If all water content from initial segment gone through this axis is exported to the considered child
-                                        if exported_water[p] > self.xylem_water[v] * axis_proportion[p]:
-                                            self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * axis_proportion[p]
-                                            self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * axis_proportion[p]
-                                        else:
-                                            # Displaced matter is shared between child and its parent
-                                            child_proportion = exported_water[p] / (self.xylem_water[v] * axis_proportion[p])
-                                            self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * axis_proportion[p] * child_proportion
-                                            self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * axis_proportion[p] * child_proportion
-                                            self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p] * (1 - child_proportion)
-                                            self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p] * (1 - child_proportion)
-                                        # Break the loop
-                                        children_exported_water += [0]
-
-                                # Else if there are several children
+                            else:
+                                # If the considered parent have been completly filled with water from the child
+                                if exported_water - self.xylem_water[up_parent] > 0:
+                                    # The exposition time is longer if the water content of the target neighbour is more important.
+                                    self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
+                                    self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
+                                # If it's only partial, we account only for the exceeding amount
                                 else:
-                                    # Water repartition is done according to radius,
-                                    # as this is the main criteria used in the water model
-                                    radius_sum = sum([self.radius[k] for k in down_children])
-                                    children_down_flow = [exported_water[p] * self.radius[k] / radius_sum for k in down_children]
-                                    children_radius_prop = [self.radius[k] / radius_sum for k in down_children]
-                                    # Actualize the repartition of water when there is a new branching
-                                    for k in range(1, len(children_radius_prop)):
-                                        axis_proportion.insert(p + 1, axis_proportion[p] * children_radius_prop[-k])
+                                    self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                    self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                    # If all water content of initial segment is exported to the considered grandparent
+                                    if exported_water > self.xylem_water[v]:
+                                        self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v]
+                                        self.displaced_AA_in[up_parent] += self.displaced_AA_out[v]
+                                    else:
+                                        # Displaced matter is shared between child and its parent
+                                        parent_proportion = exported_water / self.xylem_water[v]
+                                        self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v] * parent_proportion
+                                        self.displaced_AA_in[up_parent] += self.displaced_AA_out[v] * parent_proportion
+                                        self.displaced_Nm_in[child] += self.displaced_Nm_out[v] * (1 - parent_proportion)
+                                        self.displaced_AA_in[child] += self.displaced_AA_out[v] * (1 - parent_proportion)
+                                    # Break the loop
+                                    exported_water = 0
+                                child = up_parent
 
-                                    axis_proportion[p] = axis_proportion[p] * children_radius_prop[0]
-                                    for ch in range(len(down_children)):
-                                        # If the considered child have been completely filled with water from the parent
-                                        if children_down_flow[ch] - self.xylem_water[down_children[ch]] > 0 :
-                                            # The exposition time is longer if the water content of the target neighbour is more important.
-                                            self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
-                                            self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
-                                            children_down_flow[ch] -= self.xylem_water[down_children[ch]]
+                # If this is only a out flow to down children
+                if self.axial_import_water_down[v] < 0:
+                    # Turnover defines a dilution factor of radial transport processes over the axially transported
+                    # water column
+                    turnover = - self.axial_import_water_down[v] / self.xylem_water[v]
+                    if turnover <= 1:
+                        # Transport only affects considered segment
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
+                        # Exported matter corresponds to the exported water proportion
+                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
+                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        down_children = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
+                        # The immediate children receive this flow
+                        radius_sum = sum([self.radius[k] for k in down_children])
+                        children_radius_prop = [self.radius[k] / radius_sum for k in down_children]
+                        for ch in range(len(down_children)):
+                            self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * children_radius_prop[ch]
+                            self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * children_radius_prop[ch]
+
+                    else:
+                        # Transport affects several segments, and we verified it often happens under high transpiration
+                        # Exported matter corresponds to the whole segment's water content
+                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
+                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        # Transport affects a chain of children
+                        water_exchange_time = self.time_step / turnover
+                        # Loading of the current vertex into the current vertex's xylem
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time
+
+                        parent = [v]
+                        # We initialize a list tracking water repartition among down axes
+                        axis_proportion = [1.0]
+                        # We remove the amount of water which has already been received
+                        exported_water = [-self.axial_import_water_down[v] - self.xylem_water[v]]
+                        # Loading of the current vertex into the vertices who have received water from it
+                        while True in [k > 0 for k in exported_water]:
+                            children_list = []
+                            children_exported_water = []
+                            for p in range(len(parent)):
+                                if exported_water[p] > 0:
+                                    down_children = [k for k in self.g.children(parent[p]) if self.struct_mass[k] > 0]
+                                    # if the parent is an apex and water has been exported from it,
+                                    # it means that the apex concentrates the associated carried and loaded nitrogen matter
+                                    if len(down_children) == 0:
+                                        # this water amount has also been subject to loading
+                                        self.cumulated_radial_exchanges_Nm[parent[p]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                        self.cumulated_radial_exchanges_AA[parent[p]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                        # if the translated nitrogen matter has completely ended up in the apex
+                                        if exported_water[p] + self.xylem_water[parent[p]] > self.xylem_water[v] * axis_proportion[p]:
+                                            self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p]
+                                            self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p]
+                                        # else it is shared with grandparent
                                         else:
-                                            self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
-                                            self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
+                                            grandparent = self.g.parent(parent[p])
+                                            parent_proportion = (exported_water[p] + self.xylem_water[parent[p]]) / (self.xylem_water[v] * axis_proportion[p])
+                                            self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p] * parent_proportion
+                                            self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p] * parent_proportion
+                                            self.displaced_Nm_in[grandparent] += self.displaced_Nm_out[v] * axis_proportion[p] * (1 - parent_proportion)
+                                            self.displaced_AA_in[grandparent] += self.displaced_AA_out[v] * axis_proportion[p] * (1 - parent_proportion)
+
+                                    # If there is only 1 child (root line)
+                                    elif len(down_children) == 1:
+                                        # If the considered child have been completely filled with water from the parent
+                                        if exported_water[p] - self.xylem_water[down_children[0]] > 0:
+                                            # The exposition time is longer if the water content of the target neighbour is more important.
+                                            self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
+                                            self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
+                                            children_exported_water += [exported_water[p] - self.xylem_water[down_children[0]]]
+                                        else:
+                                            self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                            self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
                                             # If all water content from initial segment gone through this axis is exported to the considered child
-                                            if children_down_flow[ch] > self.xylem_water[v] * axis_proportion[p + ch]:
-                                                self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * axis_proportion[p + ch]
-                                                self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * axis_proportion[p + ch]
+                                            if exported_water[p] > self.xylem_water[v] * axis_proportion[p]:
+                                                self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * axis_proportion[p]
+                                                self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * axis_proportion[p]
                                             else:
                                                 # Displaced matter is shared between child and its parent
-                                                child_proportion = children_down_flow[ch] / (self.xylem_water[v] * axis_proportion[p + ch])
-                                                self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * axis_proportion[p + ch] * child_proportion
-                                                self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * axis_proportion[p + ch] * child_proportion
-                                                self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p + ch] * (1 - child_proportion)
-                                                self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p + ch] * (1 - child_proportion)
+                                                child_proportion = exported_water[p] / (self.xylem_water[v] * axis_proportion[p])
+                                                self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * axis_proportion[p] * child_proportion
+                                                self.displaced_AA_in[down_children[0]] += self.displaced_AA_out[v] * axis_proportion[p] * child_proportion
+                                                self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p] * (1 - child_proportion)
+                                                self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p] * (1 - child_proportion)
                                             # Break the loop
-                                            children_down_flow[ch] = 0
-                                    children_exported_water += children_down_flow
+                                            children_exported_water += [0]
 
-                                # Concatenate so that each children will become parent for the next loop
-                                children_list += down_children
+                                    # Else if there are several children
+                                    else:
+                                        # Water repartition is done according to radius,
+                                        # as this is the main criteria used in the water model
+                                        radius_sum = sum([self.radius[k] for k in down_children])
+                                        children_down_flow = [exported_water[p] * self.radius[k] / radius_sum for k in down_children]
+                                        children_radius_prop = [self.radius[k] / radius_sum for k in down_children]
+                                        # Actualize the repartition of water when there is a new branching
+                                        for k in range(1, len(children_radius_prop)):
+                                            axis_proportion.insert(p + 1, axis_proportion[p] * children_radius_prop[-k])
 
-                        # Children become parent for the next loop
-                        parent = children_list
-                        exported_water = children_exported_water
+                                        axis_proportion[p] = axis_proportion[p] * children_radius_prop[0]
+                                        for ch in range(len(down_children)):
+                                            # If the considered child have been completely filled with water from the parent
+                                            if children_down_flow[ch] - self.xylem_water[down_children[ch]] > 0 :
+                                                # The exposition time is longer if the water content of the target neighbour is more important.
+                                                self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
+                                                self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
+                                                children_down_flow[ch] -= self.xylem_water[down_children[ch]]
+                                            else:
+                                                self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
+                                                self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
+                                                # If all water content from initial segment gone through this axis is exported to the considered child
+                                                if children_down_flow[ch] > self.xylem_water[v] * axis_proportion[p + ch]:
+                                                    self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * axis_proportion[p + ch]
+                                                    self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * axis_proportion[p + ch]
+                                                else:
+                                                    # Displaced matter is shared between child and its parent
+                                                    child_proportion = children_down_flow[ch] / (self.xylem_water[v] * axis_proportion[p + ch])
+                                                    self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * axis_proportion[p + ch] * child_proportion
+                                                    self.displaced_AA_in[down_children[ch]] += self.displaced_AA_out[v] * axis_proportion[p + ch] * child_proportion
+                                                    self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p + ch] * (1 - child_proportion)
+                                                    self.displaced_AA_in[parent[p]] += self.displaced_AA_out[v] * axis_proportion[p + ch] * (1 - child_proportion)
+                                                # Break the loop
+                                                children_down_flow[ch] = 0
+                                        children_exported_water += children_down_flow
 
-            # If this is an inflow from both up an down segments
-            if self.axial_import_water_down[v] >= 0 >= self.axial_export_water_up[v]:
-                # There is no exported matter, thus no receiver
-                self.displaced_Nm_out[v] = 0
-                self.displaced_AA_out[v] = 0
-                # No matter what the transported water amount is, all radial transport effects remain on the current vertex.
-                self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
+                                    # Concatenate so that each children will become parent for the next loop
+                                    children_list += down_children
+
+                            # Children become parent for the next loop
+                            parent = children_list
+                            exported_water = children_exported_water
+
+                # If this is an inflow from both up an down segments
+                if self.axial_import_water_down[v] >= 0 >= self.axial_export_water_up[v]:
+                    # There is no exported matter, thus no receiver
+                    self.displaced_Nm_out[v] = 0
+                    self.displaced_AA_out[v] = 0
+                    # No matter what the transported water amount is, all radial transport effects remain on the current vertex.
+                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
 
     # METABOLIC PROCESSES
     @rate
