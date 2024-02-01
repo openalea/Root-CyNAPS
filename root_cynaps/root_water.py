@@ -1,11 +1,12 @@
 import numpy as np
-from dataclasses import dataclass, field, fields
 from openalea.mtg.traversal import pre_order
+from dataclasses import dataclass
 
-from generic_fspm.component import Model, declare
-from generic_fspm.component_factory import *
+from genericmodel.component import Model, declare
+from genericmodel.component_factory import *
 
 
+@dataclass
 class RootWaterModel(Model):
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
@@ -27,9 +28,6 @@ class RootWaterModel(Model):
     apoplasmic_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="", 
                                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                                  variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    apoplasmic_stele: float = declare(default=0., unit="adim", unit_comment="", description="", 
-                                      min_value="", max_value="", value_comment="", references="", DOI="",
-                                      variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
     length: float = declare(default=0, unit="m", unit_comment="of root segment", description="", 
@@ -125,7 +123,7 @@ class RootWaterModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.executor.add_data(self.props)
+        self.choregrapher.add_data(instance=self, data_name="props", filter={"label": ["Segment", "Apex"], "type":["Base_of_the_root_system", "Normal_root_after_emergence", "Stopped", "Just_Stopped", "Root_nodule"]})
         self.time_step = time_step
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
@@ -134,19 +132,20 @@ class RootWaterModel(Model):
         self.link_self_to_mtg()
 
     def post_coupling_init(self):
-        self.init_xylem_water()
         self.get_available_inputs()
-        self.check_if_coupled()
+        # Must be performed after so that self state variables are indeed dicts
+        self.init_xylem_water()
 
         # SPECIFIC HERE, Select real children for collar element (vid == 1).
         # This is mandatory for correct collar-to-tip Hagen-Poiseuille flow partitioning.
+        # CHANGE TO TYPE DESCRIPTION!!!
         self.collar_children, self.collar_skip = [], []
         for vid in self.vertices:
             child = self.g.children(vid)
             if (self.struct_mass[vid] == 0) and (True in [self.struct_mass[k] > 0 for k in child]):
                 self.collar_skip += [vid]
                 self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
-
+        
     def init_xylem_water(self):
         # At pressure = soil_pressure, the corresponding xylem volume at rest is
         # filled with water in standard conditions
@@ -162,7 +161,6 @@ class RootWaterModel(Model):
             if self.struct_mass[vid] > 0:
                 self.xylem_water[vid] = self.total_xylem_water[1] * self.xylem_volume[vid] / sum_volume
 
-    @postgrowth
     def post_growth_updating(self):
         """
         Description :
@@ -246,19 +244,19 @@ class RootWaterModel(Model):
                 #   = self.xylem_water[vid] + self.radial_import_water[vid] + self.axial_import_water_down[vid] - self.axial_export_water_up[vid]
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
-                # if current vertex is collar, we affect down flow at previously computed collar children
-                if vid == 1:
-                    HP = [0 for k in self.collar_children]
-                    for k in range(len(self.collar_children)):
-                        # compute Hagen-Poiseuille coefficient
-                        HP[k] = np.pi * (self.radius[self.collar_children[k]]**4) / (8 * self.sap_viscosity)
-                    HP_tot = sum(HP)
-                    for k in range(len(self.collar_children)):
-                        self.axial_export_water_up[self.collar_children[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
-
-                # else, if there is only one child, the entire flux is applied
-                elif len(child) == 1:
-                    self.axial_export_water_up[child[0]] = self.axial_import_water_down[vid]
+                if len(child) == 1:
+                    # if current vertex is collar, we affect down flow at previously computed collar children
+                    if vid == 1 and len(self.collar_children) > 0:
+                        HP = [0 for k in self.collar_children]
+                        for k in range(len(self.collar_children)):
+                            # compute Hagen-Poiseuille coefficient
+                            HP[k] = np.pi * (self.radius[self.collar_children[k]]**4) / (8 * self.sap_viscosity)
+                        HP_tot = sum(HP)
+                        for k in range(len(self.collar_children)):
+                            self.axial_export_water_up[self.collar_children[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
+                    # else, if there is only one child, the entire flux is applied
+                    else:
+                        self.axial_export_water_up[child[0]] = self.axial_import_water_down[vid]
 
                 # finally, if there are several children, a fraction of the flux is applied
                 # according to Hagen-Poiseuille's law (same as collar)
@@ -271,8 +269,6 @@ class RootWaterModel(Model):
                     HP_tot = sum(HP)
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
-
-        self.update_sums()
 
         # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
         self.xylem_total_pressure[1] = self.xylem_young_modulus * (
