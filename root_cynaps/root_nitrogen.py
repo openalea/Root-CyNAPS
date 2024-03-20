@@ -22,6 +22,9 @@ from genericmodel.component_factory import *
 
 @dataclass
 class RootNitrogenModel(Model):
+    """
+    Root nitrogen balance model of Root_CyNAPS
+    """
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
     # FROM SOIL MODEL
@@ -48,6 +51,7 @@ class RootNitrogenModel(Model):
     endodermis_conductance_factor: float = declare(default=1., unit="adim", unit_comment="of vessel membrane", description="",
                                             min_value="", max_value="", value_comment="", references="",  DOI="", 
                                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+                                            
 
     # FROM CARBON BALANCE MODEL
     C_hexose_root: float =     declare(default=0, unit="mol.g-1", unit_comment="of hexose", description="",

@@ -15,14 +15,12 @@ class ShootModel(Model):
     def __init__(self, g):
 
         self.g = g
+        self.props = self.g.properties()
+        self.vertices = self.g.vertices(scale=self.g.max_scale())
         self.dataset = pd.read_csv(os.path.dirname(__file__) + "/inputs/cnwheat_outputs.csv", sep=";")
         self.dataset = self.dataset.set_index("t")
 
-        props = self.g.properties()
-        for name in self.dataset.columns:
-            props.setdefault(name, {})
-            props[name][1] = self.dataset[name][0]
-            setattr(self, name, props[name])
+        self.link_self_to_mtg()
         
         self.time_step = 0
 
