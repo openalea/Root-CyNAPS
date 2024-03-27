@@ -16,8 +16,8 @@ Methods' names are systematic through all class for ease of use :
 import numpy as np
 from dataclasses import dataclass
 
-from genericmodel.component import Model, declare
-from genericmodel.component_factory import *
+from metafspm.component import Model, declare
+from metafspm.component_factory import *
 
 
 @dataclass
@@ -406,7 +406,6 @@ class RootNitrogenModel(Model):
                         # if intensive, concentrations have to be updated based on new structural mass
                         if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
                             # TODO : find a way not to run method if no growth model
-                            self.initial_struct_mass = self.struct_mass
                             getattr(self, prop).update({vid: getattr(self, prop)[vid] * (
                                     self.initial_struct_mass[vid] / self.struct_mass[vid])})
 

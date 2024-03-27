@@ -2,8 +2,8 @@ import numpy as np
 from openalea.mtg.traversal import pre_order
 from dataclasses import dataclass
 
-from genericmodel.component import Model, declare
-from genericmodel.component_factory import *
+from metafspm.component import Model, declare
+from metafspm.component_factory import *
 
 
 @dataclass
@@ -190,6 +190,7 @@ class RootWaterModel(Model):
               self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
         # we set collar element the flow provided by shoot model
+        print(self.water_root_shoot_xylem)
         potential_transpiration = self.water_root_shoot_xylem[1] * self.time_step
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
         if self.total_xylem_water[1] - potential_transpiration < tearing_total_xylem_water:

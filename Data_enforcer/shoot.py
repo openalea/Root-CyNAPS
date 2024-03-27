@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass, field
 import pandas as pd
 
-from genericmodel.component import Model
+from metafspm.component import Model
 
 @dataclass
 class ShootModel(Model):
