@@ -2,6 +2,7 @@
 *.png
 *.nc
 *.pckl
+*.mp4
 
 # All output files
 *outputs/*
