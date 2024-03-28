@@ -381,6 +381,7 @@ class RootNitrogenModel(Model):
         # Before any other operation, we apply the provided scenario by changing default parameters and initialization
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
+        
 
     def post_growth_updating(self):
         """
