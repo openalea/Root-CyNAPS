@@ -123,7 +123,7 @@ class RootWaterModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.choregrapher.add_data(instance=self, data_name="props", filter={"label": ["Segment", "Apex"], "type":["Base_of_the_root_system", "Normal_root_after_emergence", "Stopped", "Just_Stopped", "Root_nodule"]})
+        self.choregrapher.add_data(instance=self, data_name="props")
         self.time_step = time_step
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
@@ -190,7 +190,6 @@ class RootWaterModel(Model):
               self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
         # we set collar element the flow provided by shoot model
-        print(self.water_root_shoot_xylem)
         potential_transpiration = self.water_root_shoot_xylem[1] * self.time_step
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
         if self.total_xylem_water[1] - potential_transpiration < tearing_total_xylem_water:
