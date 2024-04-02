@@ -874,17 +874,9 @@ class RootNitrogenModel(Model):
     def _phloem_struct_mass(self, struct_mass):
         return struct_mass * self.phloem_cross_area_ratio
 
-    @state
-    # CARBON UPDATE
-    def _C_hexose_root(self, C_hexose_root):
-        # Minimum to avoid issues with zero values
-        if C_hexose_root <= 0:
-            return 1e-1
-        else:
-            return C_hexose_root
+    # PLANT SCALE PROPERTIES UPDATE
 
     @totalstate
-    # PLANT SCALE PROPERTIES UPDATE
     def _total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem, total_struct_mass):
         return total_phloem_AA[1] + (- self.time_step * sum(diffusion_AA_phloem.values()) + AA_root_shoot_phloem[1]) / (
                 total_struct_mass[1] * self.phloem_cross_area_ratio)

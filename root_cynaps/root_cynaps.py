@@ -1,7 +1,7 @@
 import root_cynaps
 from root_cynaps.root_nitrogen import RootNitrogenModel
 from root_cynaps.root_water import RootWaterModel
-from rhizodep.rhizo_soil import SoilModel
+from rhizodep.soil_model import SoilModel
 from rhizodep.root_anatomy import RootAnatomy
 from Data_enforcer.shoot import ShootModel
 
