@@ -489,7 +489,7 @@ class RootNitrogenModel(Model):
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         # Here, surface is not really representative of a structure as everything is apoplasmic
         return self.diffusion_apoplasm * (
-                soil_Nm - xylem_Nm * 10e5) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+                xylem_Nm * 10e5 - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
     # AMINO ACID TRANSPORT
     @rate
@@ -515,7 +515,7 @@ class RootNitrogenModel(Model):
     @rate
     def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor):
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        return (self.diffusion_apoplasm * (soil_AA - xylem_AA * 10e5)
+        return (self.diffusion_apoplasm * (xylem_AA * 10e5 - soil_AA)
                 * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
 
     @rate
@@ -548,8 +548,8 @@ class RootNitrogenModel(Model):
                     turnover = self.axial_export_water_up[v] / self.xylem_water[v]
                     if turnover <= 1:
                         # Transport only affects considered segment
-                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
                         # Exported matter corresponds to the exported water proportion
                         self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
                         self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
@@ -570,8 +570,8 @@ class RootNitrogenModel(Model):
                         # Transport affects a chain of parents
                         water_exchange_time = self.time_step / turnover
                         # Loading of the current vertex into the current vertex's xylem
-                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
-                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time
 
                         exported_water = self.axial_export_water_up[v]
                         child = v
@@ -582,8 +582,8 @@ class RootNitrogenModel(Model):
                             up_parent = self.g.parent(child)
                             # If we reached collar, this amount is being exported
                             if up_parent == None:
-                                self.Nm_root_shoot_xylem[1] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
-                                self.AA_root_shoot_xylem[1] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                self.Nm_root_shoot_xylem[1] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                self.AA_root_shoot_xylem[1] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
                                 # If all water content of initial segment is exported through collar
                                 if exported_water > self.xylem_water[v]:
                                     self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
@@ -600,12 +600,12 @@ class RootNitrogenModel(Model):
                                 # If the considered parent have been completly filled with water from the child
                                 if exported_water - self.xylem_water[up_parent] > 0:
                                     # The exposition time is longer if the water content of the target neighbour is more important.
-                                    self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
-                                    self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
+                                    self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
+                                    self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[up_parent] / self.xylem_water[v]
                                 # If it's only partial, we account only for the exceeding amount
                                 else:
-                                    self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
-                                    self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                    self.cumulated_radial_exchanges_Nm[up_parent] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
+                                    self.cumulated_radial_exchanges_AA[up_parent] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water / self.xylem_water[v]
                                     # If all water content of initial segment is exported to the considered grandparent
                                     if exported_water > self.xylem_water[v]:
                                         self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v]
@@ -628,8 +628,8 @@ class RootNitrogenModel(Model):
                     turnover = - self.axial_import_water_down[v] / self.xylem_water[v]
                     if turnover <= 1:
                         # Transport only affects considered segment
-                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
                         # Exported matter corresponds to the exported water proportion
                         self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
                         self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
@@ -649,8 +649,8 @@ class RootNitrogenModel(Model):
                         # Transport affects a chain of children
                         water_exchange_time = self.time_step / turnover
                         # Loading of the current vertex into the current vertex's xylem
-                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
-                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time
+                        self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
+                        self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time
 
                         parent = [v]
                         # We initialize a list tracking water repartition among down axes
@@ -668,8 +668,8 @@ class RootNitrogenModel(Model):
                                     # it means that the apex concentrates the associated carried and loaded nitrogen matter
                                     if len(down_children) == 0:
                                         # this water amount has also been subject to loading
-                                        self.cumulated_radial_exchanges_Nm[parent[p]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
-                                        self.cumulated_radial_exchanges_AA[parent[p]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                        self.cumulated_radial_exchanges_Nm[parent[p]] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                        self.cumulated_radial_exchanges_AA[parent[p]] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
                                         # if the translated nitrogen matter has completely ended up in the apex
                                         if exported_water[p] + self.xylem_water[parent[p]] > self.xylem_water[v] * axis_proportion[p]:
                                             self.displaced_Nm_in[parent[p]] += self.displaced_Nm_out[v] * axis_proportion[p]
@@ -688,12 +688,12 @@ class RootNitrogenModel(Model):
                                         # If the considered child have been completely filled with water from the parent
                                         if exported_water[p] - self.xylem_water[down_children[0]] > 0:
                                             # The exposition time is longer if the water content of the target neighbour is more important.
-                                            self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
-                                            self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
+                                            self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
+                                            self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[0]] / self.xylem_water[v]
                                             children_exported_water += [exported_water[p] - self.xylem_water[down_children[0]]]
                                         else:
-                                            self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
-                                            self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                            self.cumulated_radial_exchanges_Nm[down_children[0]] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
+                                            self.cumulated_radial_exchanges_AA[down_children[0]] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * exported_water[p] / self.xylem_water[v]
                                             # If all water content from initial segment gone through this axis is exported to the considered child
                                             if exported_water[p] > self.xylem_water[v] * axis_proportion[p]:
                                                 self.displaced_Nm_in[down_children[0]] += self.displaced_Nm_out[v] * axis_proportion[p]
@@ -724,12 +724,12 @@ class RootNitrogenModel(Model):
                                             # If the considered child have been completely filled with water from the parent
                                             if children_down_flow[ch] - self.xylem_water[down_children[ch]] > 0 :
                                                 # The exposition time is longer if the water content of the target neighbour is more important.
-                                                self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
-                                                self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
+                                                self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
+                                                self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * self.xylem_water[down_children[ch]] / self.xylem_water[v]
                                                 children_down_flow[ch] -= self.xylem_water[down_children[ch]]
                                             else:
-                                                self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
-                                                self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
+                                                self.cumulated_radial_exchanges_Nm[down_children[ch]] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
+                                                self.cumulated_radial_exchanges_AA[down_children[ch]] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time * children_down_flow[ch] / self.xylem_water[v]
                                                 # If all water content from initial segment gone through this axis is exported to the considered child
                                                 if children_down_flow[ch] > self.xylem_water[v] * axis_proportion[p + ch]:
                                                     self.displaced_Nm_in[down_children[ch]] += self.displaced_Nm_out[v] * axis_proportion[p + ch]
@@ -758,8 +758,8 @@ class RootNitrogenModel(Model):
                     self.displaced_Nm_out[v] = 0
                     self.displaced_AA_out[v] = 0
                     # No matter what the transported water amount is, all radial transport effects remain on the current vertex.
-                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] + self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] + self.diffusion_AA_soil_xylem[v]) * self.time_step
+                    self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                    self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
 
     # METABOLIC PROCESSES
     @rate
