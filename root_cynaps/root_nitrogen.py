@@ -51,6 +51,12 @@ class RootNitrogenModel(Model):
     endodermis_conductance_factor: float = declare(default=1., unit="adim", unit_comment="of vessel membrane", description="",
                                             min_value="", max_value="", value_comment="", references="",  DOI="", 
                                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    symplasmic_volume: float = declare(default=1e-9, unit="m3", unit_comment="", description="symplasmic volume for water content of root elements", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="input", by="model_anatomy", state_variable_type="extensive", edit_by="user")
+    xylem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
+                                  min_value="", max_value="", value_comment="", references="", DOI="",
+                                  variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
                                             
 
     # FROM CARBON BALANCE MODEL
@@ -110,9 +116,6 @@ class RootNitrogenModel(Model):
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     AA: float =                 declare(default=9e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
-                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
-    struct_protein: float =     declare(default=0., unit="mol.g-1", unit_comment="of structural proteins", description="", 
-                                        min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
@@ -218,7 +221,7 @@ class RootNitrogenModel(Model):
     total_xylem_AA: float =             declare(default=0., unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_phloem_AA: float =            declare(default=0, unit="mol.g-1", unit_comment="of amino acids", description="", 
+    total_phloem_AA: float =            declare(default=1e-3, unit="mol.g-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
@@ -270,25 +273,25 @@ class RootNitrogenModel(Model):
     Km_AA_root: float =                 declare(default=1e-1, unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_AA_xylem: float =              declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of amino acids", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    vmax_AA_xylem: float =              declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="replaced 1e-7 for neg AA debug", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_soil: float =             declare(default=1e-11, unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_soil: float =             declare(default=1e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_xylem: float =            declare(default=0., unit="g.s-1.m-2", unit_comment="of solute", description="", 
-                                                min_value="", max_value="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading", references="", DOI="", 
+                                                min_value="", max_value="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading, passed to 0 for debug", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_phloem: float =           declare(default=1e-5, unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_phloem: float =           declare(default=1e-5, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="more realistic ranges than?", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
-    diffusion_apoplasm: float =         declare(default=2.5e-10, unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-
+    
     # metabolism-related parameters
     transport_C_regulation: float =     declare(default=7e-3, unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -312,20 +315,20 @@ class RootNitrogenModel(Model):
     Km_AA_struct: float =               declare(default=250e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    smax_stor: float =                  declare(default=0., unit="mol.s-1.g-1", unit_comment="of storage", description="", 
+    smax_stor: float =                  declare(default=1e-9, unit="mol.s-1.g-1", unit_comment="of storage", description="", 
                                                 min_value="", max_value="", value_comment="0 for wheat", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_stor: float =                 declare(default=250e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     cmax_stor: float =                  declare(default=1e-9, unit="mol.s-1.g-1", unit_comment="of storage", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                min_value="", max_value="", value_comment="Supposing no priority between storage and unstorage, unless when catabolism is downregulated ", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_stor_catab: float =              declare(default=250e-6, unit="mol.g-1", unit_comment="of storage", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    cmax_AA: float =                    declare(default=0., unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
-                                                min_value="", max_value="", value_comment="5e-9 for now not relevant as it doesn't contribute to C_hexose_root balance", references="", DOI="",
+    cmax_AA: float =                    declare(default=1e-10, unit="mol.s-1.g-1", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="5e-9 for now not relevant as it doesn't contribute to C_hexose_root balance.", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_catab: float =                declare(default=2.5e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -374,8 +377,8 @@ class RootNitrogenModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.choregrapher.add_data(instance=self, data_name="props")
         self.time_step = time_step
+        self.choregrapher.add_time_and_data(instance=self, sub_time_step=self.time_step, data=self.props)
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
         # Before any other operation, we apply the provided scenario by changing default parameters and initialization
@@ -466,11 +469,14 @@ class RootNitrogenModel(Model):
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface):
-        # Passive radial diffusion between soil and cortex.
-        # It happens only through root segment external surface.
-        # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-        return (self.diffusion_soil * (Nm * 10e5 - soil_Nm) * root_exchange_surface)
+    def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, struct_mass, symplasmic_volume):
+        if symplasmic_volume <= 0:
+            return 0.
+        else:
+            # Passive radial diffusion between soil and cortex.
+            # It happens only through root segment external surface.
+            # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
+            return (self.diffusion_soil * ((Nm * struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
 
     @rate
     def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, C_hexose_root):
@@ -485,11 +491,14 @@ class RootNitrogenModel(Model):
         return self.diffusion_xylem * (xylem_Nm - Nm) * (root_exchange_surface - cortex_exchange_surface)
 
     @rate
-    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor):
-        # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        # Here, surface is not really representative of a structure as everything is apoplasmic
-        return self.diffusion_apoplasm * (
-                xylem_Nm * 10e5 - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume):
+        if xylem_volume <= 0.:
+            return 0.
+        else:
+            # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+            # Here, surface is not really representative of a structure as everything is apoplasmic
+            return self.diffusion_apoplasm * (
+                    (xylem_Nm * struct_mass / xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
     # AMINO ACID TRANSPORT
     @rate
@@ -499,9 +508,12 @@ class RootNitrogenModel(Model):
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface):
-        # We define amino acid passive diffusion to soil
-        return (self.diffusion_soil * (AA * 10e5 - soil_AA) * root_exchange_surface )
+    def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, struct_mass, symplasmic_volume):
+        if symplasmic_volume <= 0:
+            return 0.
+        else:
+            # We define amino acid passive diffusion to soil
+            return (self.diffusion_soil * ((AA * struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
 
     @rate
     def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, C_hexose_root):
@@ -513,10 +525,13 @@ class RootNitrogenModel(Model):
                         C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor):
-        # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        return (self.diffusion_apoplasm * (xylem_AA * 10e5 - soil_AA)
-                * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
+    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume):
+        if xylem_volume <= 0:
+            return 0.
+        else:
+            # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+            return (self.diffusion_apoplasm * ((xylem_AA * struct_mass / xylem_volume) - soil_AA)
+                    * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
 
     @rate
     def _diffusion_AA_phloem(self, AA, phloem_exchange_surface):
@@ -834,10 +849,6 @@ class RootNitrogenModel(Model):
 
         else:
             return 0
-
-    # def _struct_protein(self, v):
-    #     struct_protein += (sub_time_step / struct_mass) * (
-    #         struct_synthesis)
 
     @state
     def _storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism):

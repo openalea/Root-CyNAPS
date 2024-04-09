@@ -123,8 +123,8 @@ class RootWaterModel(Model):
         """
         self.g = g
         self.props = self.g.properties()
-        self.choregrapher.add_data(instance=self, data_name="props")
         self.time_step = time_step
+        self.choregrapher.add_time_and_data(instance=self, sub_time_step=self.time_step, data=self.props)
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
         # Before any other operation, we apply the provided scenario by changing default parameters and initialization
