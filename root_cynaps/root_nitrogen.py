@@ -224,13 +224,13 @@ class RootNitrogenModel(Model):
     total_phloem_AA: float =            declare(default=1e-3, unit="mol.g-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+    Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    AA_root_shoot_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
+    AA_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_AA_rhizodeposition: float =   declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
+    total_AA_rhizodeposition: float =   declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     cytokinin_synthesis: float =        declare(default=0., unit="UA.s-1", unit_comment="of cytokinin", description="", 
@@ -249,7 +249,7 @@ class RootNitrogenModel(Model):
     vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_Nm_xylem: float =              declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
+    vmax_Nm_xylem: float =              declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_LATS: float =            declare(default=1e-1, unit="mol.m-3", unit_comment="of nitrates", description="", 
@@ -282,7 +282,7 @@ class RootNitrogenModel(Model):
     diffusion_soil: float =             declare(default=1e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=0., unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_xylem: float =            declare(default=1e-6, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading, passed to 0 for debug", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_phloem: float =           declare(default=1e-5, unit="g.s-1.m-2", unit_comment="of solute", description="",
