@@ -267,13 +267,13 @@ class RootNitrogenModel(Model):
     Km_Nm_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_AA_root: float =               declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of amino acids", description="", 
+    vmax_AA_root: float =               declare(default=1e-8, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_root: float =                 declare(default=1e-1, unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_AA_xylem: float =              declare(default=0., unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
+    vmax_AA_xylem: float =              declare(default=1e-8, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="replaced 1e-7 for neg AA debug", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of amino acids", description="", 
@@ -285,7 +285,7 @@ class RootNitrogenModel(Model):
     diffusion_xylem: float =            declare(default=1e-6, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading, passed to 0 for debug", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_phloem: float =           declare(default=1e-5, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_phloem: float =           declare(default=1e-4, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="more realistic ranges than?", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
@@ -798,10 +798,10 @@ class RootNitrogenModel(Model):
         return struct_mass * (self.smax_stor * AA / (self.Km_AA_stor + AA))
 
     @rate
-    def _storage_catabolism(self, struct_mass, C_hexose_root, C_hexose_reserve):
+    def _storage_catabolism(self, struct_mass, C_hexose_root, storage_protein):
         # Organic storage catabolism through proteinase
         Km_stor_root = self.Km_stor_catab * np.exp(self.storage_C_regulation * C_hexose_root)
-        return struct_mass * self.cmax_stor * C_hexose_reserve / (Km_stor_root + C_hexose_reserve)
+        return struct_mass * self.cmax_stor * storage_protein / (Km_stor_root + storage_protein)
 
     @rate
     def _AA_catabolism(self, C_hexose_root, struct_mass, AA):

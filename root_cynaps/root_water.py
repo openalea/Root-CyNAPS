@@ -58,13 +58,13 @@ class RootWaterModel(Model):
     radial_import_water: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
-    shoot_uptake: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
+    shoot_uptake: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                   variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
-    axial_export_water_up: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
+    axial_export_water_up: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
-    axial_import_water_down: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
+    axial_import_water_down: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
 
@@ -99,14 +99,14 @@ class RootWaterModel(Model):
     xylem_young_modulus: float = declare(default=1e6, unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    xylem_cross_area_ratio: float = declare(default=1., unit="adim", unit_comment="", description="0.84 * (0.36 ** 2) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio",
+    xylem_cross_area_ratio: float = declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="", description=" apoplasmic cross-section area ratio * stele radius ratio^2",
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
-    cortex_water_conductivity: float = declare(default=1e-14 * 1e5, unit="m.s-1.Pa-1", unit_comment="", description="", 
+    cortex_water_conductivity: float = declare(default=1e-14 * 1e3, unit="m.s-1.Pa-1", unit_comment="", description="",
                                                min_value="", max_value="", value_comment="", references="", DOI="",
                                                variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    apoplasmic_water_conductivity: float = declare(default=1e-14 * 1e6, unit="m.s-1.Pa-1", unit_comment="", description="", 
+    apoplasmic_water_conductivity: float = declare(default=1e-14 * 1e4, unit="m.s-1.Pa-1", unit_comment="", description="",
                                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
     xylem_tear: float = declare(default=9e5, unit="Pa", unit_comment="", description="maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)", 
@@ -207,7 +207,7 @@ class RootWaterModel(Model):
             cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
 
             self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
-            # We suppose uptake is evenly reparted over the xylem to avoid over contribution of apexes in
+            # We suppose shoot uptake is evenly reparted over the xylem to avoid over contribution of apexes in
             # the down propagation of transpiration (computed below)
             self.shoot_uptake[vid] = self.axial_export_water_up[1] * self.xylem_water[vid] / self.total_xylem_water[1]
 
