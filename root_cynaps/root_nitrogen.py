@@ -99,10 +99,10 @@ class RootNitrogenModel(Model):
                                                   variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.s-1", unit_comment="of amino acids", description="", 
+    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    cytokinins_root_shoot_xylem: float = declare(default=0, unit="mol.s-1", unit_comment="of cytokinins", description="", 
+    cytokinins_root_shoot_xylem: float = declare(default=0, unit="mol.h-1", unit_comment="of cytokinins", description="",
                                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                                  variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
@@ -111,7 +111,7 @@ class RootNitrogenModel(Model):
     # LOCAL VARIABLES
 
     # Pools initial size
-    Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="",
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     AA: float =                 declare(default=9e-4, unit="mol.g-1", unit_comment="of amino acids", description="",
@@ -249,7 +249,7 @@ class RootNitrogenModel(Model):
     vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_Nm_xylem: float =              declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
+    vmax_Nm_xylem: float =              declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_LATS: float =            declare(default=1e-1, unit="mol.m-3", unit_comment="of nitrates", description="", 
@@ -264,7 +264,7 @@ class RootNitrogenModel(Model):
     span_N_regulation: float =          declare(default=2e-4, unit="mol.g-1", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="range corresponding to observed variation range within segment", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    Km_Nm_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_AA_root: float =               declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of amino acids", description="", 
@@ -342,7 +342,7 @@ class RootNitrogenModel(Model):
     smax_cytok: float =                 declare(default=9e-4, unit="UA.s-1.g-1", unit_comment="of cytokinins", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_C_cytok: float =                 declare(default=1.2e-3, unit="mol.g-1", unit_comment="of hexose", description="",
+    Km_C_cytok: float =                 declare(default=1.2e-3, unit="UA.g-1", unit_comment="of hexose", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_N_cytok: float =                 declare(default=5.0e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
@@ -568,6 +568,8 @@ class RootNitrogenModel(Model):
                         # Exported matter corresponds to the exported water proportion
                         self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
                         self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        if self.displaced_Nm_out[v] < 0:
+                            print(turnover, self.xylem_Nm[v], self.xylem_struct_mass[v])
                         up_parent = self.g.parent(v)
                         # If this is collar, this flow is exported
                         if up_parent == None:
@@ -861,18 +863,18 @@ class RootNitrogenModel(Model):
             return 0
 
     @state
-    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, struct_mass):
-        if struct_mass > 0:
+    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, xylem_struct_mass):
+        if xylem_struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
-            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / struct_mass
+            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / xylem_struct_mass
         else:
             return 0
 
     @state
-    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, struct_mass):
-        if struct_mass > 0:
-            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / struct_mass
+    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, xylem_struct_mass):
+        if xylem_struct_mass > 0:
+            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / xylem_struct_mass
         else:
             return 0
 
@@ -893,7 +895,8 @@ class RootNitrogenModel(Model):
                 total_struct_mass[1] * self.phloem_cross_area_ratio)
 
     @totalstate
-    def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem):
+    def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem,
+                                   total_struct_mass):
         return total_cytokinins[1] + cytokinin_synthesis[1] * self.time_step - cytokinins_root_shoot_xylem[1]
 
     # UPDATE CUMULATIVE VALUES
