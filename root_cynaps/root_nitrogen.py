@@ -209,7 +209,7 @@ class RootNitrogenModel(Model):
     total_hexose: float =               declare(default=0., unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_cytokinins: float =           declare(default=100, unit="UA.s-1", unit_comment="of cytokinins", description="", 
+    total_cytokinins: float =           declare(default=250, unit="UA", unit_comment="of cytokinins", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_struct_mass: float =          declare(default=1e-3, unit="g", unit_comment="of dry weight", description="", 
@@ -249,7 +249,7 @@ class RootNitrogenModel(Model):
     vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_Nm_xylem: float =              declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
+    vmax_Nm_xylem: float =              declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_LATS: float =            declare(default=1e-1, unit="mol.m-3", unit_comment="of nitrates", description="", 
@@ -342,10 +342,10 @@ class RootNitrogenModel(Model):
     smax_cytok: float =                 declare(default=9e-4, unit="UA.s-1.g-1", unit_comment="of cytokinins", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_C_cytok: float =                 declare(default=1.2e-3, unit="mol.g-1", unit_comment="of hexose", description="", 
+    Km_C_cytok: float =                 declare(default=1.2e-3, unit="mol.g-1", unit_comment="of hexose", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_N_cytok: float =                 declare(default=1.2e-3, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    Km_N_cytok: float =                 declare(default=5.0e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
@@ -893,10 +893,8 @@ class RootNitrogenModel(Model):
                 total_struct_mass[1] * self.phloem_cross_area_ratio)
 
     @totalstate
-    def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem,
-                                   total_struct_mass):
-        return total_cytokinins[1] + (cytokinin_synthesis[1] * self.time_step -
-                                     cytokinins_root_shoot_xylem[1]) / total_struct_mass[1]
+    def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem):
+        return total_cytokinins[1] + cytokinin_synthesis[1] * self.time_step - cytokinins_root_shoot_xylem[1]
 
     # UPDATE CUMULATIVE VALUES
     # TODO : Retrieve the total struct mass from Rhizodep, otherwise, computation order is messed up here.

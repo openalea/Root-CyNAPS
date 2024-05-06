@@ -99,7 +99,7 @@ class RootWaterModel(Model):
     xylem_young_modulus: float = declare(default=1e6, unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    xylem_cross_area_ratio: float = declare(default=10, unit="adim", unit_comment="", description="0.84 * (0.36 ** 2) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio", 
+    xylem_cross_area_ratio: float = declare(default=1., unit="adim", unit_comment="", description="0.84 * (0.36 ** 2) apoplasmic cross-section area ratio * stele radius ratio^2 # TODO : rename buffer ratio",
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
