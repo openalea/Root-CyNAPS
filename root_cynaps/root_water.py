@@ -6,8 +6,14 @@ from metafspm.component import Model, declare
 from metafspm.component_factory import *
 
 
+family = "hydraulic"
+
+
 @dataclass
 class RootWaterModel(Model):
+
+    family = "hydraulic"
+
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
     # FROM SOIL MODEL

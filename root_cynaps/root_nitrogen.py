@@ -20,11 +20,17 @@ from metafspm.component import Model, declare
 from metafspm.component_factory import *
 
 
+family = "metabolic"
+
+
 @dataclass
 class RootNitrogenModel(Model):
     """
     Root nitrogen balance model of Root_CyNAPS
     """
+
+    family = family
+
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
     # FROM SOIL MODEL
@@ -58,14 +64,6 @@ class RootNitrogenModel(Model):
                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                   variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
                                             
-
-    # FROM CARBON BALANCE MODEL
-    C_hexose_root: float =     declare(default=0, unit="mol.g-1", unit_comment="of hexose", description="",
-                                       min_value="", max_value="", value_comment="", references="", DOI="",
-                                       variable_type="input", by="model_carbon", state_variable_type="", edit_by="user")
-    C_hexose_reserve: float =  declare(default=0, unit="mol.g-1", unit_comment="of hexose", description="", 
-                                       min_value="", max_value="", value_comment="", references="", DOI="",
-                                       variable_type="input", by="model_carbon", state_variable_type="", edit_by="user")
 
     # FROM WATER BALANCE MODEL
     xylem_water: float =                declare(default=0, unit="mol", unit_comment="of water", description="", 
@@ -389,30 +387,46 @@ class RootNitrogenModel(Model):
     def post_growth_updating(self):
         """
         Description :
-            Extend property dictionnary uppon new element partionning and updates concentrations uppon structural_mass change
+            Extend property dictionary upon new element partitioning and updates concentrations upon structural_mass change
         """
         self.vertices = self.g.vertices(scale=self.g.max_scale())
+        already_updated = []
         for vid in self.vertices:
+            # We ignore already updated elements, e.g. parents of apices
+            if vid in already_updated:
+                continue
+
+            # If we focus on a new element
             if vid not in list(self.Nm.keys()):
                 parent = self.g.parent(vid)
-                mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
                 for prop in self.state_variables:
-                    # if intensive, equals to parent
+                    # if intensive, equals to parent AFTER it has been updated
                     if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
+                        getattr(self, prop).update({parent: getattr(self, prop)[parent] * (
+                                self.initial_struct_mass[parent] / self.struct_mass[parent])})
                         getattr(self, prop).update({vid: getattr(self, prop)[parent]})
                     # if extensive, we need structural mass wise partitioning
                     else:
+                        # we partition the initial flow in the parent accounting for mass fraction
+                        # We use struct_mass, the resulting structural mass after growth
+                        mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
                         getattr(self, prop).update({vid: getattr(self, prop)[parent] * mass_fraction,
-                                                    parent: getattr(self, prop)[parent] * (1 - mass_fraction)})
+                                                    parent: getattr(self, prop)[parent] * (1-mass_fraction)})
+                already_updated += [vid, parent]
+
+            # If the element already exists and isn't immediate neighbor of an apex
             else:
+                # If after growth the element actually grown
                 if self.struct_mass[vid] > 0:
                     for prop in self.state_variables:
                         # if intensive, concentrations have to be updated based on new structural mass
                         if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
-                            # TODO : find a way not to run method if no growth model
                             getattr(self, prop).update({vid: getattr(self, prop)[vid] * (
-                                    self.initial_struct_mass[vid] / self.struct_mass[vid])})
+                                self.initial_struct_mass[vid] / self.struct_mass[vid])})
+                        # if extensive, it doesn't need to be updated and if parent is segmented,
 
+                already_updated += [vid]
+    
     @stepinit
     def initialize_cumulative(self):
         # Reinitialize for the sum of the next loop
@@ -432,7 +446,7 @@ class RootNitrogenModel(Model):
     # RADIAL TRANSPORT PROCESSES
     # MINERAL NITROGEN TRANSPORT
     @rate
-    def _import_Nm(self, Nm, soil_Nm, root_exchange_surface, C_hexose_root):
+    def _import_Nm(self, Nm, soil_Nm, root_exchange_surface, C_hexose_root=1e-4):
         """
                 Description
                 ___________
@@ -479,7 +493,7 @@ class RootNitrogenModel(Model):
             return (self.diffusion_soil * ((Nm * struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
 
     @rate
-    def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, C_hexose_root):
+    def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, C_hexose_root=1e-4):
         # We define active export to xylem from root segment
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         return ((Nm * self.vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * (root_exchange_surface - cortex_exchange_surface) * (
@@ -502,7 +516,7 @@ class RootNitrogenModel(Model):
 
     # AMINO ACID TRANSPORT
     @rate
-    def _import_AA(self, soil_AA, root_exchange_surface, C_hexose_root):
+    def _import_AA(self, soil_AA, root_exchange_surface, C_hexose_root=1e-4):
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         return ((soil_AA * self.vmax_AA_root / (soil_AA + self.Km_AA_root)) * root_exchange_surface * (
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
@@ -516,7 +530,7 @@ class RootNitrogenModel(Model):
             return (self.diffusion_soil * ((AA * struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
 
     @rate
-    def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, C_hexose_root):
+    def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, C_hexose_root=1e-4):
         # We define active export to xylem from root segment
         # Km is defined as a constant here
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
@@ -780,7 +794,7 @@ class RootNitrogenModel(Model):
 
     # METABOLIC PROCESSES
     @rate
-    def _AA_synthesis(self, C_hexose_root, struct_mass, Nm):
+    def _AA_synthesis(self, struct_mass, Nm, C_hexose_root=1e-4):
         # amino acid synthesis
         if C_hexose_root > 0 and Nm > 0:
             return struct_mass * self.smax_AA / (
@@ -798,13 +812,13 @@ class RootNitrogenModel(Model):
         return struct_mass * (self.smax_stor * AA / (self.Km_AA_stor + AA))
 
     @rate
-    def _storage_catabolism(self, struct_mass, C_hexose_root, storage_protein):
+    def _storage_catabolism(self, struct_mass, storage_protein, C_hexose_root=1e-4):
         # Organic storage catabolism through proteinase
         Km_stor_root = self.Km_stor_catab * np.exp(self.storage_C_regulation * C_hexose_root)
         return struct_mass * self.cmax_stor * storage_protein / (Km_stor_root + storage_protein)
 
     @rate
-    def _AA_catabolism(self, C_hexose_root, struct_mass, AA):
+    def _AA_catabolism(self, struct_mass, AA, C_hexose_root=1e-4):
         # AA catabolism through GDH
         Km_stor_root = self.Km_AA_catab * np.exp(self.storage_C_regulation * C_hexose_root)
         return struct_mass * self.cmax_AA * AA / (Km_stor_root + AA)
@@ -928,5 +942,5 @@ class RootNitrogenModel(Model):
         return self.time_step * (sum(diffusion_AA_soil.values()) - sum(import_AA.values()))
 
     @totalstate
-    def _total_hexose(self, C_hexose_root, struct_mass, total_struct_mass):
+    def _total_hexose(self, struct_mass, total_struct_mass, C_hexose_root=1e-4):
         return sum([x*y for x, y in zip(C_hexose_root.values(), struct_mass.values())]) / total_struct_mass[1]
