@@ -34,11 +34,11 @@ class RootNitrogenModel(Model):
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
     # FROM SOIL MODEL
-    soil_Nm: float = declare(default=0, unit="mol.g-1", unit_comment="of nitrates", description="", 
-                            min_value="", max_value="", value_comment="", references="", DOI="", 
+    soil_Nm: float = declare(default=2.2, unit="mol.m-3", unit_comment="of nitrates", description="", 
+                            min_value="", max_value="", value_comment="", references="Fischer 1966", DOI="", 
                             variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
-    soil_AA: float = declare(default=0, unit="mol.g-1", unit_comment="of amino acids", description="",
-                            min_value="", max_value="", value_comment="", references="", DOI="", 
+    soil_AA: float = declare(default=8.2e-3, unit="mol.m-3", unit_comment="of amino acids", description="",
+                            min_value="", max_value="", value_comment="Fischer et al 2007, water leaching estimation", references="", DOI="", 
                             variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
@@ -298,11 +298,11 @@ class RootNitrogenModel(Model):
     # N METABOLISM PROCESSES
     # TODO : introduce nitrogen fixation
     # kinetic parameters
-    smax_AA: float =                    declare(default=1e-5, unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
+    smax_AA: float =                    declare(default=1e-4, unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_AA: float =                   declare(default=3e-6, unit="mol.g-1", unit_comment="of nitrates", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    Km_Nm_AA: float =                   declare(default=350, unit="mol.g-1", unit_comment="of nitrates", description="", 
+                                                min_value="", max_value="", value_comment="Changed to increase differences uppon Nm changes", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_C_AA: float =                    declare(default=350e-6, unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -582,8 +582,6 @@ class RootNitrogenModel(Model):
                         # Exported matter corresponds to the exported water proportion
                         self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
                         self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
-                        if self.displaced_Nm_out[v] < 0:
-                            print(turnover, self.xylem_Nm[v], self.xylem_struct_mass[v])
                         up_parent = self.g.parent(v)
                         # If this is collar, this flow is exported
                         if up_parent == None:
