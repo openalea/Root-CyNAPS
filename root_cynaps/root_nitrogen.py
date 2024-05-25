@@ -128,6 +128,9 @@ class RootNitrogenModel(Model):
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+    nitrate_transporters_affinity_factor: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
+                                                    min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     import_AA: float =                      declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
@@ -244,11 +247,11 @@ class RootNitrogenModel(Model):
 
     # N TRANSPORT PROCESSES
     # kinetic parameters
-    vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    vmax_Nm_root: float =               declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
+                                                min_value="", max_value="", value_comment="*2 to slightly increase the impact of amino acid production", references="Liu et Tsay", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_Nm_xylem: float =              declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    vmax_Nm_xylem: float =              declare(default=2*1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
+                                                min_value="", max_value="", value_comment="*10e2 from outside root as a lower surface has to compete with external surface and presents LATS", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_LATS: float =            declare(default=1e-1, unit="mol.m-3", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="Changed to increase diminution", references="", DOI="",
@@ -256,13 +259,13 @@ class RootNitrogenModel(Model):
     Km_Nm_root_HATS: float =            declare(default=1e-6, unit="mol.m-3", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    begin_N_regulation: float =         declare(default=1e1, unit="mol.g-1", unit_comment="of nitrates", description="", 
-                                                min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in Nm variation range", references="", DOI="",
+    begin_N_regulation: float =         declare(default=0.48, unit="mol.g-1", unit_comment="of nitrates", description="", 
+                                                min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    span_N_regulation: float =          declare(default=2e-4, unit="mol.g-1", unit_comment="of nitrates", description="", 
-                                                min_value="", max_value="", value_comment="range corresponding to observed variation range within segment", references="", DOI="",
+    span_N_regulation: float =          declare(default=1e-3, unit="mol.g-1", unit_comment="of nitrates", description="", 
+                                                min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
+    Km_Nm_xylem: float =                declare(default=1e-1, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_AA_root: float =               declare(default=1e-8, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
@@ -271,21 +274,21 @@ class RootNitrogenModel(Model):
     Km_AA_root: float =                 declare(default=1e-1, unit="mol.m-3", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_AA_xylem: float =              declare(default=1e-8, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
-                                                min_value="", max_value="", value_comment="replaced 1e-7 for neg AA debug", references="", DOI="",
+    vmax_AA_xylem: float =              declare(default=1e-5, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="*10e2 from outside root as presents LATS only", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_AA_xylem: float =                declare(default=8e-5, unit="mol.g-1", unit_comment="of amino acids", description="", 
+    Km_AA_xylem: float =                declare(default=1e-1, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_soil: float =             declare(default=1e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_soil: float =             declare(default=1e-14, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=1e-6, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_xylem: float =            declare(default=1e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading, passed to 0 for debug", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_phloem: float =           declare(default=1e-4, unit="g.s-1.m-2", unit_comment="of solute", description="",
-                                                min_value="", max_value="", value_comment="more realistic ranges than?", references="", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
+                                                min_value="", max_value="", value_comment="Important value to avoid harsh growth limitations", references="", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
@@ -298,23 +301,23 @@ class RootNitrogenModel(Model):
     # N METABOLISM PROCESSES
     # TODO : introduce nitrogen fixation
     # kinetic parameters
-    smax_AA: float =                    declare(default=1e-4, unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    smax_AA: float =                    declare(default=1e-5, unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
+                                                min_value="", max_value="", value_comment="*100 from ref to come closer to the 30% prop in whole synthesis expected", references="(Barillot 2016)", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_AA: float =                   declare(default=350, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    Km_Nm_AA: float =                   declare(default=3.50e-6, unit="mol.g-1", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="Changed to increase differences uppon Nm changes", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_C_AA: float =                    declare(default=350e-6, unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    smax_struct: float =                declare(default=1e-9, unit="mol.s-1.g-1", unit_comment="of structure", description="", 
+    smax_struct: float =                declare(default=0., unit="mol.s-1.g-1", unit_comment="of structure", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_struct: float =               declare(default=250e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    smax_stor: float =                  declare(default=1e-10, unit="mol.s-1.g-1", unit_comment="of storage", description="",
-                                                min_value="", max_value="", value_comment="0 for wheat", references="", DOI="",
+    smax_stor: float =                  declare(default=0., unit="mol.s-1.g-1", unit_comment="of storage", description="",
+                                                min_value="", max_value="", value_comment="from 1e-10, 0 for wheat", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_stor: float =                 declare(default=250e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -481,6 +484,12 @@ class RootNitrogenModel(Model):
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         return ((soil_Nm * self.vmax_Nm_root / (soil_Nm + Km_Nm_root)) * root_exchange_surface * (
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
+    
+    @rate
+    def _nitrate_transporters_affinity_factor(self, Nm):
+        precision = 0.99
+        return 1 / (1 + (precision / ((1 - precision) * np.exp(-self.begin_N_regulation))
+                     * np.exp(-Nm / self.span_N_regulation)))
 
     @rate
     def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, struct_mass, symplasmic_volume):
