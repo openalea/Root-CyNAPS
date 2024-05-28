@@ -254,7 +254,7 @@ class RootNitrogenModel(Model):
                                                 min_value="", max_value="", value_comment="*10e2 from outside root as a lower surface has to compete with external surface and presents LATS", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_LATS: float =            declare(default=1e-1, unit="mol.m-3", unit_comment="of nitrates", description="", 
-                                                min_value="", max_value="", value_comment="Changed to increase diminution", references="", DOI="",
+                                                min_value="", max_value="", value_comment="", references="Liu et Tsay 2003", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_HATS: float =            declare(default=1e-6, unit="mol.m-3", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -280,11 +280,11 @@ class RootNitrogenModel(Model):
     Km_AA_xylem: float =                declare(default=1e-1, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_soil: float =             declare(default=1e-14, unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_soil: float =             declare(default=2.5e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=1e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
-                                                min_value="", max_value="", value_comment="from 1e-6, It was noticed it only contributed to xylem loading, passed to 0 for debug", references="", DOI="", 
+    diffusion_xylem: float =            declare(default=1e-8/10, unit="g.s-1.m-2", unit_comment="of solute", description="",
+                                                min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_phloem: float =           declare(default=1e-4, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="Important value to avoid harsh growth limitations", references="", DOI="",
