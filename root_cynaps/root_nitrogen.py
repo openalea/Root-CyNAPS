@@ -253,16 +253,16 @@ class RootNitrogenModel(Model):
     vmax_Nm_xylem: float =              declare(default=2*1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="*10e2 from outside root as a lower surface has to compete with external surface and presents LATS", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_root_LATS: float =            declare(default=1e-1, unit="mol.m-3", unit_comment="of nitrates", description="", 
+    Km_Nm_root_LATS: float =            declare(default=1e-2, unit="mol.m-3", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="Liu et Tsay 2003", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_root_HATS: float =            declare(default=1e-6, unit="mol.m-3", unit_comment="of nitrates", description="", 
+    Km_Nm_root_HATS: float =            declare(default=1e-4, unit="mol.m-3", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    begin_N_regulation: float =         declare(default=0.48, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    begin_N_regulation: float =         declare(default=1., unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    span_N_regulation: float =          declare(default=1e-3, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    span_N_regulation: float =          declare(default=6e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_xylem: float =                declare(default=1e-1, unit="mol.g-1", unit_comment="of nitrates", description="",
@@ -488,6 +488,7 @@ class RootNitrogenModel(Model):
     @rate
     def _nitrate_transporters_affinity_factor(self, Nm):
         precision = 0.99
+        # accounted for in soil heterogeneity scenario
         return 1 / (1 + (precision / ((1 - precision) * np.exp(-self.begin_N_regulation))
                      * np.exp(-Nm / self.span_N_regulation)))
 
