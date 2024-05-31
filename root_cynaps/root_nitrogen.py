@@ -247,16 +247,16 @@ class RootNitrogenModel(Model):
 
     # N TRANSPORT PROCESSES
     # kinetic parameters
-    vmax_Nm_root: float =               declare(default=1e-7, unit="mol.s-1.m-2", unit_comment="of nitrates", description="", 
+    vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="*2 to slightly increase the impact of amino acid production", references="Liu et Tsay", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_Nm_xylem: float =              declare(default=2*1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="*10e2 from outside root as a lower surface has to compete with external surface and presents LATS", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_root_LATS: float =            declare(default=1e-2, unit="mol.m-3", unit_comment="of nitrates", description="",
+    Km_Nm_root_LATS: float =            declare(default=1e1, unit="mol.m-3", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="Liu et Tsay 2003", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_root_HATS: float =            declare(default=1e-4, unit="mol.m-3", unit_comment="of nitrates", description="",
+    Km_Nm_root_HATS: float =            declare(default=1e-3, unit="mol.m-3", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     begin_N_regulation: float =         declare(default=1., unit="mol.g-1", unit_comment="of nitrates", description="",
