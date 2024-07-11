@@ -4,6 +4,7 @@ import os, sys
 from root_cynaps.root_cynaps import Model
 # Utility packages
 from log.logging import Logger
+from analyze.analyze import analyze_data
 from initialize.initialize import MakeScenarios as ms
 
 
@@ -26,7 +27,7 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
 
     finally:
         logger.stop()
-        
+        analyze_data(scenarios=[os.path.basename(outputs_dirpath)], outputs_dirpath=outputs_dirpath, target_properties=None, **log_settings)
 
 def test_run(simulation_length=1, echo=True):
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Reference_Fischer"])

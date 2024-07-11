@@ -2,7 +2,7 @@ import root_cynaps
 
 from root_cynaps.root_nitrogen import RootNitrogenModel
 from root_cynaps.root_water import RootWaterModel
-from rhizodep.soil_model import RhizoInputsSoilModel
+from root_bridges.soil_model import SoilModel
 from rhizodep.root_anatomy import RootAnatomy
 
 from metafspm.composite_wrapper import CompositeModel
@@ -23,7 +23,7 @@ class Model(CompositeModel):
     4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG File
     """
 
-    def __init__(self, g, time_step: int, **scenario: dict):
+    def __init__(self, time_step: int, **scenario: dict):
         """
         DESCRIPTION
         ----------
@@ -41,11 +41,11 @@ class Model(CompositeModel):
 
         # INIT INDIVIDUAL MODULES
         # NOTE : IT HAS TO BE DONE THROUGH THE LOAD FUNCTION TO ENSURE SEPARATED CHOREGRAPHER INSTANCE
-        self.g = scenario["input_mtg"]
+        self.g = scenario["input_mtg"]["root_mtg_file"]
         self.root_anatomy = RootAnatomy(self.g, time_step, **parameters)
         self.root_water = RootWaterModel(self.g, time_step/10, **parameters)
         self.root_nitrogen = RootNitrogenModel(self.g, time_step, **parameters)
-        self.soil = RhizoInputsSoilModel(self.g, time_step, **parameters)
+        self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
         # ORDER MATTERS HERE !

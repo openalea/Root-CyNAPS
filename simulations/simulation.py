@@ -53,8 +53,8 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
 
 
 if __name__ == '__main__':
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_05.xlsx", which=["Reference_Fischer"])
-    simulate_scenarios(scenarios, simulation_length=2500, log_settings=Logger.heavy_log)
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Reference_Fischer"])
+    simulate_scenarios(scenarios, simulation_length=2500, log_settings=Logger.light_log)
 
     # In the end put the system to sleep, Windows only
     #os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
