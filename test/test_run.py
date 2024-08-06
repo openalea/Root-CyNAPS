@@ -34,7 +34,7 @@ def test_run(simulation_length=1, echo=True):
     for scenario_name, scenario in scenarios.items():
         print(f"[INFO] Launching scenario {scenario_name}...")
         single_run(scenario=scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)), simulation_length=simulation_length,
-                    echo=echo, log_settings=Logger.medium_log_focus_images)
+                    echo=echo, log_settings=Logger.heavy_log)
         
 if __name__ == "__main__":
     test_run()

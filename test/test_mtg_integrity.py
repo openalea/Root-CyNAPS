@@ -15,17 +15,17 @@ def test_mtg_integrity():
     g = scenarios["Input_RSML"]["input_mtg"]["root_mtg_file"]
     #mtg_2D_scatter(g)
 
-    mtg_manual_graph_checker(g)
+    #mtg_manual_graph_checker(g)
 
-    #mtg_pyvista_plotter(g)
+    mtg_pyvista_plotter(g)
 
 def mtg_pyvista_plotter(g):
     plotter = pv.Plotter(off_screen=False, window_size=[1920, 1080], lighting="three lights")
     plotter.set_background("brown")
 
-    step_back_coefficient = 0.5
+    step_back_coefficient = 8000
     camera_coordinates = (step_back_coefficient, 0., 0.)
-    move_up_coefficient = 0.1
+    move_up_coefficient = 2000
     horizontal_aiming = (0., 0., 1.)
     collar_position = (0., 0., -move_up_coefficient)
     plotter.camera_position = [camera_coordinates,
@@ -33,7 +33,7 @@ def mtg_pyvista_plotter(g):
                                     horizontal_aiming]
 
     root_system_mesh, color_property = plot_mtg_alt(g, cmap_property="z2", flow_property=False)
-    plotter.add_mesh(root_system_mesh, cmap="jet", clim=[1e-10, 6e-9], show_edges=False, log_scale=True)
+    plotter.add_mesh(root_system_mesh, cmap="jet", clim=[-2500, 1], show_edges=False, log_scale=False)
     plotter.show(interactive_update=False)
     
 
