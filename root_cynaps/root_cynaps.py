@@ -62,10 +62,10 @@ class Model(CompositeModel):
         self.apply_input_tables(tables=self.input_tables, to=self.models, when=self.time)
 
         # Update environment boundary conditions
-        self.soil()
+        #self.soil()
 
         # Update topological surfaces and volumes based on other evolved structural properties
-        self.root_anatomy()
+        #self.root_anatomy()
         
         # Compute state variations for water and then carbon and nitrogen
         self.root_water()

@@ -29,12 +29,12 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
         
 
 def test_run(simulation_length=1, echo=True):
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Reference_Fischer"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML"])
     
     for scenario_name, scenario in scenarios.items():
         print(f"[INFO] Launching scenario {scenario_name}...")
         single_run(scenario=scenario, outputs_dirpath=os.path.join("outputs", str(scenario_name)), simulation_length=simulation_length,
-                    echo=echo, log_settings=Logger.light_log)
+                    echo=echo, log_settings=Logger.medium_log_focus_images)
         
 if __name__ == "__main__":
     test_run()
