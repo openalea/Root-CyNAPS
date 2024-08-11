@@ -28,7 +28,7 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
         logger.stop()
         
 
-def test_run(simulation_length=1, echo=True):
+def test_run(simulation_length=10, echo=True):
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML"])
     
     for scenario_name, scenario in scenarios.items():

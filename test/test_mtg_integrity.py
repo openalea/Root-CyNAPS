@@ -13,6 +13,7 @@ def test_mtg_integrity():
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML"])
 
     g = scenarios["Input_RSML"]["input_mtg"]["root_mtg_file"]
+    print(max(g.vertices()))
     #mtg_2D_scatter(g)
 
     #mtg_manual_graph_checker(g)

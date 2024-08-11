@@ -1,5 +1,12 @@
 RootAnatomy:
   RootAnatomy: {}
+  RootGrowthModel: {}
+  RootNitrogenModel: {}
+  RootWaterModel: {}
+  SoilModel: {}
+RootGrowthModel:
+  RootAnatomy: {}
+  RootGrowthModel: {}
   RootNitrogenModel: {}
   RootWaterModel: {}
   SoilModel: {}
@@ -14,7 +21,22 @@ RootNitrogenModel:
     root_exchange_surface:
       root_exchange_surface: 1.0
     xylem_differentiation_factor:
-      xylem_differentiation_factor: 1.0
+      xylem_differentiation_factor: 1.
+  RootGrowthModel:
+    initial_struct_mass:
+      initial_struct_mass: 1.0
+    length:
+      length: 1.0
+    radius:
+      radius: 1.0
+    struct_mass:
+      struct_mass: 1.0
+    struct_mass_produced:
+      struct_mass_produced: 1.0
+    thermal_time_since_emergence:
+      thermal_time_since_emergence: 1.0
+    distance_from_tip:
+      distance_from_tip: 1.0
   RootNitrogenModel: {}
   RootWaterModel:
     axial_export_water_up:
@@ -36,6 +58,7 @@ RootWaterModel:
       cortex_exchange_surface: 1.0
     xylem_volume:
       xylem_volume: 1.0
+  RootGrowthModel: {}
   RootNitrogenModel: {}
   RootWaterModel: {}
   SoilModel:
@@ -47,6 +70,7 @@ SoilModel:
   RootAnatomy:
     root_exchange_surface:
       root_exchange_surface: 1.0
+  RootGrowthModel: {}
   RootNitrogenModel: {}
   RootWaterModel: {}
   SoilModel: {}

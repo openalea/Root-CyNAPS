@@ -33,6 +33,12 @@ class RootNitrogenModel(Model):
 
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
+    # FROM CARBON MODEL
+    C_hexose_root: float = declare(default=1e-4, unit="mol.g-1", unit_comment="of labile hexose", description="Hexose concentration in root",
+                                  min_value="", max_value="", value_comment="", references="", DOI="",
+                                   variable_type="input", by="model_carbon", state_variable_type="intensive", edit_by="user")
+    
+
     # FROM SOIL MODEL
     soil_Nm: float = declare(default=2.2, unit="mol.m-3", unit_comment="of nitrates", description="", 
                             min_value="", max_value="", value_comment="", references="Fischer 1966", DOI="", 
@@ -95,6 +101,9 @@ class RootNitrogenModel(Model):
     thermal_time_since_emergence: float = declare(default=0, unit="°C", unit_comment="", description="", 
                                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                                   variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    distance_from_tip: float = declare(default=3.e-3, unit="m", unit_comment="", description="Example distance from tip", 
+                                      min_value="", max_value="", value_comment="", references="", DOI="",
+                                       variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
 
     # FROM SHOOT MODEL
     AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
@@ -385,7 +394,15 @@ class RootNitrogenModel(Model):
         # Before any other operation, we apply the provided scenario by changing default parameters and initialization
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
+        self.initiate_heterogeneous_variables()
         
+    def initiate_heterogeneous_variables(self):
+        # We cover all the vertices in the MTG:
+        for vid in self.g.vertices_iter(scale=1):
+            # n represents the vertex:
+            n = self.g.node(vid)
+            # TODO : Find right parameters from bibliography
+            n.C_hexose_root = 1e-4 - 1e-4*n.distance_from_tip
 
     def post_growth_updating(self):
         """

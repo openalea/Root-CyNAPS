@@ -1,5 +1,5 @@
 import numpy as np
-from openalea.mtg.traversal import pre_order
+from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
 
 from metafspm.component import Model, declare
@@ -227,7 +227,7 @@ class RootWaterModel(Model):
         root = next(root_gen)
 
         # We travel in the MTG from the root collar to the tips:
-        for vid in pre_order(self.g, root):
+        for vid in pre_order2(self.g, root):
             # We apply the following for all structural mass, because null length element can be support for
             # ramification
 
