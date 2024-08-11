@@ -11,8 +11,8 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
     root_cynaps = Model(time_step=3600, **scenario)
 
     logger = Logger(model_instance=root_cynaps, outputs_dirpath=outputs_dirpath, 
-                    time_step_in_hours=1, logging_period_in_hours=24,
-                    echo=echo, **log_settings)
+                    time_step_in_hours=1, logging_period_in_hours=1,
+                    echo=echo, auto_camera_position=True, **log_settings)
     
     try:
         for _ in range(simulation_length):

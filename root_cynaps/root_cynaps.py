@@ -59,15 +59,14 @@ class Model(CompositeModel):
 
         # Some initialization must be performed after linking modules
         self.root_water.post_coupling_init()
+        # Update topological surfaces and volumes based on initialized structural properties
+        self.root_anatomy()
 
     def run(self):
         self.apply_input_tables(tables=self.input_tables, to=self.models, when=self.time)
 
         # Update environment boundary conditions
         #self.soil()
-
-        # Update topological surfaces and volumes based on other evolved structural properties
-        #self.root_anatomy()
         
         # Compute state variations for water and then carbon and nitrogen
         self.root_water()
