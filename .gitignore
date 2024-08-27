@@ -1,8 +1,11 @@
 # Images and MTG output
 *.png
 *.nc
+*.pckl
+*.mp4
+*.csv
+# Images and MTG output
 outputs/*.pckl
-outputs/*.csv
 
 # All output files
 *outputs/*
