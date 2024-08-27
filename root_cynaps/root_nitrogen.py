@@ -180,6 +180,9 @@ class RootNitrogenModel(Model):
     AA_catabolism: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+    nitrogenase_fixation: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     storage_catabolism: float =             declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
@@ -853,6 +856,16 @@ class RootNitrogenModel(Model):
         Km_stor_root = self.Km_AA_catab * np.exp(self.storage_C_regulation * C_hexose_root)
         return struct_mass * self.cmax_AA * AA / (Km_stor_root + AA)
 
+    #@rate
+    def _nitrogenase_fixation(self, type, struct_mass, C_hexose_root, Nm):
+        if type == "Root_nodule":
+            # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
+            vmax_bnf = self.vmax_bnf_0 * 1 / (1 + (self.K_bnf_inibition / Nm))
+            # Michaelis-Menten formalism
+            return struct_mass * vmax_bnf * C_hexose_root / (self.Km_bnf + C_hexose_root)
+        else:
+            return 0.
+
     @totalrate
     def _cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm):
         return total_struct_mass[1] * self.smax_cytok * (
@@ -861,7 +874,7 @@ class RootNitrogenModel(Model):
 
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism):
+    def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation):
         if struct_mass > 0:
             return Nm + (self.time_step / struct_mass) * (
                     import_Nm
@@ -869,7 +882,8 @@ class RootNitrogenModel(Model):
                     + diffusion_Nm_xylem
                     - export_Nm
                     - AA_synthesis * self.r_Nm_AA
-                    + AA_catabolism / self.r_Nm_AA)
+                    + AA_catabolism / self.r_Nm_AA
+                    + nitrogenase_fixation)
         else:
             return 0
 
