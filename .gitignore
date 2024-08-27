@@ -1,11 +1,14 @@
 # Images and MTG output
 *.png
 *.nc
-*.pckl
-*.mp4
+outputs/*.pckl
+outputs/*.csv
 
 # All output files
 *outputs/*
+outputs
+/outputs/*
+test/outputs/*
 
 # Packages
 *.egg
