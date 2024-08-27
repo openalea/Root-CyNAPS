@@ -4,6 +4,7 @@
 *.pckl
 *.mp4
 *.csv
+*.log
 # Images and MTG output
 outputs/*.pckl
 
