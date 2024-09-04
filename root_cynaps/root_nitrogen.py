@@ -211,6 +211,14 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
+    # Deficits
+    deficit_Nm: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
+                                         min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
+                                          variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+    deficit_AA: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root", 
+                                           min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+
     # SUMMED STATE VARIABLES
 
     total_Nm: float =                   declare(default=0., unit="mol.g-1", unit_comment="of nitrates", description="", 
@@ -298,7 +306,7 @@ class RootNitrogenModel(Model):
     diffusion_xylem: float =            declare(default=1e-8/10, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_phloem: float =           declare(default=1e-4, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_phloem: float =           declare(default=1.2e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="Important value to avoid harsh growth limitations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
@@ -872,9 +880,10 @@ class RootNitrogenModel(Model):
                 total_hexose[1] / (total_hexose[1] + self.Km_C_cytok)) * (
                 total_Nm[1] / (total_Nm[1] + self.Km_N_cytok))
 
+    @potential
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation):
+    def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
         if struct_mass > 0:
             return Nm + (self.time_step / struct_mass) * (
                     import_Nm
@@ -883,13 +892,15 @@ class RootNitrogenModel(Model):
                     - export_Nm
                     - AA_synthesis * self.r_Nm_AA
                     + AA_catabolism / self.r_Nm_AA
-                    + nitrogenase_fixation)
+                    + nitrogenase_fixation
+                    - deficit_Nm)
         else:
             return 0
 
+    @potential
     @state
     def _AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, struct_mass_produced):
+                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, struct_mass_produced, deficit_AA):
         if struct_mass > 0:
             return AA + (self.time_step / struct_mass) * (
                     diffusion_AA_phloem
@@ -901,6 +912,7 @@ class RootNitrogenModel(Model):
                     - storage_synthesis * self.r_AA_stor
                     + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
+                    - deficit_AA
             ) - struct_mass_produced * 0.2 / 146
         # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
         # Sachant C:N struct environ de 10 = (Chex + CAA)/NAA Chex = 10*28 - 60 = 220 g Chex.
@@ -909,6 +921,27 @@ class RootNitrogenModel(Model):
 
         else:
             return 0
+        
+    # This function adjusts possibly negative concentrations by setting them to 0 and by recording the corresponding deficit.
+    # WATCH OUT: This function must be called once the concentrations have already been calculated with the previous deficits!
+
+    @deficit
+    @state
+    def _deficit_Nm(self, Nm, struct_mass):
+        if Nm < 0:
+            return - Nm * struct_mass / self.time_step
+        else:
+            # TODO : or None could be more efficient?
+            return 0.
+
+    @deficit
+    @state
+    def _deficit_AA(self, AA, struct_mass):
+        if AA < 0:
+            return - AA * struct_mass / self.time_step
+        else:
+            # TODO : or None could be more efficient?
+            return 0.
 
     @state
     def _storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism):
