@@ -29,7 +29,7 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
         
 
 def test_run(simulation_length=10, echo=True):
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML_D11"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML_D9", "Input_RSML_D11", "Input_RSML_D13"])
     
     for scenario_name, scenario in scenarios.items():
         print(f"[INFO] Launching scenario {scenario_name}...")

@@ -36,7 +36,8 @@ class Model(CompositeModel):
 
         # DECLARE GLOBAL SIMULATION TIME STEP
         Choregrapher().add_simulation_time_step(time_step)
-        self.time = 0
+        self.time = scenario["parameters"]["root_cynaps"]["plant_age"]
+
         parameters = scenario["parameters"]["root_cynaps"]
         self.input_tables = scenario["input_tables"]
 
