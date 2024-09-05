@@ -56,4 +56,4 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
 if __name__ == "__main__":
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML_D9", "Input_RSML_D11", "Input_RSML_D13"])
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML_D13"])
-    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log)
+    simulate_scenarios(scenarios, simulation_length=2, log_settings=Logger.heavy_log)
