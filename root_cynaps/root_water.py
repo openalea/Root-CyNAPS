@@ -201,10 +201,10 @@ class RootWaterModel(Model):
         # we set collar element the flow provided by shoot model
         potential_transpiration = self.water_root_shoot_xylem[1] * self.time_step
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
-        print(tearing_total_xylem_water, self.total_xylem_water[1] - potential_transpiration + sum(self.radial_import_water.values()))
+        # print(tearing_total_xylem_water, self.total_xylem_water[1] - potential_transpiration + sum(self.radial_import_water.values()))
+        
         if self.total_xylem_water[1] - potential_transpiration + sum(self.radial_import_water.values()) < tearing_total_xylem_water:
             actual_transpiration = max(0., self.total_xylem_water[1] - tearing_total_xylem_water + sum(self.radial_import_water.values()))
-            #print(actual_transpiration/potential_transpiration)
         else:
             actual_transpiration = potential_transpiration
 
