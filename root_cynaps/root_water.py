@@ -102,11 +102,11 @@ class RootWaterModel(Model):
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     # Vessel mechanical properties
-    xylem_young_modulus: float = declare(default=1e6, unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)", 
-                                         min_value="", max_value="", value_comment="", references="", DOI="",
+    xylem_young_modulus: float = declare(default=1e9, unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)", 
+                                         min_value="", max_value="", value_comment="", references="Plavcova 1e9 bending modulus woody species", DOI="",
                                          variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
     xylem_cross_area_ratio: float = declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="", description=" apoplasmic cross-section area ratio * stele radius ratio^2",
-                                            min_value="", max_value="", value_comment="", references="", DOI="",
+                                            min_value="", max_value="", value_comment="from 0.84 * (0.36 ** 2) to account for buffering", references="", DOI="",
                                             variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     cortex_water_conductivity: float = declare(default=1e-14 * 1e3, unit="m.s-1.Pa-1", unit_comment="", description="",
@@ -115,8 +115,8 @@ class RootWaterModel(Model):
     apoplasmic_water_conductivity: float = declare(default=1e-14 * 1e4, unit="m.s-1.Pa-1", unit_comment="", description="",
                                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    xylem_tear: float = declare(default=9e5, unit="Pa", unit_comment="", description="maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)", 
-                                min_value="", max_value="", value_comment="", references="", DOI="",
+    xylem_tear: float = declare(default=9.9e8, unit="Pa", unit_comment="", description="maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)", 
+                                min_value="", max_value="", value_comment="very sensitive, stay bellow young modulus", references="", DOI="",
                                 variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     def __init__(self, g, time_step, **scenario):
@@ -201,9 +201,10 @@ class RootWaterModel(Model):
         # we set collar element the flow provided by shoot model
         potential_transpiration = self.water_root_shoot_xylem[1] * self.time_step
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
-        if self.total_xylem_water[1] - potential_transpiration < tearing_total_xylem_water:
-            actual_transpiration = max(0., self.total_xylem_water[1] - tearing_total_xylem_water)
-            print(actual_transpiration/potential_transpiration)
+        print(tearing_total_xylem_water, self.total_xylem_water[1] - potential_transpiration + sum(self.radial_import_water.values()))
+        if self.total_xylem_water[1] - potential_transpiration + sum(self.radial_import_water.values()) < tearing_total_xylem_water:
+            actual_transpiration = max(0., self.total_xylem_water[1] - tearing_total_xylem_water + sum(self.radial_import_water.values()))
+            #print(actual_transpiration/potential_transpiration)
         else:
             actual_transpiration = potential_transpiration
 
@@ -216,7 +217,7 @@ class RootWaterModel(Model):
 
             cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
 
-            self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
+            self.radial_import_water[vid] = max(0., (apoplastic_water_import + cross_membrane_water_import) * self.time_step)
             # We suppose shoot uptake is evenly reparted over the xylem to avoid over contribution of apexes in
             # the down propagation of transpiration (computed below)
 
