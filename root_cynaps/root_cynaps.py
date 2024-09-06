@@ -46,7 +46,7 @@ class Model(CompositeModel):
         self.root_growth = RootGrowthModel(scenario["input_mtg"]["root_mtg_file"], time_step, **parameters)
         self.g = self.root_growth.g
         self.root_anatomy = RootAnatomy(self.g, time_step, **parameters)
-        self.root_water = RootWaterModel(self.g, time_step/10, **parameters)
+        self.root_water = RootWaterModel(self.g, time_step/100, **parameters)
         self.root_nitrogen = RootNitrogenModel(self.g, time_step, **parameters)
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels

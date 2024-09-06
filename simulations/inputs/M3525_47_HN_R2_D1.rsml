@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsml xmlns:po="http://www.plantontology.org/xml-dtd/po.dtd">
+	<metadata>
+		<version>0.5.94.3</version>
+		<unit>pixel</unit>
+		<resolution>1</resolution>
+		<last-modified>2016-12-5T10:38:37</last-modified>
+		<software>RooTh</software>
+		<user>jzj@cs.nott.ac.uk</user>
+		<file-key>M3525_47_HN_R2_D1_16bit</file-key>
+	</metadata>
+	<scene>
+		<plant id="1" label="root system">
+			<root id="2" label="primary">
+				<properties>
+					<length value="155.243" />
+					<width value="26.2511" />
+					<angle value="6.22967" />
+					<type value="primary" />
+				</properties>
+				<geometry>
+					<polyline>
+						<point x="923" y="976" z="1255" />
+						<point x="923.51" y="976.024" z="1258.66" />
+						<point x="923.945" y="976.068" z="1261.79" />
+						<point x="924.321" y="976.123" z="1264.5" />
+						<point x="924.654" y="976.18" z="1266.92" />
+						<point x="924.962" y="976.23" z="1269.14" />
+						<point x="925.26" y="976.265" z="1271.29" />
+						<point x="925.565" y="976.276" z="1273.48" />
+						<point x="925.894" y="976.255" z="1275.81" />
+						<point x="926.262" y="976.192" z="1278.41" />
+						<point x="926.686" y="976.079" z="1281.38" />
+						<point x="927.126" y="975.948" z="1284.42" />
+						<point x="927.536" y="975.829" z="1287.16" />
+						<point x="927.918" y="975.714" z="1289.67" />
+						<point x="928.277" y="975.597" z="1292.01" />
+						<point x="928.617" y="975.469" z="1294.23" />
+						<point x="928.943" y="975.323" z="1296.38" />
+						<point x="929.258" y="975.151" z="1298.52" />
+						<point x="929.566" y="974.945" z="1300.72" />
+						<point x="929.873" y="974.698" z="1303.02" />
+						<point x="930.181" y="974.403" z="1305.48" />
+						<point x="930.466" y="974.102" z="1307.89" />
+						<point x="930.705" y="973.838" z="1310.05" />
+						<point x="930.908" y="973.598" z="1311.99" />
+						<point x="931.084" y="973.371" z="1313.76" />
+						<point x="931.241" y="973.145" z="1315.42" />
+						<point x="931.388" y="972.908" z="1317.02" />
+						<point x="931.534" y="972.648" z="1318.6" />
+						<point x="931.688" y="972.354" z="1320.22" />
+						<point x="931.858" y="972.014" z="1321.91" />
+						<point x="932.054" y="971.616" z="1323.74" />
+						<point x="932.293" y="971.185" z="1325.49" />
+						<point x="932.575" y="970.757" z="1326.97" />
+						<point x="932.877" y="970.337" z="1328.26" />
+						<point x="933.18" y="969.928" z="1329.42" />
+						<point x="933.463" y="969.536" z="1330.52" />
+						<point x="933.705" y="969.164" z="1331.65" />
+						<point x="933.885" y="968.817" z="1332.86" />
+						<point x="933.982" y="968.499" z="1334.23" />
+						<point x="933.976" y="968.214" z="1335.84" />
+						<point x="933.845" y="967.967" z="1337.74" />
+						<point x="933.681" y="967.751" z="1339.69" />
+						<point x="933.564" y="967.559" z="1341.41" />
+						<point x="933.462" y="967.395" z="1342.98" />
+						<point x="933.339" y="967.262" z="1344.48" />
+						<point x="933.162" y="967.166" z="1345.98" />
+						<point x="932.897" y="967.109" z="1347.55" />
+						<point x="932.51" y="967.096" z="1349.26" />
+						<point x="931.967" y="967.132" z="1351.18" />
+						<point x="931.234" y="967.219" z="1353.4" />
+						<point x="930.276" y="967.363" z="1355.99" />
+						<point x="929.241" y="967.545" z="1358.63" />
+						<point x="928.277" y="967.741" z="1361.02" />
+						<point x="927.356" y="967.947" z="1363.23" />
+						<point x="926.451" y="968.16" z="1365.32" />
+						<point x="925.531" y="968.376" z="1367.37" />
+						<point x="924.57" y="968.591" z="1369.45" />
+						<point x="923.538" y="968.802" z="1371.62" />
+						<point x="922.407" y="969.004" z="1373.95" />
+						<point x="921.149" y="969.194" z="1376.51" />
+						<point x="919.735" y="969.369" z="1379.37" />
+						<point x="918.239" y="969.52" z="1382.39" />
+						<point x="916.766" y="969.645" z="1385.36" />
+						<point x="915.335" y="969.745" z="1388.25" />
+						<point x="913.962" y="969.823" z="1391.01" />
+						<point x="912.668" y="969.883" z="1393.62" />
+						<point x="911.469" y="969.928" z="1396.03" />
+						<point x="910.385" y="969.959" z="1398.21" />
+						<point x="909.433" y="969.979" z="1400.12" />
+						<point x="908.632" y="969.992" z="1401.73" />
+					</polyline>
+				</geometry>
+				<functions>
+					<function domain="polyline" name="diameter">
+						<sample value="8" />
+						<sample value="10.8" />
+						<sample value="15.7" />
+						<sample value="20.5" />
+						<sample value="23.8" />
+						<sample value="25" />
+						<sample value="26.6" />
+						<sample value="29" />
+						<sample value="31.9" />
+						<sample value="34.4" />
+						<sample value="34.3" />
+						<sample value="35" />
+						<sample value="36.6" />
+						<sample value="38.6" />
+						<sample value="41" />
+						<sample value="43.4" />
+						<sample value="44" />
+						<sample value="44.9" />
+						<sample value="46.2" />
+						<sample value="46.5" />
+						<sample value="46.3" />
+						<sample value="46.7" />
+						<sample value="47.2" />
+						<sample value="47.2" />
+						<sample value="46.9" />
+						<sample value="46.7" />
+						<sample value="46.5" />
+						<sample value="46.5" />
+						<sample value="46.6" />
+						<sample value="47" />
+						<sample value="47.6" />
+						<sample value="48.3" />
+						<sample value="49" />
+						<sample value="49.7" />
+						<sample value="50.4" />
+						<sample value="49.8" />
+						<sample value="48.9" />
+						<sample value="48" />
+						<sample value="47.4" />
+						<sample value="46.8" />
+						<sample value="46.4" />
+						<sample value="46.3" />
+						<sample value="46" />
+						<sample value="45.7" />
+						<sample value="45.2" />
+						<sample value="42.6" />
+						<sample value="39.9" />
+						<sample value="36.7" />
+						<sample value="33.2" />
+						<sample value="29" />
+						<sample value="24.3" />
+						<sample value="19.1" />
+						<sample value="14.7" />
+						<sample value="11.2" />
+						<sample value="9" />
+						<sample value="7.3" />
+						<sample value="6.4" />
+						<sample value="5.1" />
+						<sample value="2.8" />
+						<sample value="2.5" />
+						<sample value="1.2" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="0.9" />
+					</function>
+				</functions>
+			</root>
+		</plant>
+	</scene>
+</rsml>

@@ -203,6 +203,7 @@ class RootWaterModel(Model):
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
         if self.total_xylem_water[1] - potential_transpiration < tearing_total_xylem_water:
             actual_transpiration = max(0., self.total_xylem_water[1] - tearing_total_xylem_water)
+            print(actual_transpiration/potential_transpiration)
         else:
             actual_transpiration = potential_transpiration
 
