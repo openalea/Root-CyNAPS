@@ -297,7 +297,7 @@ class RootWaterModel(Model):
 
         # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
         self.xylem_total_pressure[1] = self.xylem_young_modulus * (
-                    ((((self.total_xylem_water[1] + total_radial_import_water) * self.water_molar_mass) / (
-                        (np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) + total_radial_import_water * self.water_molar_mass / self.water_volumic_mass) *
+                    (((self.total_xylem_water[1] * self.water_molar_mass) / (
+                        np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) *
                             self.xylem_cross_area_ratio * self.water_volumic_mass)) ** 0.5) - 1) + np.mean(
                             list(self.soil_water_pressure.values()))
