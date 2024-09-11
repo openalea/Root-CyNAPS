@@ -306,11 +306,11 @@ class RootNitrogenModel(Model):
     diffusion_soil: float =             declare(default=2.5e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=1e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_xylem: float =            declare(default=1e-7, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_phloem: float =           declare(default=1.2e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
-                                                min_value="", max_value="", value_comment="Important value to avoid harsh growth limitations", references="", DOI="",
+                                                min_value="", max_value="", value_comment="1.2e-8 * Important value to avoid harsh growth limitations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
@@ -383,7 +383,7 @@ class RootNitrogenModel(Model):
     r_AA_stor: float =                  declare(default=65, unit="adim", unit_comment="concentration ratio", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    xylem_cross_area_ratio: float =     declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="surface ratio", description="xylem cross-section area ratio * stele radius ratio^2", 
+    histologic_xylem_cross_area_ratio: float =     declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="surface ratio", description="xylem cross-section area ratio * stele radius ratio^2",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     phloem_cross_area_ratio: float =    declare(default=0.15 * (0.36 ** 2), unit="adim", unit_comment="surface ratio", description="phloem cross-section area ratio * stele radius ratio^2", 
@@ -977,7 +977,7 @@ class RootNitrogenModel(Model):
     @state
     # UPDATE STRUCTURAL VALUES TODO : do not keep in this module
     def _xylem_struct_mass(self, struct_mass):
-        return struct_mass * self.xylem_cross_area_ratio
+        return struct_mass * self.histologic_xylem_cross_area_ratio
 
     @state
     def _phloem_struct_mass(self, struct_mass):
