@@ -306,7 +306,7 @@ class RootNitrogenModel(Model):
     diffusion_soil: float =             declare(default=2.5e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=1e-8/10, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_xylem: float =            declare(default=1e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_phloem: float =           declare(default=1.2e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",

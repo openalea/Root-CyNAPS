@@ -64,9 +64,6 @@ class RootWaterModel(Model):
     radial_import_water: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
-    shoot_uptake: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
-                                  min_value="", max_value="", value_comment="", references="", DOI="",
-                                  variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
     axial_export_water_up: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
@@ -115,7 +112,7 @@ class RootWaterModel(Model):
     apoplasmic_water_conductivity: float = declare(default=1e-14 * 1e4, unit="m.s-1.Pa-1", unit_comment="", description="",
                                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    xylem_tear: float = declare(default=0.99 * 1e6, unit="Pa", unit_comment="", description="maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)",
+    xylem_tear: float = declare(default=0.99e6, unit="Pa", unit_comment="", description="maximal difference with soil pressure before xylem tearing (absolute, < xylem_young modulus)",
                                 min_value="", max_value="", value_comment="very sensitive, stay bellow young modulus", references="", DOI="",
                                 variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
@@ -155,9 +152,6 @@ class RootWaterModel(Model):
     def init_xylem_water(self):
         # At pressure = soil_pressure, the corresponding xylem volume at rest is
         # filled with water in standard conditions
-        
-        # TODO : TP, to avoid having this in Sensitivity Analysis
-        self.xylem_total_pressure[1] = np.mean(list(self.soil_water_pressure.values()))
 
         # We compute the total water amount from the formula used for pressure calculation
         self.total_xylem_water[1] = ((((self.xylem_total_pressure[1] - np.mean(list(self.soil_water_pressure.values()))) / self.xylem_young_modulus) + 1) ** 2) * (
@@ -193,8 +187,12 @@ class RootWaterModel(Model):
     def transport_water(self):
         # Using previous time-step flows, we compute current time-step pressure for flows computation
 
-        # Compute the minimal water content for current dimensions
+        # Compute the minimal water content for current dimensions under which we would have shearing and cavitation processes
         tearing_total_xylem_water = (((- self.xylem_tear / self.xylem_young_modulus) + 1) ** 2) * (
+                  np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(
+              self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
+        # We compute a target equilibrium water content that will be converged when no transpiration disturbance occur.
+        flux_inversion_xylem_water = (((+ 0. / self.xylem_young_modulus) + 1) ** 2) * (
                   np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(
               self.length.values()) * self.xylem_cross_area_ratio * self.water_volumic_mass) / self.water_molar_mass
 
@@ -210,18 +208,27 @@ class RootWaterModel(Model):
 
             cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
 
-            # TODO : TP while there is no soil balance with redistribution, strictly inflow
-            self.radial_import_water[vid] = max(0., (apoplastic_water_import + cross_membrane_water_import) * self.time_step)
+            self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
+
 
         total_radial_import_water = sum(self.radial_import_water.values())
 
+        # From potential transpiration and water import fluxes, we compute the actual transpiration if potential is too high
         if self.total_xylem_water[1] - potential_transpiration + total_radial_import_water < tearing_total_xylem_water:
-            actual_transpiration = max(0., self.total_xylem_water[1] - tearing_total_xylem_water + sum(self.radial_import_water.values()))
-            print(f"\n[Warning] Artificially restraining transpiration at {round(100*actual_transpiration/potential_transpiration, 2)} %")
+            self.axial_export_water_up[1] = max(0., self.total_xylem_water[1] - tearing_total_xylem_water + sum(self.radial_import_water.values()))
+            print(f"\n[Warning] Artificially restraining transpiration at {round(100*self.axial_export_water_up[1]/potential_transpiration, 2)} %")
         else:
-            actual_transpiration = potential_transpiration
+            self.axial_export_water_up[1] = potential_transpiration
 
-        self.axial_export_water_up[1] = actual_transpiration
+        # From potential water import fluxes, if they are so important they could lead to pressurisation which is not observed experimentally,
+        # to avoid this behavior that is possible with such a discrete model, we converge towards the above precomputed equilibrium
+        if total_radial_import_water > 0. and self.total_xylem_water[1] - self.axial_export_water_up[1] + total_radial_import_water > flux_inversion_xylem_water:
+            excess_import_water = self.total_xylem_water[1] - potential_transpiration + total_radial_import_water - flux_inversion_xylem_water
+            for vid in self.vertices:
+                self.radial_import_water[vid] -= excess_import_water * self.radial_import_water[vid] / total_radial_import_water
+            total_radial_import_water = sum(self.radial_import_water.values())
+
+        total_delta_water = total_radial_import_water - self.axial_export_water_up[1]
                 
         # Finally we compute the axial result of these transpiration fluxes and radial uptake
         # We define "root" as the starting point of the loop below:
@@ -238,10 +245,11 @@ class RootWaterModel(Model):
             # if we look at a collar artificial vertex of null lenght, we do nothing
             if vid not in self.collar_skip:
 
-                # We suppose shoot uptake is evenly reparted over the xylem to avoid over contribution of apexes in
-                # the down propagation of transpiration (computed below)
+                # We suppose the xylem depletion or filling is evenly reparted during the time step
+                delta_water = total_delta_water * self.xylem_water[vid] / self.total_xylem_water[1]
 
-                self.shoot_uptake[vid] = self.axial_export_water_up[1] * self.xylem_water[vid] / self.total_xylem_water[1]
+                # Water balance is computed here to prevent another for loop over mtg
+                self.xylem_water[vid] += delta_water
 
                 # For current vertex, compute axial down flow from axial upper flow, radial flow and volume at considered pressure
                 # There is no pressure variation effect as water is incompressible
@@ -252,14 +260,10 @@ class RootWaterModel(Model):
 
                 # if there are children, there is a down import flux
                 else:
-                    self.axial_import_water_down[vid] = self.axial_export_water_up[vid] - self.shoot_uptake[vid]
-
-                # water balance is computed here to prevent another for loop over mtg
-                self.xylem_water[vid] += self.radial_import_water[vid] - self.shoot_uptake[vid]
+                    self.axial_import_water_down[vid] = delta_water - self.radial_import_water[vid] + self.axial_export_water_up[vid]
 
                 # For reference, balance between flows is :
-                # self.xylem_water[vid] = self.xylem_water[vid] + self.radial_import_water[vid] - self.shoot_uptake[vid] = \
-                #   = self.xylem_water[vid] + self.radial_import_water[vid] + self.axial_import_water_down[vid] - self.axial_export_water_up[vid]
+                # delta_water = self.radial_import_water[vid] - self.axial_export_water_up[vid] + self.axial_import_water_down[vid]
 
                 # For current vertex's children, provide previous down flow as axial upper flow for children
                 if len(child) == 1:
@@ -288,14 +292,12 @@ class RootWaterModel(Model):
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
-        # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
+        # Computed here as it is required by pressure computations
+        self.total_xylem_water[1] = sum(self.xylem_water.values())
 
+        # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
         self.xylem_total_pressure[1] = self.xylem_young_modulus * (
                     ((((self.total_xylem_water[1] + total_radial_import_water) * self.water_molar_mass) / (
                         (np.pi * (np.mean(list(self.radius.values())) ** 2) * sum(self.length.values()) + total_radial_import_water * self.water_molar_mass / self.water_volumic_mass) *
                             self.xylem_cross_area_ratio * self.water_volumic_mass)) ** 0.5) - 1) + np.mean(
                             list(self.soil_water_pressure.values()))
-    
-    @totalstate
-    def _total_xylem_water(self, xylem_water):
-        return sum(xylem_water.values())
