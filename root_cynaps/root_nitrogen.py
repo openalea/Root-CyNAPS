@@ -119,10 +119,10 @@ class RootNitrogenModel(Model):
 
     # Pools initial size
     Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="",
-                                        min_value="", max_value="", value_comment="", references="", DOI="",
+                                        min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     AA: float =                 declare(default=9e-4, unit="mol.g-1", unit_comment="of amino acids", description="",
-                                        min_value="", max_value="", value_comment="", references="", DOI="",
+                                        min_value=1e-5, max_value=1e-2, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
@@ -135,7 +135,7 @@ class RootNitrogenModel(Model):
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     # Transport processes
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="", 
+                                                    min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     nitrate_transporters_affinity_factor: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
                                                     min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
@@ -199,7 +199,7 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     Nm_differential_by_water_transport: float =    declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    min_value=-1e9, max_value=1e9, value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     displaced_AA_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",

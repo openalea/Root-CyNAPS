@@ -201,15 +201,19 @@ class RootWaterModel(Model):
         # condition if potential transpiration is going to lead to a tearing pressure of xylem
         # print(tearing_total_xylem_water, self.total_xylem_water[1] - potential_transpiration + sum(self.radial_import_water.values()))
 
+        sum_volume = sum(self.xylem_volume.values())
         # Loop computing individual segments' water exchange
         for vid in self.vertices:
-            # radial exchanges are only hydrostatic-driven for now
-            apoplastic_water_import = self.apoplasmic_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.apoplasmic_exchange_surface[vid]
+            if self.struct_mass[vid] > 0:
+                # radial exchanges are only hydrostatic-driven for now
+                apoplastic_water_import = self.apoplasmic_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.apoplasmic_exchange_surface[vid]
 
-            cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
+                cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
 
-            self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
+                self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
 
+                # We also take advantage of this loop to compute the local water content to prevent another for loop over mtg
+                self.xylem_water[vid] = self.total_xylem_water[1] * self.xylem_volume[vid] / sum_volume
 
         total_radial_import_water = sum(self.radial_import_water.values())
 
@@ -247,9 +251,6 @@ class RootWaterModel(Model):
 
                 # We suppose the xylem depletion or filling is evenly reparted during the time step
                 delta_water = total_delta_water * self.xylem_water[vid] / self.total_xylem_water[1]
-
-                # Water balance is computed here to prevent another for loop over mtg
-                self.xylem_water[vid] += delta_water
 
                 # For current vertex, compute axial down flow from axial upper flow, radial flow and volume at considered pressure
                 # There is no pressure variation effect as water is incompressible
@@ -293,7 +294,7 @@ class RootWaterModel(Model):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
         # Computed here as it is required by pressure computations
-        self.total_xylem_water[1] = sum(self.xylem_water.values())
+        self.total_xylem_water[1] += total_delta_water
 
         # Finally, we assume pressure homogeneity and compute the resulting pressure for the next time_step
         self.xylem_total_pressure[1] = self.xylem_young_modulus * (
