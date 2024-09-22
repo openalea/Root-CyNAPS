@@ -12,7 +12,8 @@ from analyze.analyze import analyze_data
 def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}):
     root_cynaps = Model(time_step=3600, **scenario)
 
-    logger = Logger(model_instance=root_cynaps, outputs_dirpath=outputs_dirpath, 
+    logger = Logger(model_instance=root_cynaps, components=root_cynaps.components,
+                    outputs_dirpath=outputs_dirpath,
                     time_step_in_hours=1, logging_period_in_hours=1,
                     echo=echo, auto_camera_position=True, **log_settings)
     
@@ -55,5 +56,5 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
         
 if __name__ == "__main__":
     #scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML_D9", "Input_RSML_D11", "Input_RSML_D13", "Input_RSML_HN_D9", "Input_RSML_HN_D11", "Input_RSML_HN_D13"])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09.xlsx", which=["Input_RSML_D13"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_D13"])
     simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log)

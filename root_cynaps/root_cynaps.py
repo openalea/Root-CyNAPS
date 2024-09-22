@@ -24,7 +24,7 @@ class Model(CompositeModel):
     4. Use Model.run() in a for loop to perform the computations of a time step on the passed MTG File
     """
 
-    def __init__(self, time_step: int, **scenario: dict):
+    def __init__(self, name: str = "Plant", time_step: int = 3600, coordinates: list=[0, 0, 0], **scenario: dict):
         """
         DESCRIPTION
         ----------
@@ -35,10 +35,12 @@ class Model(CompositeModel):
         """
 
         # DECLARE GLOBAL SIMULATION TIME STEP
+        self.name = name
         Choregrapher().add_simulation_time_step(time_step)
-        self.time = scenario["parameters"]["root_cynaps"]["plant_age"]
 
-        parameters = scenario["parameters"]["root_cynaps"]
+        parameters = scenario["parameters"]["root_cynaps"]["roots"]
+        self.time = parameters["plant_age"]
+
         self.input_tables = scenario["input_tables"]
 
         # INIT INDIVIDUAL MODULES
@@ -51,12 +53,10 @@ class Model(CompositeModel):
         self.soil = SoilModel(self.g, time_step, **parameters)
         self.soil_voxels = self.soil.voxels
 
-        # ORDER MATTERS HERE !
-        self.models = (self.soil, self.root_water, self.root_nitrogen, self.root_anatomy, self.root_growth)
-        self.data_structures = {"root": self.g, "soil": self.soil_voxels}
-
         # LINKING MODULES
-        self.link_around_mtg(translator_path=root_cynaps.__path__[0])
+        self.declare_and_couple_components(self.soil, self.root_water, self.root_nitrogen, self.root_anatomy, self.root_growth,
+                                           translator_path=root_cynaps.__path__[0])
+        self.declare_data_structures(root=self.g, soil=self.soil_voxels)
 
         # Some initialization must be performed after linking modules
         self.root_water.post_coupling_init()
@@ -65,7 +65,7 @@ class Model(CompositeModel):
         self.soil()
 
     def run(self):
-        self.apply_input_tables(tables=self.input_tables, to=self.models, when=self.time)
+        self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)
         
         # Compute state variations for water and then carbon and nitrogen
         self.root_water()
