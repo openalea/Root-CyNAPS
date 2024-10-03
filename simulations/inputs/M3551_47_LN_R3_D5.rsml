@@ -1,0 +1,944 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsml xmlns:po="http://www.plantontology.org/xml-dtd/po.dtd">
+	<metadata>
+		<version>0.5.94.3</version>
+		<unit>pixel</unit>
+		<resolution>1</resolution>
+		<last-modified>2016-12-1T15:45:43</last-modified>
+		<software>RooTh</software>
+		<user>jzj@cs.nott.ac.uk</user>
+		<file-key>M3551_47_LN_R3_D5_16bit</file-key>
+	</metadata>
+	<scene>
+		<plant id="1" label="root system">
+			<root id="2" label="primary">
+				<properties>
+					<length value="792.375" />
+					<width value="8.46976" />
+					<angle value="42.7484" />
+					<type value="primary" />
+				</properties>
+				<geometry>
+					<polyline>
+						<point x="980" y="943" z="856" />
+						<point x="978.574" y="941.363" z="859.182" />
+						<point x="977.384" y="939.945" z="861.943" />
+						<point x="976.373" y="938.703" z="864.367" />
+						<point x="975.485" y="937.593" z="866.536" />
+						<point x="974.664" y="936.571" z="868.532" />
+						<point x="973.853" y="935.594" z="870.437" />
+						<point x="972.996" y="934.618" z="872.333" />
+						<point x="972.035" y="933.598" z="874.303" />
+						<point x="970.916" y="932.492" z="876.428" />
+						<point x="969.58" y="931.256" z="878.792" />
+						<point x="968.199" y="930.002" z="881.132" />
+						<point x="966.956" y="928.859" z="883.174" />
+						<point x="965.816" y="927.812" z="884.984" />
+						<point x="964.744" y="926.845" z="886.628" />
+						<point x="963.703" y="925.94" z="888.171" />
+						<point x="962.659" y="925.08" z="889.68" />
+						<point x="961.575" y="924.251" z="891.22" />
+						<point x="960.416" y="923.434" z="892.856" />
+						<point x="959.146" y="922.614" z="894.655" />
+						<point x="957.73" y="921.774" z="896.682" />
+						<point x="956.248" y="920.964" z="898.668" />
+						<point x="954.813" y="920.236" z="900.36" />
+						<point x="953.433" y="919.581" z="901.846" />
+						<point x="952.118" y="918.991" z="903.216" />
+						<point x="950.877" y="918.456" z="904.556" />
+						<point x="949.72" y="917.967" z="905.958" />
+						<point x="948.657" y="917.514" z="907.508" />
+						<point x="947.696" y="917.087" z="909.295" />
+						<point x="946.847" y="916.678" z="911.409" />
+						<point x="946.119" y="916.278" z="913.938" />
+						<point x="945.497" y="915.909" z="916.551" />
+						<point x="944.964" y="915.595" z="918.91" />
+						<point x="944.522" y="915.327" z="921.096" />
+						<point x="944.179" y="915.096" z="923.19" />
+						<point x="943.94" y="914.891" z="925.27" />
+						<point x="943.808" y="914.705" z="927.418" />
+						<point x="943.791" y="914.527" z="929.714" />
+						<point x="943.892" y="914.349" z="932.238" />
+						<point x="944.118" y="914.161" z="935.069" />
+						<point x="944.473" y="913.953" z="938.289" />
+						<point x="944.839" y="913.706" z="941.562" />
+						<point x="945.122" y="913.419" z="944.544" />
+						<point x="945.362" y="913.115" z="947.301" />
+						<point x="945.598" y="912.813" z="949.902" />
+						<point x="945.869" y="912.533" z="952.413" />
+						<point x="946.215" y="912.297" z="954.9" />
+						<point x="946.677" y="912.125" z="957.432" />
+						<point x="947.293" y="912.038" z="960.074" />
+						<point x="948.104" y="912.056" z="962.894" />
+						<point x="949.148" y="912.2" z="965.959" />
+						<point x="950.25" y="912.407" z="968.985" />
+						<point x="951.235" y="912.611" z="971.686" />
+						<point x="952.151" y="912.827" z="974.131" />
+						<point x="953.043" y="913.068" z="976.385" />
+						<point x="953.958" y="913.349" z="978.517" />
+						<point x="954.942" y="913.686" z="980.594" />
+						<point x="956.041" y="914.093" z="982.682" />
+						<point x="957.301" y="914.584" z="984.849" />
+						<point x="958.769" y="915.173" z="987.163" />
+						<point x="960.49" y="915.877" z="989.689" />
+						<point x="962.241" y="916.586" z="992.186" />
+						<point x="963.803" y="917.205" z="994.409" />
+						<point x="965.233" y="917.762" z="996.417" />
+						<point x="966.586" y="918.288" z="998.275" />
+						<point x="967.919" y="918.811" z="1000.04" />
+						<point x="969.288" y="919.362" z="1001.78" />
+						<point x="970.749" y="919.969" z="1003.55" />
+						<point x="972.359" y="920.663" z="1005.42" />
+						<point x="974.173" y="921.474" z="1007.45" />
+						<point x="976.247" y="922.43" z="1009.69" />
+						<point x="978.348" y="923.405" z="1011.92" />
+						<point x="980.239" y="924.275" z="1013.87" />
+						<point x="981.974" y="925.072" z="1015.64" />
+						<point x="983.609" y="925.829" z="1017.27" />
+						<point x="985.198" y="926.578" z="1018.84" />
+						<point x="986.796" y="927.352" z="1020.41" />
+						<point x="988.457" y="928.184" z="1022.06" />
+						<point x="990.235" y="929.106" z="1023.84" />
+						<point x="992.185" y="930.151" z="1025.83" />
+						<point x="994.362" y="931.352" z="1028.08" />
+						<point x="996.536" y="932.559" z="1030.37" />
+						<point x="998.478" y="933.627" z="1032.43" />
+						<point x="1000.24" y="934.594" z="1034.33" />
+						<point x="1001.89" y="935.503" z="1036.12" />
+						<point x="1003.47" y="936.391" z="1037.85" />
+						<point x="1005.04" y="937.3" z="1039.58" />
+						<point x="1006.67" y="938.27" z="1041.37" />
+						<point x="1008.39" y="939.339" z="1043.27" />
+						<point x="1010.28" y="940.549" z="1045.34" />
+						<point x="1012.38" y="941.938" z="1047.64" />
+						<point x="1014.47" y="943.327" z="1049.92" />
+						<point x="1016.32" y="944.54" z="1051.98" />
+						<point x="1018" y="945.632" z="1053.85" />
+						<point x="1019.55" y="946.653" z="1055.59" />
+						<point x="1021.05" y="947.656" z="1057.25" />
+						<point x="1022.55" y="948.692" z="1058.89" />
+						<point x="1024.12" y="949.816" z="1060.56" />
+						<point x="1025.81" y="951.077" z="1062.31" />
+						<point x="1027.68" y="952.53" z="1064.2" />
+						<point x="1029.8" y="954.225" z="1066.27" />
+						<point x="1031.93" y="955.943" z="1068.32" />
+						<point x="1033.85" y="957.467" z="1070.13" />
+						<point x="1035.6" y="958.858" z="1071.76" />
+						<point x="1037.25" y="960.172" z="1073.27" />
+						<point x="1038.85" y="961.468" z="1074.71" />
+						<point x="1040.45" y="962.805" z="1076.14" />
+						<point x="1042.1" y="964.241" z="1077.61" />
+						<point x="1043.86" y="965.835" z="1079.2" />
+						<point x="1045.78" y="967.644" z="1080.94" />
+						<point x="1047.93" y="969.729" z="1082.9" />
+						<point x="1050.05" y="971.852" z="1084.87" />
+						<point x="1051.93" y="973.773" z="1086.61" />
+						<point x="1053.63" y="975.546" z="1088.19" />
+						<point x="1055.21" y="977.223" z="1089.67" />
+						<point x="1056.72" y="978.856" z="1091.1" />
+						<point x="1058.24" y="980.499" z="1092.55" />
+						<point x="1059.82" y="982.204" z="1094.06" />
+						<point x="1061.53" y="984.023" z="1095.69" />
+						<point x="1063.42" y="986.01" z="1097.51" />
+						<point x="1065.57" y="988.216" z="1099.57" />
+						<point x="1067.7" y="990.43" z="1101.66" />
+						<point x="1069.58" y="992.434" z="1103.54" />
+						<point x="1071.27" y="994.271" z="1105.28" />
+						<point x="1072.84" y="995.987" z="1106.91" />
+						<point x="1074.37" y="997.626" z="1108.48" />
+						<point x="1075.94" y="999.234" z="1110.05" />
+						<point x="1077.61" y="1000.85" z="1111.67" />
+						<point x="1079.45" y="1002.53" z="1113.37" />
+						<point x="1081.54" y="1004.31" z="1115.21" />
+						<point x="1083.95" y="1006.23" z="1117.23" />
+						<point x="1086.4" y="1008.13" z="1119.23" />
+						<point x="1088.59" y="1009.81" z="1121.01" />
+						<point x="1090.61" y="1011.32" z="1122.61" />
+						<point x="1092.52" y="1012.71" z="1124.09" />
+						<point x="1094.38" y="1014.03" z="1125.51" />
+						<point x="1096.27" y="1015.31" z="1126.91" />
+						<point x="1098.25" y="1016.61" z="1128.35" />
+						<point x="1100.4" y="1017.97" z="1129.89" />
+						<point x="1102.78" y="1019.43" z="1131.57" />
+						<point x="1105.47" y="1021.04" z="1133.45" />
+						<point x="1108.16" y="1022.64" z="1135.32" />
+						<point x="1110.58" y="1024.06" z="1136.98" />
+						<point x="1112.79" y="1025.33" z="1138.49" />
+						<point x="1114.85" y="1026.51" z="1139.9" />
+						<point x="1116.85" y="1027.65" z="1141.26" />
+						<point x="1118.84" y="1028.77" z="1142.62" />
+						<point x="1120.9" y="1029.94" z="1144.04" />
+						<point x="1123.09" y="1031.2" z="1145.57" />
+						<point x="1125.49" y="1032.58" z="1147.27" />
+						<point x="1128.15" y="1034.15" z="1149.18" />
+						<point x="1130.82" y="1035.7" z="1151.1" />
+						<point x="1133.21" y="1037.07" z="1152.81" />
+						<point x="1135.39" y="1038.3" z="1154.37" />
+						<point x="1137.42" y="1039.45" z="1155.82" />
+						<point x="1139.37" y="1040.56" z="1157.23" />
+						<point x="1141.3" y="1041.7" z="1158.65" />
+						<point x="1143.28" y="1042.9" z="1160.14" />
+						<point x="1145.38" y="1044.22" z="1161.74" />
+						<point x="1147.66" y="1045.71" z="1163.52" />
+						<point x="1150.19" y="1047.43" z="1165.53" />
+						<point x="1152.69" y="1049.18" z="1167.55" />
+						<point x="1154.91" y="1050.77" z="1169.35" />
+						<point x="1156.9" y="1052.24" z="1170.99" />
+						<point x="1158.76" y="1053.64" z="1172.53" />
+						<point x="1160.53" y="1054.99" z="1174.01" />
+						<point x="1162.31" y="1056.35" z="1175.51" />
+						<point x="1164.16" y="1057.76" z="1177.07" />
+						<point x="1166.15" y="1059.24" z="1178.75" />
+						<point x="1168.35" y="1060.85" z="1180.6" />
+						<point x="1170.84" y="1062.63" z="1182.69" />
+						<point x="1173.34" y="1064.4" z="1184.78" />
+						<point x="1175.57" y="1065.98" z="1186.64" />
+						<point x="1177.59" y="1067.42" z="1188.34" />
+						<point x="1179.49" y="1068.76" z="1189.92" />
+						<point x="1181.33" y="1070.03" z="1191.46" />
+						<point x="1183.18" y="1071.28" z="1192.99" />
+						<point x="1185.12" y="1072.55" z="1194.59" />
+						<point x="1187.22" y="1073.88" z="1196.31" />
+						<point x="1189.55" y="1075.3" z="1198.21" />
+						<point x="1192.18" y="1076.86" z="1200.34" />
+						<point x="1194.83" y="1078.38" z="1202.48" />
+						<point x="1197.22" y="1079.7" z="1204.39" />
+						<point x="1199.41" y="1080.88" z="1206.13" />
+						<point x="1201.46" y="1081.97" z="1207.75" />
+						<point x="1203.45" y="1083" z="1209.32" />
+						<point x="1205.43" y="1084.04" z="1210.89" />
+						<point x="1207.47" y="1085.14" z="1212.52" />
+						<point x="1209.64" y="1086.34" z="1214.27" />
+						<point x="1212" y="1087.69" z="1216.2" />
+						<point x="1214.61" y="1089.26" z="1218.35" />
+						<point x="1217.22" y="1090.83" z="1220.5" />
+						<point x="1219.54" y="1092.23" z="1222.39" />
+						<point x="1221.66" y="1093.51" z="1224.09" />
+						<point x="1223.63" y="1094.71" z="1225.68" />
+						<point x="1225.52" y="1095.89" z="1227.21" />
+						<point x="1227.38" y="1097.09" z="1228.76" />
+						<point x="1229.29" y="1098.38" z="1230.39" />
+						<point x="1231.3" y="1099.8" z="1232.17" />
+						<point x="1233.47" y="1101.4" z="1234.16" />
+						<point x="1235.88" y="1103.23" z="1236.44" />
+						<point x="1238.28" y="1105.09" z="1238.72" />
+						<point x="1240.44" y="1106.79" z="1240.72" />
+						<point x="1242.41" y="1108.35" z="1242.53" />
+						<point x="1244.24" y="1109.83" z="1244.22" />
+						<point x="1245.99" y="1111.27" z="1245.87" />
+						<point x="1247.71" y="1112.71" z="1247.57" />
+						<point x="1249.47" y="1114.19" z="1249.39" />
+						<point x="1251.31" y="1115.75" z="1251.41" />
+						<point x="1253.29" y="1117.44" z="1253.71" />
+						<point x="1255.46" y="1119.31" z="1256.38" />
+						<point x="1257.6" y="1121.14" z="1259.1" />
+						<point x="1259.47" y="1122.73" z="1261.56" />
+						<point x="1261.14" y="1124.15" z="1263.83" />
+						<point x="1262.69" y="1125.46" z="1265.98" />
+						<point x="1264.16" y="1126.72" z="1268.08" />
+						<point x="1265.64" y="1127.97" z="1270.21" />
+						<point x="1267.18" y="1129.29" z="1272.42" />
+						<point x="1268.85" y="1130.73" z="1274.8" />
+						<point x="1270.71" y="1132.35" z="1277.41" />
+						<point x="1272.84" y="1134.2" z="1280.32" />
+						<point x="1274.99" y="1136.04" z="1283.24" />
+						<point x="1276.9" y="1137.61" z="1285.85" />
+						<point x="1278.65" y="1138.99" z="1288.24" />
+						<point x="1280.3" y="1140.28" z="1290.47" />
+						<point x="1281.91" y="1141.55" z="1292.61" />
+						<point x="1283.53" y="1142.9" z="1294.72" />
+						<point x="1285.23" y="1144.4" z="1296.88" />
+						<point x="1287.08" y="1146.14" z="1299.16" />
+						<point x="1289.13" y="1148.2" z="1301.63" />
+						<point x="1291.45" y="1150.67" z="1304.34" />
+						<point x="1293.77" y="1153.21" z="1307.04" />
+						<point x="1295.83" y="1155.48" z="1309.45" />
+						<point x="1297.7" y="1157.57" z="1311.64" />
+						<point x="1299.44" y="1159.57" z="1313.66" />
+						<point x="1301.13" y="1161.56" z="1315.6" />
+						<point x="1302.84" y="1163.63" z="1317.52" />
+						<point x="1304.63" y="1165.87" z="1319.47" />
+						<point x="1306.57" y="1168.37" z="1321.54" />
+						<point x="1308.73" y="1171.21" z="1323.78" />
+						<point x="1311.18" y="1174.48" z="1326.27" />
+						<point x="1313.64" y="1177.8" z="1328.74" />
+						<point x="1315.83" y="1180.79" z="1330.91" />
+						<point x="1317.83" y="1183.54" z="1332.87" />
+						<point x="1319.71" y="1186.13" z="1334.69" />
+						<point x="1321.53" y="1188.66" z="1336.44" />
+						<point x="1323.37" y="1191.21" z="1338.18" />
+						<point x="1325.28" y="1193.88" z="1340.01" />
+						<point x="1327.35" y="1196.75" z="1341.98" />
+						<point x="1329.63" y="1199.91" z="1344.16" />
+						<point x="1332.21" y="1203.45" z="1346.64" />
+						<point x="1334.95" y="1207.2" z="1349.3" />
+						<point x="1337.66" y="1210.9" z="1351.93" />
+						<point x="1340.31" y="1214.5" z="1354.52" />
+						<point x="1342.85" y="1217.95" z="1357.01" />
+						<point x="1345.26" y="1221.22" z="1359.37" />
+						<point x="1347.5" y="1224.24" z="1361.58" />
+						<point x="1349.53" y="1226.98" z="1363.58" />
+						<point x="1351.31" y="1229.38" z="1365.34" />
+						<point x="1352.81" y="1231.4" z="1366.82" />
+					</polyline>
+				</geometry>
+				<functions>
+					<function domain="polyline" name="diameter">
+						<sample value="not defined" />
+						<sample value="9.7" />
+						<sample value="11.6" />
+						<sample value="15.1" />
+						<sample value="16" />
+						<sample value="14.8" />
+						<sample value="12.6" />
+						<sample value="10.1" />
+						<sample value="8.8" />
+						<sample value="10.1" />
+						<sample value="13.5" />
+						<sample value="14.6" />
+						<sample value="16" />
+						<sample value="18.4" />
+						<sample value="21.3" />
+						<sample value="24.4" />
+						<sample value="27.5" />
+						<sample value="30.6" />
+						<sample value="33.8" />
+						<sample value="37.3" />
+						<sample value="41.4" />
+						<sample value="44" />
+						<sample value="44.1" />
+						<sample value="44.4" />
+						<sample value="44.9" />
+						<sample value="44.9" />
+						<sample value="44.3" />
+						<sample value="43.7" />
+						<sample value="42.9" />
+						<sample value="42" />
+						<sample value="41" />
+						<sample value="38.1" />
+						<sample value="35.8" />
+						<sample value="34" />
+						<sample value="32.6" />
+						<sample value="30" />
+						<sample value="26.7" />
+						<sample value="23.3" />
+						<sample value="20.2" />
+						<sample value="17.7" />
+						<sample value="16.6" />
+						<sample value="16.6" />
+						<sample value="13.4" />
+						<sample value="8.6" />
+						<sample value="4.3" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="not defined" />
+						<sample value="1.6" />
+						<sample value="1" />
+						<sample value="3.5" />
+						<sample value="2.9" />
+						<sample value="3.4" />
+						<sample value="3.9" />
+						<sample value="4.3" />
+						<sample value="4.2" />
+						<sample value="3.9" />
+						<sample value="4.4" />
+						<sample value="5.1" />
+						<sample value="5.6" />
+						<sample value="5.1" />
+						<sample value="3.7" />
+						<sample value="3.7" />
+						<sample value="4.2" />
+						<sample value="4.4" />
+						<sample value="2.7" />
+						<sample value="3.4" />
+						<sample value="4.8" />
+						<sample value="6.2" />
+						<sample value="5.8" />
+						<sample value="5.7" />
+						<sample value="6.5" />
+						<sample value="5.8" />
+						<sample value="4.8" />
+						<sample value="4.8" />
+						<sample value="6.5" />
+						<sample value="6.4" />
+						<sample value="5.9" />
+						<sample value="5.7" />
+						<sample value="6.1" />
+						<sample value="4.6" />
+						<sample value="5.3" />
+						<sample value="5.6" />
+						<sample value="5.5" />
+						<sample value="5.1" />
+						<sample value="5.4" />
+						<sample value="5.3" />
+						<sample value="4.3" />
+						<sample value="6" />
+						<sample value="4.5" />
+						<sample value="5.6" />
+						<sample value="5.4" />
+						<sample value="4.5" />
+						<sample value="4.6" />
+						<sample value="5.7" />
+						<sample value="5.3" />
+						<sample value="4.2" />
+						<sample value="4.8" />
+						<sample value="4.3" />
+						<sample value="4.6" />
+						<sample value="5" />
+						<sample value="4.4" />
+						<sample value="3" />
+						<sample value="3.6" />
+						<sample value="3.8" />
+						<sample value="4.3" />
+						<sample value="5.7" />
+						<sample value="6.1" />
+						<sample value="6.3" />
+						<sample value="5.9" />
+						<sample value="5.4" />
+						<sample value="4.4" />
+						<sample value="4.9" />
+						<sample value="5" />
+						<sample value="5.5" />
+						<sample value="5.5" />
+						<sample value="6.4" />
+						<sample value="6.7" />
+						<sample value="6.9" />
+						<sample value="6" />
+						<sample value="6.3" />
+						<sample value="5" />
+						<sample value="4.6" />
+						<sample value="4.7" />
+						<sample value="3.9" />
+						<sample value="4.4" />
+						<sample value="4.3" />
+						<sample value="6.3" />
+						<sample value="4.7" />
+						<sample value="4.7" />
+						<sample value="5.2" />
+						<sample value="4.3" />
+						<sample value="3.7" />
+						<sample value="4.4" />
+						<sample value="4.9" />
+						<sample value="6.3" />
+						<sample value="5.4" />
+						<sample value="5.4" />
+						<sample value="5.7" />
+						<sample value="4.4" />
+						<sample value="5.2" />
+						<sample value="5.2" />
+						<sample value="6.3" />
+						<sample value="6.9" />
+						<sample value="7" />
+						<sample value="5.7" />
+						<sample value="5.7" />
+						<sample value="6.7" />
+						<sample value="4.4" />
+						<sample value="5" />
+						<sample value="5.3" />
+						<sample value="4.4" />
+						<sample value="3.9" />
+						<sample value="5" />
+						<sample value="3.7" />
+						<sample value="3.2" />
+						<sample value="5" />
+						<sample value="5.7" />
+						<sample value="5.5" />
+						<sample value="4.8" />
+						<sample value="5.9" />
+						<sample value="5.2" />
+						<sample value="3.3" />
+						<sample value="4.6" />
+						<sample value="5.2" />
+						<sample value="6.4" />
+						<sample value="6.8" />
+						<sample value="4.1" />
+						<sample value="5.6" />
+						<sample value="3.8" />
+						<sample value="3.9" />
+						<sample value="5" />
+						<sample value="3.6" />
+						<sample value="4.4" />
+						<sample value="4.9" />
+						<sample value="4.7" />
+						<sample value="4.8" />
+						<sample value="3.8" />
+						<sample value="5.9" />
+						<sample value="5.2" />
+						<sample value="5.7" />
+						<sample value="3.7" />
+						<sample value="5" />
+						<sample value="5.9" />
+						<sample value="5.5" />
+						<sample value="6.7" />
+						<sample value="5.5" />
+						<sample value="6.1" />
+						<sample value="4.8" />
+						<sample value="5.7" />
+						<sample value="6.3" />
+						<sample value="5.2" />
+						<sample value="4.9" />
+						<sample value="5.2" />
+						<sample value="4.1" />
+						<sample value="4.2" />
+						<sample value="6.2" />
+						<sample value="5.3" />
+						<sample value="4.1" />
+						<sample value="5.2" />
+						<sample value="4.6" />
+						<sample value="5.1" />
+						<sample value="5.7" />
+						<sample value="5.5" />
+						<sample value="6" />
+						<sample value="4.1" />
+						<sample value="4.4" />
+						<sample value="4.6" />
+						<sample value="1.7" />
+						<sample value="3.7" />
+						<sample value="1.9" />
+						<sample value="4" />
+						<sample value="4.4" />
+						<sample value="4.5" />
+						<sample value="3.8" />
+						<sample value="5.1" />
+						<sample value="5.6" />
+						<sample value="6.6" />
+						<sample value="6.5" />
+						<sample value="6" />
+						<sample value="5.3" />
+						<sample value="3.7" />
+						<sample value="4.4" />
+						<sample value="5.3" />
+						<sample value="5" />
+						<sample value="5.2" />
+						<sample value="5" />
+						<sample value="3.8" />
+						<sample value="2.9" />
+						<sample value="0.6" />
+						<sample value="2.2" />
+						<sample value="6.3" />
+						<sample value="5.1" />
+						<sample value="3" />
+						<sample value="3.4" />
+						<sample value="4.1" />
+						<sample value="3.6" />
+						<sample value="5.7" />
+						<sample value="6.7" />
+						<sample value="5.7" />
+						<sample value="2.8" />
+						<sample value="4.5" />
+						<sample value="4.6" />
+						<sample value="3.1" />
+						<sample value="2.7" />
+						<sample value="4" />
+						<sample value="4.8" />
+						<sample value="4.7" />
+						<sample value="6.1" />
+						<sample value="7.2" />
+						<sample value="7.1" />
+						<sample value="5.8" />
+						<sample value="5.9" />
+						<sample value="4.9" />
+						<sample value="4.7" />
+						<sample value="4.2" />
+						<sample value="4.4" />
+						<sample value="3.4" />
+					</function>
+				</functions>
+				<root id="3" label="lat_0">
+					<properties>
+						<length value="145.577" />
+						<width value="23.5414" />
+						<angle value="66.8306" />
+						<type value="seminal" />
+					</properties>
+					<geometry>
+						<polyline>
+							<point x="949.148" y="912.2" z="965.959" />
+							<point x="949.633" y="913.58" z="964.564" />
+							<point x="950.119" y="914.96" z="963.168" />
+							<point x="950.604" y="916.34" z="961.772" />
+							<point x="951.089" y="917.72" z="960.376" />
+							<point x="951.574" y="919.1" z="958.98" />
+							<point x="952.059" y="920.48" z="957.584" />
+							<point x="952.544" y="921.86" z="956.188" />
+							<point x="953.03" y="923.24" z="954.792" />
+							<point x="953.515" y="924.62" z="953.396" />
+							<point x="954" y="926" z="952" />
+							<point x="948.675" y="923.545" z="953.834" />
+							<point x="944.113" y="921.446" z="955.37" />
+							<point x="940.153" y="919.625" z="956.678" />
+							<point x="936.63" y="918.007" z="957.829" />
+							<point x="933.384" y="916.516" z="958.893" />
+							<point x="930.25" y="915.074" z="959.941" />
+							<point x="927.067" y="913.606" z="961.043" />
+							<point x="923.671" y="912.035" z="962.269" />
+							<point x="919.901" y="910.285" z="963.692" />
+							<point x="915.592" y="908.28" z="965.379" />
+							<point x="911.223" y="906.256" z="967.074" />
+							<point x="907.313" y="904.467" z="968.521" />
+							<point x="903.763" y="902.857" z="969.794" />
+							<point x="900.476" y="901.37" z="970.969" />
+							<point x="897.352" y="899.951" z="972.123" />
+							<point x="894.295" y="898.546" z="973.331" />
+							<point x="891.206" y="897.099" z="974.667" />
+							<point x="887.987" y="895.555" z="976.208" />
+							<point x="884.539" y="893.859" z="978.03" />
+							<point x="880.765" y="891.955" z="980.207" />
+							<point x="876.835" y="889.934" z="982.625" />
+							<point x="873.013" y="887.939" z="985.086" />
+							<point x="869.337" y="885.997" z="987.546" />
+							<point x="865.847" y="884.132" z="989.962" />
+							<point x="862.581" y="882.37" z="992.287" />
+							<point x="859.58" y="880.737" z="994.477" />
+							<point x="856.882" y="879.258" z="996.489" />
+							<point x="854.527" y="877.958" z="998.276" />
+							<point x="852.553" y="876.864" z="999.795" />
+						</polyline>
+					</geometry>
+					<functions>
+						<function domain="polyline" name="diameter">
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="74.3" />
+							<sample value="62.7" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="0.6" />
+							<sample value="0.8" />
+							<sample value="1.8" />
+							<sample value="2.6" />
+							<sample value="3.2" />
+							<sample value="3.7" />
+							<sample value="4" />
+							<sample value="3.4" />
+							<sample value="2.7" />
+							<sample value="2" />
+						</function>
+					</functions>
+				</root>
+				<root id="4" label="lat_1">
+					<properties>
+						<length value="446.633" />
+						<width value="9.8215" />
+						<angle value="55.9444" />
+						<type value="seminal" />
+					</properties>
+					<geometry>
+						<polyline>
+							<point x="949.148" y="912.2" z="965.959" />
+							<point x="949.633" y="913.58" z="964.564" />
+							<point x="950.119" y="914.96" z="963.168" />
+							<point x="950.604" y="916.34" z="961.772" />
+							<point x="951.089" y="917.72" z="960.376" />
+							<point x="951.574" y="919.1" z="958.98" />
+							<point x="952.059" y="920.48" z="957.584" />
+							<point x="952.544" y="921.86" z="956.188" />
+							<point x="953.03" y="923.24" z="954.792" />
+							<point x="953.515" y="924.62" z="953.396" />
+							<point x="954" y="926" z="952" />
+							<point x="953.019" y="928.645" z="956.985" />
+							<point x="952.134" y="930.885" z="961.247" />
+							<point x="951.334" y="932.81" z="964.941" />
+							<point x="950.606" y="934.513" z="968.223" />
+							<point x="949.94" y="936.085" z="971.25" />
+							<point x="949.323" y="937.618" z="974.176" />
+							<point x="948.743" y="939.204" z="977.157" />
+							<point x="948.189" y="940.933" z="980.349" />
+							<point x="947.649" y="942.898" z="983.908" />
+							<point x="947.111" y="945.19" z="987.988" />
+							<point x="946.548" y="947.503" z="992.17" />
+							<point x="945.964" y="949.525" z="995.975" />
+							<point x="945.39" y="951.332" z="999.472" />
+							<point x="944.856" y="953.005" z="1002.73" />
+							<point x="944.393" y="954.621" z="1005.83" />
+							<point x="944.034" y="956.258" z="1008.82" />
+							<point x="943.807" y="957.996" z="1011.8" />
+							<point x="943.746" y="959.913" z="1014.81" />
+							<point x="943.879" y="962.088" z="1017.94" />
+							<point x="944.24" y="964.598" z="1021.25" />
+							<point x="944.701" y="967.149" z="1024.48" />
+							<point x="945.135" y="969.439" z="1027.33" />
+							<point x="945.574" y="971.539" z="1029.89" />
+							<point x="946.046" y="973.523" z="1032.21" />
+							<point x="946.584" y="975.46" z="1034.37" />
+							<point x="947.216" y="977.423" z="1036.44" />
+							<point x="947.973" y="979.483" z="1038.47" />
+							<point x="948.886" y="981.712" z="1040.55" />
+							<point x="949.986" y="984.181" z="1042.73" />
+							<point x="951.301" y="986.962" z="1045.08" />
+							<point x="952.654" y="989.771" z="1047.39" />
+							<point x="953.872" y="992.316" z="1049.43" />
+							<point x="954.996" y="994.658" z="1051.25" />
+							<point x="956.067" y="996.857" z="1052.93" />
+							<point x="957.126" y="998.973" z="1054.52" />
+							<point x="958.215" y="1001.07" z="1056.08" />
+							<point x="959.374" y="1003.2" z="1057.69" />
+							<point x="960.645" y="1005.43" z="1059.39" />
+							<point x="962.068" y="1007.82" z="1061.25" />
+							<point x="963.686" y="1010.43" z="1063.34" />
+							<point x="965.294" y="1013" z="1065.46" />
+							<point x="966.703" y="1015.26" z="1067.39" />
+							<point x="967.967" y="1017.29" z="1069.19" />
+							<point x="969.146" y="1019.16" z="1070.87" />
+							<point x="970.294" y="1020.93" z="1072.49" />
+							<point x="971.469" y="1022.69" z="1074.09" />
+							<point x="972.728" y="1024.49" z="1075.69" />
+							<point x="974.127" y="1026.42" z="1077.33" />
+							<point x="975.724" y="1028.53" z="1079.07" />
+							<point x="977.575" y="1030.91" z="1080.92" />
+							<point x="979.463" y="1033.28" z="1082.75" />
+							<point x="981.167" y="1035.37" z="1084.4" />
+							<point x="982.738" y="1037.25" z="1085.9" />
+							<point x="984.227" y="1039.01" z="1087.27" />
+							<point x="985.685" y="1040.72" z="1088.56" />
+							<point x="987.163" y="1042.45" z="1089.79" />
+							<point x="988.711" y="1044.27" z="1090.99" />
+							<point x="990.381" y="1046.25" z="1092.2" />
+							<point x="992.223" y="1048.49" z="1093.44" />
+							<point x="994.29" y="1051.04" z="1094.75" />
+							<point x="996.355" y="1053.6" z="1096.01" />
+							<point x="998.199" y="1055.89" z="1097.13" />
+							<point x="999.875" y="1057.98" z="1098.12" />
+							<point x="1001.44" y="1059.94" z="1099.02" />
+							<point x="1002.95" y="1061.85" z="1099.86" />
+							<point x="1004.45" y="1063.79" z="1100.67" />
+							<point x="1006.01" y="1065.83" z="1101.47" />
+							<point x="1007.67" y="1068.05" z="1102.3" />
+							<point x="1009.49" y="1070.53" z="1103.19" />
+							<point x="1011.54" y="1073.34" z="1104.16" />
+							<point x="1013.56" y="1076.18" z="1105.11" />
+							<point x="1015.35" y="1078.76" z="1105.93" />
+							<point x="1016.96" y="1081.14" z="1106.65" />
+							<point x="1018.46" y="1083.38" z="1107.32" />
+							<point x="1019.91" y="1085.54" z="1107.96" />
+							<point x="1021.37" y="1087.69" z="1108.61" />
+							<point x="1022.9" y="1089.9" z="1109.3" />
+							<point x="1024.57" y="1092.22" z="1110.08" />
+							<point x="1026.44" y="1094.72" z="1110.96" />
+							<point x="1028.57" y="1097.47" z="1111.99" />
+							<point x="1030.73" y="1100.18" z="1113.03" />
+							<point x="1032.69" y="1102.58" z="1113.96" />
+							<point x="1034.49" y="1104.74" z="1114.8" />
+							<point x="1036.19" y="1106.74" z="1115.6" />
+							<point x="1037.84" y="1108.65" z="1116.39" />
+							<point x="1039.5" y="1110.53" z="1117.2" />
+							<point x="1041.2" y="1112.46" z="1118.08" />
+							<point x="1043" y="1114.52" z="1119.05" />
+							<point x="1044.96" y="1116.77" z="1120.15" />
+							<point x="1047.13" y="1119.29" z="1121.42" />
+							<point x="1049.31" y="1121.79" z="1122.7" />
+							<point x="1051.29" y="1123.98" z="1123.83" />
+							<point x="1053.12" y="1125.94" z="1124.86" />
+							<point x="1054.84" y="1127.77" z="1125.82" />
+							<point x="1056.46" y="1129.53" z="1126.77" />
+							<point x="1058.04" y="1131.33" z="1127.73" />
+							<point x="1059.61" y="1133.23" z="1128.77" />
+							<point x="1061.2" y="1135.31" z="1129.91" />
+							<point x="1062.85" y="1137.68" z="1131.2" />
+							<point x="1064.6" y="1140.39" z="1132.69" />
+							<point x="1066.28" y="1143.13" z="1134.2" />
+							<point x="1067.72" y="1145.55" z="1135.55" />
+							<point x="1068.99" y="1147.75" z="1136.78" />
+							<point x="1070.13" y="1149.83" z="1137.94" />
+							<point x="1071.2" y="1151.86" z="1139.08" />
+							<point x="1072.24" y="1153.94" z="1140.23" />
+							<point x="1073.32" y="1156.16" z="1141.44" />
+							<point x="1074.47" y="1158.61" z="1142.76" />
+							<point x="1075.77" y="1161.38" z="1144.21" />
+							<point x="1077.25" y="1164.56" z="1145.86" />
+							<point x="1078.74" y="1167.79" z="1147.5" />
+							<point x="1080.07" y="1170.7" z="1148.94" />
+							<point x="1081.29" y="1173.38" z="1150.23" />
+							<point x="1082.43" y="1175.9" z="1151.44" />
+							<point x="1083.56" y="1178.36" z="1152.61" />
+							<point x="1084.7" y="1180.84" z="1153.8" />
+							<point x="1085.91" y="1183.43" z="1155.07" />
+							<point x="1087.24" y="1186.21" z="1156.46" />
+							<point x="1088.72" y="1189.26" z="1158.04" />
+							<point x="1090.41" y="1192.67" z="1159.86" />
+							<point x="1092.22" y="1196.28" z="1161.82" />
+							<point x="1094.01" y="1199.83" z="1163.79" />
+							<point x="1095.78" y="1203.29" z="1165.73" />
+							<point x="1097.48" y="1206.6" z="1167.61" />
+							<point x="1099.1" y="1209.73" z="1169.4" />
+							<point x="1100.6" y="1212.62" z="1171.08" />
+							<point x="1101.97" y="1215.24" z="1172.6" />
+							<point x="1103.18" y="1217.54" z="1173.95" />
+							<point x="1104.2" y="1219.47" z="1175.1" />
+						</polyline>
+					</geometry>
+					<functions>
+						<function domain="polyline" name="diameter">
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="connecting line" />
+							<sample value="45.8" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="not defined" />
+							<sample value="1.4" />
+							<sample value="1" />
+							<sample value="3" />
+							<sample value="3.1" />
+							<sample value="3.8" />
+							<sample value="4.6" />
+							<sample value="6" />
+							<sample value="7.1" />
+							<sample value="7.5" />
+							<sample value="7.9" />
+							<sample value="6.8" />
+							<sample value="5.6" />
+							<sample value="5.5" />
+							<sample value="4.9" />
+							<sample value="4.8" />
+							<sample value="4.7" />
+							<sample value="3.9" />
+							<sample value="4.8" />
+							<sample value="6.6" />
+							<sample value="7" />
+							<sample value="7.5" />
+							<sample value="7.7" />
+							<sample value="7.6" />
+							<sample value="7" />
+							<sample value="6.8" />
+							<sample value="7.5" />
+							<sample value="6.7" />
+							<sample value="7.6" />
+							<sample value="6.5" />
+							<sample value="5.8" />
+							<sample value="7.8" />
+							<sample value="7.6" />
+							<sample value="7.3" />
+							<sample value="7.6" />
+							<sample value="7.4" />
+							<sample value="8" />
+							<sample value="6.8" />
+							<sample value="7" />
+							<sample value="5.5" />
+							<sample value="5.3" />
+							<sample value="5.8" />
+							<sample value="5.3" />
+							<sample value="6" />
+							<sample value="6.6" />
+							<sample value="6" />
+							<sample value="5.8" />
+							<sample value="5.8" />
+							<sample value="7.4" />
+							<sample value="7.6" />
+							<sample value="8.1" />
+							<sample value="7.9" />
+							<sample value="7.6" />
+							<sample value="7.6" />
+							<sample value="8.4" />
+							<sample value="8.4" />
+							<sample value="7.9" />
+							<sample value="7" />
+							<sample value="6.1" />
+							<sample value="6.3" />
+							<sample value="6.7" />
+							<sample value="5.7" />
+							<sample value="6.6" />
+							<sample value="6.6" />
+							<sample value="7.6" />
+							<sample value="7.7" />
+							<sample value="6.6" />
+							<sample value="6.5" />
+							<sample value="7.1" />
+							<sample value="7.5" />
+							<sample value="7.5" />
+							<sample value="5.2" />
+							<sample value="5.7" />
+							<sample value="5.7" />
+							<sample value="5.3" />
+							<sample value="6.6" />
+							<sample value="5.9" />
+							<sample value="5.2" />
+							<sample value="3.5" />
+							<sample value="4.4" />
+							<sample value="5.6" />
+							<sample value="4.9" />
+							<sample value="5.1" />
+							<sample value="6.4" />
+							<sample value="6.1" />
+							<sample value="5.7" />
+							<sample value="7.4" />
+							<sample value="8.4" />
+							<sample value="9" />
+							<sample value="8.3" />
+							<sample value="7.9" />
+							<sample value="7.7" />
+							<sample value="8.6" />
+							<sample value="8.4" />
+							<sample value="7.4" />
+							<sample value="7.8" />
+							<sample value="6.6" />
+							<sample value="6.9" />
+							<sample value="6.9" />
+							<sample value="7.1" />
+							<sample value="6.9" />
+							<sample value="7.2" />
+							<sample value="7.4" />
+							<sample value="6.3" />
+							<sample value="5.7" />
+							<sample value="4.3" />
+							<sample value="2.5" />
+							<sample value="3.5" />
+						</function>
+					</functions>
+				</root>
+			</root>
+		</plant>
+	</scene>
+</rsml>

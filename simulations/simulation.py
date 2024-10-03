@@ -9,7 +9,7 @@ from initialize.initialize import MakeScenarios as ms
 from analyze.analyze import analyze_data
 
 
-def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}):
+def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}, analyze=True):
     root_cynaps = Model(time_step=3600, **scenario)
 
     logger = Logger(model_instance=root_cynaps, components=root_cynaps.components,
@@ -29,11 +29,12 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
 
     finally:
         logger.stop()
-        analyze_data(scenarios=[os.path.basename(outputs_dirpath)], outputs_dirpath="outputs", target_properties=None, **log_settings)
+        if analyze:
+            analyze_data(scenarios=[os.path.basename(outputs_dirpath)], outputs_dirpath="outputs", target_properties=None, **log_settings)
         
 
 
-def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_settings={}):
+def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_settings={}, analyze=True):
     processes = []
     max_processes = mp.cpu_count()
     for scenario_name, scenario in scenarios.items():
@@ -43,18 +44,28 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
                 if not proc.is_alive():
                     processes.remove(proc)
             time.sleep(1)
-
+        
         print(f"[INFO] Launching scenario {scenario_name}...")
         p = mp.Process(target=single_run, kwargs=dict(scenario=scenario, 
                                                       outputs_dirpath=os.path.join("outputs", str(scenario_name)),
                                                       simulation_length=simulation_length,
                                                       echo=echo,
-                                                      log_settings=log_settings))
+                                                      log_settings=log_settings,
+                                                      analyze=analyze))
         p.start()
         processes.append(p)
 
         
 if __name__ == "__main__":
-    #scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Input_RSML_D9", "Input_RSML_D11", "Input_RSML_D13", "Input_RSML_HN_D9", "Input_RSML_HN_D11", "Input_RSML_HN_D13"])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_D13"])
-    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log)
+    print("Starting simulation in 5 seconds, use Ctrl+C to cancel !")
+    time.sleep(5)
+    
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
+               "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
+                 "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
+                 "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
+                 "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
+                 "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D03", "Input_RSML_R4_D01"])
+
+    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
