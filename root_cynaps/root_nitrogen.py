@@ -98,6 +98,9 @@ class RootNitrogenModel(Model):
     struct_mass_produced: float =       declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    root_hairs_struct_mass_produced: float = declare(default=0, unit="g", unit_comment="of dry weight", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     thermal_time_since_emergence: float = declare(default=0, unit="°C", unit_comment="", description="", 
                                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                                   variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
@@ -254,6 +257,9 @@ class RootNitrogenModel(Model):
     AA_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    AA_root_shoot_phloem_record: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_AA_rhizodeposition: float =   declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
@@ -389,6 +395,10 @@ class RootNitrogenModel(Model):
     phloem_cross_area_ratio: float =    declare(default=0.15 * (0.36 ** 2), unit="adim", unit_comment="surface ratio", description="phloem cross-section area ratio * stele radius ratio^2", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    struct_mass_N_content: float = declare(default=0.44 / 20 / 14, unit="mol.g-1", unit_comment="of carbon", description="C content of structural mass", 
+                                                    min_value="", max_value="", value_comment="", references="We assume that the structural mass contains 44% of C. (??)", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    
 
     def __init__(self, g, time_step, **scenario) -> None:
 
@@ -848,9 +858,9 @@ class RootNitrogenModel(Model):
         else:
             return 0
 
-    # def _struct_synthesis(self, v, smax_struct, Km_AA_struct):
-    #     # Organic structure synthesis (REPLACED BY RHIZODEP struct_mass_produced)
-    #     struct_synthesis = struct_mass * (smax_struct * AA / (Km_AA_struct + AA))
+    def _struct_synthesis(self, struct_mass_produced, root_hairs_struct_mass_produced):
+        # Organic structure synthesis
+        return (struct_mass_produced + root_hairs_struct_mass_produced) * self.struct_mass_N_content / self.r_Nm_AA
         
     @rate
     def _storage_synthesis(self, struct_mass, AA):
@@ -905,7 +915,7 @@ class RootNitrogenModel(Model):
     @potential
     @state
     def _AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, struct_mass_produced, deficit_AA):
+                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
         if struct_mass > 0:
             return AA + (self.time_step / struct_mass) * (
                     diffusion_AA_phloem
@@ -913,12 +923,12 @@ class RootNitrogenModel(Model):
                     - diffusion_AA_soil
                     - export_AA
                     + AA_synthesis
-                    - struct_synthesis * self.r_AA_struct
+                    - struct_synthesis
                     - storage_synthesis * self.r_AA_stor
                     + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
                     - deficit_AA
-            ) - struct_mass_produced * 0.2 / 146
+            )
         # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
         # Sachant C:N struct environ de 10 = (Chex + CAA)/NAA Chex = 10*28 - 60 = 220 g Chex.
         # Sachang qu'un hexose contient 12*6=72 gC.mol-1 hex, c'est donc environ 3 hexoses pour 1 AA qui seraient consommés.
@@ -989,6 +999,10 @@ class RootNitrogenModel(Model):
     def _total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem, total_struct_mass):
         return total_phloem_AA[1] + (- self.time_step * sum(diffusion_AA_phloem.values()) + AA_root_shoot_phloem[1]) / (
                 total_struct_mass[1] * self.phloem_cross_area_ratio)
+    
+    @totalstate
+    def _AA_root_shoot_phloem_record(self, AA_root_shoot_phloem):
+        return -AA_root_shoot_phloem[1]
 
     @totalstate
     def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem,

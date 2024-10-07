@@ -59,13 +59,13 @@ def simulate_scenarios(scenarios, simulation_length=2500, echo=True, log_setting
 if __name__ == "__main__":
     print("Starting simulation in 5 seconds, use Ctrl+C to cancel !")
     time.sleep(5)
-    
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
-               "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
-                 "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
-                 "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
-                 "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
-                 "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D03", "Input_RSML_R4_D01"])
+
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
+    #            "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
+    #              "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
+    #              "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
+    #              "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
+    #              "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
 
     simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)

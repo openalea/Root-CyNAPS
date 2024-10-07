@@ -66,7 +66,7 @@ def update_distance_from_tip(g):
 
         
 if __name__ == "__main__":
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R2_D13"])
 
     for scenario_name, scenario in scenarios.items():
         g = scenario["input_mtg"]["root_mtg_file"]
