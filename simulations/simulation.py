@@ -14,7 +14,7 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
 
     logger = Logger(model_instance=root_cynaps, components=root_cynaps.components,
                     outputs_dirpath=outputs_dirpath,
-                    time_step_in_hours=1, logging_period_in_hours=1,
+                    time_step_in_hours=1, logging_period_in_hours=6,
                     echo=echo, auto_camera_position=True, **log_settings)
     
     try:
@@ -68,4 +68,4 @@ if __name__ == "__main__":
     #              "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
 
-    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
+    simulate_scenarios(scenarios, simulation_length=24, log_settings=Logger.heavy_log, analyze=False)

@@ -858,6 +858,7 @@ class RootNitrogenModel(Model):
         else:
             return 0
 
+    @rate
     def _struct_synthesis(self, struct_mass_produced, root_hairs_struct_mass_produced):
         # Organic structure synthesis
         return (struct_mass_produced + root_hairs_struct_mass_produced) * self.struct_mass_N_content / self.r_Nm_AA
@@ -895,7 +896,24 @@ class RootNitrogenModel(Model):
                 total_hexose[1] / (total_hexose[1] + self.Km_C_cytok)) * (
                 total_Nm[1] / (total_Nm[1] + self.Km_N_cytok))
 
-    @potential
+    @deficit
+    @state
+    # This function adjusts possibly negative concentrations by setting them to 0 and by recording the corresponding deficit.
+    def _deficit_Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
+        if struct_mass > 0:
+            return -min(0., Nm + (self.time_step / struct_mass) * (
+                    import_Nm
+                    - diffusion_Nm_soil
+                    + diffusion_Nm_xylem
+                    - export_Nm
+                    - AA_synthesis * self.r_Nm_AA
+                    + AA_catabolism / self.r_Nm_AA
+                    + nitrogenase_fixation
+                    - deficit_Nm))
+        else:
+            return 0
+    
+    @actual
     @state
     # UPDATE NITROGEN POOLS
     def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
@@ -912,7 +930,24 @@ class RootNitrogenModel(Model):
         else:
             return 0
 
-    @potential
+    @deficit
+    @state
+    def _deficit_AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
+        if struct_mass > 0:
+            return -min(0., AA + (self.time_step / struct_mass) * (
+                    diffusion_AA_phloem
+                    + import_AA
+                    - diffusion_AA_soil
+                    - export_AA
+                    + AA_synthesis
+                    - struct_synthesis
+                    - storage_synthesis * self.r_AA_stor
+                    + storage_catabolism / self.r_AA_stor
+                    - AA_catabolism
+                    - deficit_AA))
+
+    @actual
     @state
     def _AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
@@ -937,26 +972,7 @@ class RootNitrogenModel(Model):
         else:
             return 0
         
-    # This function adjusts possibly negative concentrations by setting them to 0 and by recording the corresponding deficit.
-    # WATCH OUT: This function must be called once the concentrations have already been calculated with the previous deficits!
-
-    @deficit
-    @state
-    def _deficit_Nm(self, Nm, struct_mass):
-        if Nm < 0:
-            return - Nm * struct_mass / self.time_step
-        else:
-            # TODO : or None could be more efficient?
-            return 0.
-
-    @deficit
-    @state
-    def _deficit_AA(self, AA, struct_mass):
-        if AA < 0:
-            return - AA * struct_mass / self.time_step
-        else:
-            # TODO : or None could be more efficient?
-            return 0.
+    
 
     @state
     def _storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism):

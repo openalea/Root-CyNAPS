@@ -9,6 +9,6 @@ if __name__ == '__main__':
                  "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
                  "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
                  "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"]
-    #scenarios = ["Input_RSML_R4_D13"]
+    scenarios = ["Input_RSML_R4_D13"]
     
-    analyze_data(scenarios=scenarios, outputs_dirpath="outputs", on_sums=False, animate_raw_logs=True)
+    analyze_data(scenarios=scenarios, outputs_dirpath="outputs", on_sums=True, animate_raw_logs=True)
