@@ -5,6 +5,7 @@ from openalea.mtg.traversal import post_order
 
 # Utility packages
 from log.visualize import plot_mtg_alt
+from analyze.analyze import add_root_order_when_branching_is_wrong
 from initialize.initialize import MakeScenarios as ms
 
 
@@ -66,20 +67,22 @@ def update_distance_from_tip(g):
 
         
 if __name__ == "__main__":
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R2_D13"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
 
     for scenario_name, scenario in scenarios.items():
         g = scenario["input_mtg"]["root_mtg_file"]
         update_distance_from_tip(g)
+        add_root_order_when_branching_is_wrong(g)
+
 
         plotter = pv.Plotter(off_screen=False, window_size=[1088, 1920], lighting="three lights")
         plotter.set_background("white")
         
 
-        root_system_mesh, color_property = plot_mtg_alt(g, cmap_property="radius", flow_property=False)
+        root_system_mesh, color_property, root_hair_mesh = plot_mtg_alt(g, cmap_property="root_order", flow_property=False)
 
 
-        clim = [0, 0.0001]
+        clim = [1, 2]
 
         plotter.add_mesh(root_system_mesh, cmap="jet", clim=clim, show_edges=False, log_scale=False)
 

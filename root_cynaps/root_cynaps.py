@@ -9,6 +9,8 @@ from rhizodep.root_growth import RootGrowthModel
 from metafspm.composite_wrapper import CompositeModel
 from metafspm.component_factory import Choregrapher
 
+from analyze.analyze import add_root_order_when_branching_is_wrong
+
 
 class Model(CompositeModel):
     """
@@ -47,6 +49,7 @@ class Model(CompositeModel):
         # Here we use the growth model simply to initialize the structural mass and distance from tip regarding provided MTG's geometry.
         self.root_growth = RootGrowthModel(scenario["input_mtg"]["root_mtg_file"], time_step, **parameters)
         self.g = self.root_growth.g
+        add_root_order_when_branching_is_wrong(self.g)
         self.root_anatomy = RootAnatomy(self.g, time_step, **parameters)
         self.root_water = RootWaterModel(self.g, time_step/10, **parameters)
         self.root_nitrogen = RootNitrogenModel(self.g, time_step, **parameters)

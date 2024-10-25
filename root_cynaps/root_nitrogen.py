@@ -918,7 +918,7 @@ class RootNitrogenModel(Model):
     # UPDATE NITROGEN POOLS
     def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
         if struct_mass > 0:
-            return Nm + (self.time_step / struct_mass) * (
+            return max(0., Nm + (self.time_step / struct_mass) * (
                     import_Nm
                     - diffusion_Nm_soil
                     + diffusion_Nm_xylem
@@ -926,7 +926,7 @@ class RootNitrogenModel(Model):
                     - AA_synthesis * self.r_Nm_AA
                     + AA_catabolism / self.r_Nm_AA
                     + nitrogenase_fixation
-                    - deficit_Nm)
+                    - deficit_Nm))
         else:
             return 0
 
@@ -952,7 +952,7 @@ class RootNitrogenModel(Model):
     def _AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
         if struct_mass > 0:
-            return AA + (self.time_step / struct_mass) * (
+            return max(0., AA + (self.time_step / struct_mass) * (
                     diffusion_AA_phloem
                     + import_AA
                     - diffusion_AA_soil
@@ -962,8 +962,7 @@ class RootNitrogenModel(Model):
                     - storage_synthesis * self.r_AA_stor
                     + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
-                    - deficit_AA
-            )
+                    - deficit_AA))
         # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
         # Sachant C:N struct environ de 10 = (Chex + CAA)/NAA Chex = 10*28 - 60 = 220 g Chex.
         # Sachang qu'un hexose contient 12*6=72 gC.mol-1 hex, c'est donc environ 3 hexoses pour 1 AA qui seraient consommés.
@@ -1018,7 +1017,7 @@ class RootNitrogenModel(Model):
     
     @totalstate
     def _AA_root_shoot_phloem_record(self, AA_root_shoot_phloem):
-        return -AA_root_shoot_phloem[1]
+        return AA_root_shoot_phloem[1]
 
     @totalstate
     def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem,

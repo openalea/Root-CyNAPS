@@ -60,12 +60,23 @@ if __name__ == "__main__":
     print("Starting simulation in 5 seconds, use Ctrl+C to cancel !")
     time.sleep(5)
 
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
-    #            "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
-    #              "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
-    #              "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
-    #              "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
-    #              "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
+    simulation_block = {"reference": {"patch_depth_mineralN": None, "patch_depth_water_moisture": None},
+                        "unitary_N": {"patch_depth_mineralN": 0., "patch_depth_water_moisture": None},
+                        "unitary_W": {"patch_depth_mineralN": None, "patch_depth_water_moisture": 0.},
+                        "cross_CN": {"patch_depth_mineralN": 0., "patch_depth_water_moisture": 0.}
+                        }
 
-    simulate_scenarios(scenarios, simulation_length=24, log_settings=Logger.heavy_log, analyze=False)
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
+               "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
+                 "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
+                 "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
+                 "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
+                 "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
+    
+    # senarios_blocks = ms.variate_scenario_sets(scenarios, simulation_block)
+
+    # for scenarios_block in senarios_blocks:
+    #     simulate_scenarios(scenarios_block, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
+
+    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
