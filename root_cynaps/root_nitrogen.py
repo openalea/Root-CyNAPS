@@ -107,6 +107,9 @@ class RootNitrogenModel(Model):
     distance_from_tip: float = declare(default=3.e-3, unit="m", unit_comment="", description="Example distance from tip", 
                                       min_value="", max_value="", value_comment="", references="", DOI="",
                                        variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    vertex_index: int = declare(default=1, unit="mol.s-1", unit_comment="", description="Unique vertex identifier stored for ease of value access", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
     AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
@@ -896,29 +899,12 @@ class RootNitrogenModel(Model):
                 total_hexose[1] / (total_hexose[1] + self.Km_C_cytok)) * (
                 total_Nm[1] / (total_Nm[1] + self.Km_N_cytok))
 
-    @deficit
-    @state
-    # This function adjusts possibly negative concentrations by setting them to 0 and by recording the corresponding deficit.
-    def _deficit_Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
-        if struct_mass > 0:
-            return -min(0., Nm + (self.time_step / struct_mass) * (
-                    import_Nm
-                    - diffusion_Nm_soil
-                    + diffusion_Nm_xylem
-                    - export_Nm
-                    - AA_synthesis * self.r_Nm_AA
-                    + AA_catabolism / self.r_Nm_AA
-                    + nitrogenase_fixation
-                    - deficit_Nm))
-        else:
-            return 0
     
-    @actual
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
+    def _Nm(self, vertex_index, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
         if struct_mass > 0:
-            return max(0., Nm + (self.time_step / struct_mass) * (
+            balance = Nm + (self.time_step / struct_mass) * (
                     import_Nm
                     - diffusion_Nm_soil
                     + diffusion_Nm_xylem
@@ -926,52 +912,44 @@ class RootNitrogenModel(Model):
                     - AA_synthesis * self.r_Nm_AA
                     + AA_catabolism / self.r_Nm_AA
                     + nitrogenase_fixation
-                    - deficit_Nm))
+                    - deficit_Nm)
+            if balance < 0.:
+                deficit = - balance * (struct_mass) / self.time_step
+                self.deficit_Nm[vertex_index] = deficit if deficit > 1e-20 else 0.
+                return 0.
+            else:
+                self.deficit_Nm[vertex_index] = 0.
+                return balance
         else:
             return 0
 
-    @deficit
-    @state
-    def _deficit_AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
-        if struct_mass > 0:
-            return -min(0., AA + (self.time_step / struct_mass) * (
-                    diffusion_AA_phloem
-                    + import_AA
-                    - diffusion_AA_soil
-                    - export_AA
-                    + AA_synthesis
-                    - struct_synthesis
-                    - storage_synthesis * self.r_AA_stor
-                    + storage_catabolism / self.r_AA_stor
-                    - AA_catabolism
-                    - deficit_AA))
 
-    @actual
     @state
-    def _AA(self, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+    def _AA(self, vertex_index, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
-        if struct_mass > 0:
-            return max(0., AA + (self.time_step / struct_mass) * (
-                    diffusion_AA_phloem
-                    + import_AA
-                    - diffusion_AA_soil
-                    - export_AA
-                    + AA_synthesis
-                    - struct_synthesis
-                    - storage_synthesis * self.r_AA_stor
-                    + storage_catabolism / self.r_AA_stor
-                    - AA_catabolism
-                    - deficit_AA))
-        # glutamine 5 C -> 60g.mol-1 2N -> 28 g.mol-1 : C:N = 2.1
-        # Sachant C:N struct environ de 10 = (Chex + CAA)/NAA Chex = 10*28 - 60 = 220 g Chex.
-        # Sachang qu'un hexose contient 12*6=72 gC.mol-1 hex, c'est donc environ 3 hexoses pour 1 AA qui seraient consommés.
-        # La proportion d'AA consommée par g de struct mass est donc de 1*146/(3*180 + 1*146) = 0.2 (180 g.mol-1 pour le glucose)
-
-        else:
-            return 0
         
-    
+        if struct_mass > 0:
+            balance =  AA + (self.time_step / struct_mass) * (
+                    diffusion_AA_phloem
+                    + import_AA
+                    - diffusion_AA_soil
+                    - export_AA
+                    + AA_synthesis
+                    - struct_synthesis
+                    - storage_synthesis * self.r_AA_stor
+                    + storage_catabolism / self.r_AA_stor
+                    - AA_catabolism
+                    - deficit_AA)
+            if balance < 0.:
+                deficit = - balance * (struct_mass) / self.time_step
+                self.deficit_AA[vertex_index] = deficit if deficit > 1e-20 else 0.
+                return 0.
+            else:
+                self.deficit_AA[vertex_index] = 0.
+                return balance
+
+        else:
+            return 0
 
     @state
     def _storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism):

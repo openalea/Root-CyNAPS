@@ -66,13 +66,13 @@ if __name__ == "__main__":
                         "cross_CN": {"patch_depth_mineralN": 0., "patch_depth_water_moisture": 0.}
                         }
 
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
-               "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
-                 "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
-                 "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
-                 "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
-                 "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
+    #            "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
+    #              "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11", 
+    #              "Input_RSML_R1_D09", "Input_RSML_R2_D09", "Input_RSML_R3_D09", "Input_RSML_R4_D09",
+    #              "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
+    #              "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
     
     # senarios_blocks = ms.variate_scenario_sets(scenarios, simulation_block)
 

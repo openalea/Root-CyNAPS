@@ -3,7 +3,7 @@ from analyze.analyze import analyze_data, test_output_range
 
 
 if __name__ == '__main__':
-
+    
     # simulation_block_names = ["reference", "unitary_N", "unitary_W", "cross_CN"]
 
     scenarios = ["Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
@@ -17,7 +17,7 @@ if __name__ == '__main__':
     #     analyze_data(scenarios=block_scenarios, outputs_dirpath="outputs", on_sums=False, animate_raw_logs=True, subdir_custom_name=block_name)
 
     scenarios = ["Input_RSML_R4_D13"]
-    #analyze_data(scenarios=scenarios, outputs_dirpath="outputs", on_sums=False, animate_raw_logs=True)
+    #analyze_data(scenarios=scenarios, outputs_dirpath="outputs", on_sums=True, animate_raw_logs=False)
 
     test_output_range(scenarios=scenarios, outputs_dirpath="outputs", test_file_dirpath="inputs/outputs_validation_root_cynaps_v0.xlsx")
         
