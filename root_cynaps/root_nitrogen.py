@@ -360,7 +360,7 @@ class RootNitrogenModel(Model):
     Km_stor_catab: float =              declare(default=250e-6, unit="mol.g-1", unit_comment="of storage", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    cmax_AA: float =                    declare(default=1e-10, unit="mol.s-1.g-1", unit_comment="of amino acids", description="",
+    cmax_AA: float =                    declare(default=5e-9, unit="mol.s-1.g-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="5e-9 for now not relevant as it doesn't contribute to C_hexose_root balance.", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_catab: float =                declare(default=2.5e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
