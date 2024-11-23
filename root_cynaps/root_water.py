@@ -135,7 +135,8 @@ class RootWaterModel(Model):
         self.link_self_to_mtg()
 
     def post_coupling_init(self):
-        self.get_available_inputs()
+        self.pull_available_inputs()
+        
         # Must be performed after so that self state variables are indeed dicts
         self.init_xylem_water()
 
