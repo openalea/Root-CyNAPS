@@ -46,6 +46,12 @@ class RootNitrogenModel(Model):
     soil_AA: float = declare(default=8.2e-3, unit="mol.m-3", unit_comment="of amino acids", description="",
                             min_value="", max_value="", value_comment="Fischer et al 2007, water leaching estimation", references="", DOI="", 
                             variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
+    struct_mass_fungus: float = declare(default=1e-3, unit="g", unit_comment="of hyphal structural mass", description="",
+                            min_value="", max_value="", value_comment="", references="", DOI="", 
+                            variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
+    Nm_fungus: float = declare(default=1e-4, unit="mol.g-1", unit_comment="mol of inorganic nitrogen per g or hyphal structural mass", description="",
+                            min_value="", max_value="", value_comment="", references="", DOI="", 
+                            variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
     root_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="",
@@ -173,6 +179,7 @@ class RootNitrogenModel(Model):
     diffusion_AA_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+    
     # Metabolic processes
     AA_synthesis: float =                   declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
@@ -184,9 +191,6 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     AA_catabolism: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
-    nitrogenase_fixation: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     storage_catabolism: float =             declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
@@ -217,6 +221,19 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     cumulated_radial_exchanges_AA: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+
+    # Symbiotic-specific nitrogen exchanges
+    nitrogenase_fixation: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+    
+    mycorrhiza_infected_length: float =          declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="Length of the root segment infected by AMF", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+
+    mychorizal_mediated_import_Nm: float =          declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="Transfer of inorganic nitrogen from michoriza to root", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
@@ -323,6 +340,26 @@ class RootNitrogenModel(Model):
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    # Mycorrhiza related parameters
+    # Infection-related
+    mycorrhiza_infection_probability: float =   declare(default=0.15 * 100 / (24*3600) / 1e-3, unit=".m-1.s-1.g-1", unit_comment="", description="Probability of AMF primary infection by root length, time and fungus structural mass unit.", 
+                                                min_value="", max_value="", value_comment="", references="(Schnepf et al. 2016)", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    mycorrhiza_max_distance_from_tip: float =   declare(default=0.15, unit="m", unit_comment="", description="Maximal distance from tip were AMF arbuscules have been observed", 
+                                                min_value="", max_value="", value_comment="", references="(Schnepf et al. 2016)", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    mycorrhiza_internal_infection_speed: float =   declare(default=0.13 * 1e-2 / (24 * 3600), unit="m.s-1", unit_comment="", description="Secondary infection progression speed along root-length", 
+                                                min_value="", max_value="", value_comment="", references="(Schnepf et al. 2016)", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    # Transport-related
+    vmax_N_to_roots_fungus : float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Maximal rate of amonium export from AMF to roots, per infected root length", 
+                                                min_value="", max_value="", value_comment="", references="Assumption", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_N_to_roots_fungus : float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Affinity for amonium during export from AMF to roots", 
+                                                min_value="", max_value="", value_comment="", references="Assumption", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # metabolism-related parameters
@@ -892,6 +929,52 @@ class RootNitrogenModel(Model):
             return struct_mass * vmax_bnf * C_hexose_root / (self.Km_bnf + C_hexose_root)
         else:
             return 0.
+    @state
+    def _mycorrhiza_infected_length(self, vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length):
+        """
+        From Scnepf et al 2016, modified with distance from tip here to avoid not computed root age
+        NOTE : When coupling with a carbon model, mycorrhiza_infection_probability could be plasticized by mycorrhiza and C signaling exudation
+        NOTE : When coupling with a carbon model, mycorrhiza_internal_infection_speed could be plasticized by C allocation to mycorrhiza.
+        """
+
+        if mycorrhiza_infected_length < length:
+            # If a progress of infection is still possible
+            local_infection_probability = max(1 - distance_from_tip / self.mycorrhiza_max_distance_from_tip, 0.) * (
+                self.mycorrhiza_infection_probability * struct_mass_fungus * length * self.time_step)
+            
+            if (np.random() < local_infection_probability and mycorrhiza_infected_length + (2 * self.mycorrhiza_internal_infection_speed * self.time_step) < length) or (
+                mycorrhiza_infected_length > 0.):
+                # If new infection occurs in segment or the segment is already infected
+                mycorrhiza_infected_length += 2 * self.mycorrhiza_internal_infection_speed * self.time_step
+                
+                if mycorrhiza_infected_length > length:
+                    infection_to_parent = (mycorrhiza_infected_length - length) / 2
+                    parent = self.g.parent(vertex_index)
+                    if parent:
+                        if parent.length - parent.mycorrhiza_infected_length > infection_to_parent:
+                            parent.mycorrhiza_infected_length += infection_to_parent
+                        else:
+                            parent.mycorrhiza_infected_length = parent.length
+
+                    children = self.g.children(vertex_index)
+                    if len(children) > 0:
+                        infection_to_children = infection_to_parent / len(children)
+                        for child in children:
+                            if child.length - child.mycorrhiza_infected_length > infection_to_children:
+                                child.mycorrhiza_infected_length += infection_to_children
+                            else:
+                                child.mycorrhiza_infected_length = child.length
+                    
+                    mycorrhiza_infected_length = length
+
+        return mycorrhiza_infected_length
+
+    @rate
+    def _mychorizal_mediated_import_Nm(self, mycorrhiza_infected_length, Nm_fungus):
+        """
+        Mainly Ammonium active export by AMF to roots as reported from 
+        """
+        return self.vmax_N_to_roots_fungus * mycorrhiza_infected_length * Nm_fungus / (Nm_fungus + self.Km_N_to_roots_fungus)
 
     @totalrate
     def _cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm):
@@ -902,10 +985,11 @@ class RootNitrogenModel(Model):
     
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, vertex_index, Nm, struct_mass, import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
+    def _Nm(self, vertex_index, Nm, struct_mass, import_Nm, mychorizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
         if struct_mass > 0:
             balance = Nm + (self.time_step / struct_mass) * (
                     import_Nm
+                    + mychorizal_mediated_import_Nm
                     - diffusion_Nm_soil
                     + diffusion_Nm_xylem
                     - export_Nm
