@@ -406,7 +406,7 @@ class RootNitrogenModel(Model):
     storage_C_regulation: float =       declare(default=3e1, unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="Changed to avoid reaching Vmax with slight decrease in hexose content", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-
+    
     # HORMONES METABOLISM PROCESSES
     # kinetic parameters
     smax_cytok: float =                 declare(default=9e-4, unit="UA.s-1.g-1", unit_comment="of cytokinins", description="", 
@@ -418,6 +418,35 @@ class RootNitrogenModel(Model):
     Km_N_cytok: float =                 declare(default=5.0e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+
+    # Temperature-related parameters
+    # Active processes, Q10 bell-shaped dependancy
+    active_processes_T_ref: float = declare(default=20, unit="°C", unit_comment="", description="the reference temperature", 
+                                               min_value="", max_value="", value_comment="", references="Most measured kinetics have been performed in laboratory conditions and hydroponics", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    active_processes_A: float = declare(default=-0.0442, unit="adim", unit_comment="", description="parameter A (may be equivalent to the coefficient of linear increase)", 
+                                           min_value="", max_value="", value_comment="", references="Gifford (1995), see T_ref", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    active_processes_B: float = declare(default=1.55, unit="adim", unit_comment="", description="parameter B (may be equivalent to the Q10 value)", 
+                                           min_value="", max_value="", value_comment="", references="Gifford (1995), see T_ref", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    active_processes_C: float = declare(default=1, unit="adim", unit_comment="", description="parameter C (either 0 or 1)", 
+                                           min_value="", max_value="", value_comment="", references="Gifford (1995), see T_ref", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    
+    # Passive processes, supposing no temperature dependancy
+    passive_processes_T_ref: float = declare(default=20, unit="°C", unit_comment="", description="the reference temperature", 
+                                             min_value="", max_value="", value_comment="", references="We assume that the permeability does not directly depend on temperature, according to the contrasted results obtained by Wan et al. (2001) on poplar, Shen and Yan (2002) on crotalaria, Hill et al. (2007) on wheat, or Kaldy (2012) on a sea grass.", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    passive_processes_A: float = declare(default=0., unit="adim", unit_comment="", description="parameter A (may be equivalent to the coefficient of linear increase)", 
+                                         min_value="", max_value="", value_comment="", references="see T_ref", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    passive_processes_B: float = declare(default=1., unit="adim", unit_comment="", description="parameter B (may be equivalent to the Q10 value)", 
+                                         min_value="", max_value="", value_comment="", references="see T_ref", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+    passive_processes_C: float = declare(default=0., unit="adim", unit_comment="", description="parameter C (either 0 or 1)", 
+                                         min_value="", max_value="", value_comment="", references="see T_ref", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
 
     # CONVERSION RATIO FOR STATE VARIABLES
     r_Nm_AA: float =                    declare(default=1.4, unit="adim", unit_comment="concentration ratio", description="", 
@@ -535,7 +564,7 @@ class RootNitrogenModel(Model):
     # RADIAL TRANSPORT PROCESSES
     # MINERAL NITROGEN TRANSPORT
     @rate
-    def _import_Nm(self, Nm, soil_Nm, root_exchange_surface, C_hexose_root=1e-4):
+    def _import_Nm(self, Nm, soil_Nm, root_exchange_surface, soil_temperature, C_hexose_root=1e-4):
         """
                 Description
                 ___________
@@ -568,7 +597,13 @@ class RootNitrogenModel(Model):
                      * np.exp(-Nm / self.span_N_regulation))
         ) + self.Km_Nm_root_HATS
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((soil_Nm * self.vmax_Nm_root / (soil_Nm + Km_Nm_root)) * root_exchange_surface * (
+        vmax_Nm_root = self.vmax_Nm_root * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+
+        return ((soil_Nm * vmax_Nm_root / (soil_Nm + Km_Nm_root)) * root_exchange_surface * (
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
     
     @rate
@@ -579,76 +614,121 @@ class RootNitrogenModel(Model):
                      * np.exp(-Nm / self.span_N_regulation)))
 
     @rate
-    def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, struct_mass, symplasmic_volume):
+    def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, struct_mass, symplasmic_volume, soil_temperature):
         if symplasmic_volume <= 0:
             return 0.
         else:
             # Passive radial diffusion between soil and cortex.
             # It happens only through root segment external surface.
             # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-            return (self.diffusion_soil * ((Nm * struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
+            diffusion_soil = self.diffusion_soil * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+            return (diffusion_soil * ((Nm * struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
 
     @rate
-    def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, C_hexose_root=1e-4):
+    def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, C_hexose_root=1e-4):
         # We define active export to xylem from root segment
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((Nm * self.vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * (root_exchange_surface - cortex_exchange_surface) * (
+        vmax_Nm_xylem = self.vmax_Nm_xylem * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        return ((Nm * vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * (root_exchange_surface - cortex_exchange_surface) * (
                 C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
     @rate
-    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface):
+    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature):
         # Passive radial diffusion between xylem and cortex through plasmalema
-        return self.diffusion_xylem * (xylem_Nm - Nm) * (root_exchange_surface - cortex_exchange_surface)
+        diffusion_xylem = self.diffusion_xylem * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+        return diffusion_xylem * (xylem_Nm - Nm) * (root_exchange_surface - cortex_exchange_surface)
 
     @rate
-    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume):
+    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0.:
             return 0.
         else:
             # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
             # Here, surface is not really representative of a structure as everything is apoplasmic
-            return self.diffusion_apoplasm * (
+            diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+            return diffusion_apoplasm * (
                     (xylem_Nm * struct_mass / xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
     # AMINO ACID TRANSPORT
     @rate
-    def _import_AA(self, soil_AA, root_exchange_surface, C_hexose_root=1e-4):
+    def _import_AA(self, soil_AA, root_exchange_surface, soil_temperature, C_hexose_root=1e-4):
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((soil_AA * self.vmax_AA_root / (soil_AA + self.Km_AA_root)) * root_exchange_surface * (
+        vmax_AA_root = self.vmax_AA_root * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        return ((soil_AA * vmax_AA_root / (soil_AA + self.Km_AA_root)) * root_exchange_surface * (
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, struct_mass, symplasmic_volume):
+    def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, struct_mass, symplasmic_volume, soil_temperature):
         if symplasmic_volume <= 0:
             return 0.
         else:
             # We define amino acid passive diffusion to soil
-            return (self.diffusion_soil * ((AA * struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
+            diffusion_soil = self.diffusion_soil * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+            return (diffusion_soil * ((AA * struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
 
     @rate
-    def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, C_hexose_root=1e-4):
+    def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, soil_temperature, C_hexose_root=1e-4):
         # We define active export to xylem from root segment
         # Km is defined as a constant here
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        return ((AA * self.vmax_AA_xylem / (AA + self.Km_AA_xylem))
+        vmax_AA_xylem = self.vmax_AA_xylem * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        return ((AA * vmax_AA_xylem / (AA + self.Km_AA_xylem))
                 * (root_exchange_surface - cortex_exchange_surface) * (C_hexose_root / (
                         C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume):
+    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0:
             return 0.
         else:
             # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-            return (self.diffusion_apoplasm * ((xylem_AA * struct_mass / xylem_volume) - soil_AA)
+            diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+            return (diffusion_apoplasm * ((xylem_AA * struct_mass / xylem_volume) - soil_AA)
                     * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
 
     @rate
-    def _diffusion_AA_phloem(self, AA, phloem_exchange_surface):
+    def _diffusion_AA_phloem(self, AA, phloem_exchange_surface, soil_temperature):
         # Passive radial diffusion between phloem and cortex through plasmodesmata
         # TODO : Change diffusive flow to enable realistic ranges, now, unloading is limited by a ping pong bug related to diffusion
         # TODO : resolve exception when mapping has to deal with plant scale properties AND local ones
-        return (self.diffusion_phloem * (self.total_phloem_AA[1] - AA)
+        diffusion_phloem = self.diffusion_phloem * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+        return (diffusion_phloem * (self.total_phloem_AA[1] - AA)
                 * phloem_exchange_surface)
 
     @axial
@@ -890,10 +970,15 @@ class RootNitrogenModel(Model):
 
     # METABOLIC PROCESSES
     @rate
-    def _AA_synthesis(self, struct_mass, Nm, C_hexose_root=1e-4):
+    def _AA_synthesis(self, struct_mass, Nm, soil_temperature, C_hexose_root=1e-4):
         # amino acid synthesis
         if C_hexose_root > 0 and Nm > 0:
-            return struct_mass * self.smax_AA / (
+            smax_AA = self.smax_AA * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+            return struct_mass * smax_AA / (
                     ((1 + self.Km_Nm_AA) / Nm) + ((1 + self.Km_C_AA) / C_hexose_root))
         else:
             return 0
@@ -904,27 +989,46 @@ class RootNitrogenModel(Model):
         return (struct_mass_produced + root_hairs_struct_mass_produced) * self.struct_mass_N_content / self.r_Nm_AA
         
     @rate
-    def _storage_synthesis(self, struct_mass, AA):
+    def _storage_synthesis(self, struct_mass, AA, soil_temperature):
         # Organic storage synthesis (Michaelis-Menten kinetic)
-        return struct_mass * (self.smax_stor * AA / (self.Km_AA_stor + AA))
+        smax_stor = self.smax_stor * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        return struct_mass * (smax_stor * AA / (self.Km_AA_stor + AA))
 
     @rate
-    def _storage_catabolism(self, struct_mass, storage_protein, C_hexose_root=1e-4):
+    def _storage_catabolism(self, struct_mass, storage_protein, soil_temperature, C_hexose_root=1e-4):
         # Organic storage catabolism through proteinase
         Km_stor_root = self.Km_stor_catab * np.exp(self.storage_C_regulation * C_hexose_root)
-        return struct_mass * self.cmax_stor * storage_protein / (Km_stor_root + storage_protein)
+        cmax_stor = self.cmax_stor * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        return struct_mass * cmax_stor * storage_protein / (Km_stor_root + storage_protein)
 
     @rate
-    def _AA_catabolism(self, struct_mass, AA, C_hexose_root=1e-4):
+    def _AA_catabolism(self, struct_mass, AA, soil_temperature, C_hexose_root=1e-4):
         # AA catabolism through GDH
         Km_stor_root = self.Km_AA_catab * np.exp(self.storage_C_regulation * C_hexose_root)
-        return struct_mass * self.cmax_AA * AA / (Km_stor_root + AA)
+        cmax_AA = self.cmax_AA * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        return struct_mass * cmax_AA * AA / (Km_stor_root + AA)
 
     #@rate
-    def _nitrogenase_fixation(self, type, struct_mass, C_hexose_root, Nm):
+    def _nitrogenase_fixation(self, type, struct_mass, C_hexose_root, Nm, soil_temperature):
         if type == "Root_nodule":
             # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
-            vmax_bnf = self.vmax_bnf_0 * 1 / (1 + (self.K_bnf_inibition / Nm))
+            vmax_bnf = self.vmax_bnf * (1 / (1 + (self.K_bnf_inibition / Nm))) * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                                                            T_ref=self.active_processes_T_ref,
+                                                                                                            A=self.active_processes_A,
+                                                                                                            B=self.active_processes_B,
+                                                                                                            C=self.active_processes_C)
             # Michaelis-Menten formalism
             return struct_mass * vmax_bnf * C_hexose_root / (self.Km_bnf + C_hexose_root)
         else:
@@ -970,15 +1074,25 @@ class RootNitrogenModel(Model):
         return mycorrhiza_infected_length
 
     @rate
-    def _mychorizal_mediated_import_Nm(self, mycorrhiza_infected_length, Nm_fungus):
+    def _mychorizal_mediated_import_Nm(self, mycorrhiza_infected_length, Nm_fungus, soil_temperature):
         """
         Mainly Ammonium active export by AMF to roots as reported from 
         """
-        return self.vmax_N_to_roots_fungus * mycorrhiza_infected_length * Nm_fungus / (Nm_fungus + self.Km_N_to_roots_fungus)
+        vmax_N_to_roots_fungus = self.vmax_N_to_roots_fungus * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                                            T_ref=self.active_processes_T_ref,
+                                                                                            A=self.active_processes_A,
+                                                                                            B=self.active_processes_B,
+                                                                                            C=self.active_processes_C)
+        return vmax_N_to_roots_fungus * mycorrhiza_infected_length * Nm_fungus / (Nm_fungus + self.Km_N_to_roots_fungus)
 
     @totalrate
-    def _cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm):
-        return total_struct_mass[1] * self.smax_cytok * (
+    def _cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm, soil_temperature):
+        smax_cytok = self.smax_cytok * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                                            T_ref=self.active_processes_T_ref,
+                                                                                            A=self.active_processes_A,
+                                                                                            B=self.active_processes_B,
+                                                                                            C=self.active_processes_C)
+        return total_struct_mass[1] * smax_cytok * (
                 total_hexose[1] / (total_hexose[1] + self.Km_C_cytok)) * (
                 total_Nm[1] / (total_Nm[1] + self.Km_N_cytok))
 
