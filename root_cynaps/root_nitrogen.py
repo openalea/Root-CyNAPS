@@ -355,12 +355,25 @@ class RootNitrogenModel(Model):
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # Transport-related
-    vmax_N_to_roots_fungus : float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Maximal rate of amonium export from AMF to roots, per infected root length", 
+    vmax_N_to_roots_fungus: float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Maximal rate of amonium export from AMF to roots, per infected root length", 
                                                 min_value="", max_value="", value_comment="", references="Assumption", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_N_to_roots_fungus : float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Affinity for amonium during export from AMF to roots", 
+    Km_N_to_roots_fungus: float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Affinity for amonium during export from AMF to roots", 
                                                 min_value="", max_value="", value_comment="", references="Assumption", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+
+    # Biological Nitrogen Fixation related parameters
+    vmax_bnf: float =   declare(default=31.e-6 * 2 / 3600, unit="mol.g-1.s-1", unit_comment="g-1 of Nodule dry mass", description="Maximal nitrogenase Biological Nitrogen Fixation (BNF) rate observed in the litterature from ARA", 
+                                min_value="", max_value="", value_comment="", references="Lyu et al. 2020; Soper et al. 2021", DOI="",
+                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    K_bnf_Nm_inibition: float =   declare(default=1e-4, unit="mol.g-1", unit_comment="", description="Inibition affinity for mineral Nitrogen in Michaelis-Menten formalism", 
+                                min_value="", max_value="", value_comment="", references="Assumption of inibition starting at low Nm concentration", DOI="",
+                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    Km_hexose_bnf: float =   declare(default=1e-5, unit="mol.g-1", unit_comment="", description="Hexose affinity by consumption by N2 reduction chain of reactions",
+                                min_value="", max_value="", value_comment="", references="Udvardi et Day 1997", DOI="",
+                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # metabolism-related parameters
     transport_C_regulation: float =     declare(default=7e-3, unit="mol.g-1", unit_comment="of hexose", description="", 
@@ -1024,15 +1037,16 @@ class RootNitrogenModel(Model):
     def _nitrogenase_fixation(self, type, struct_mass, C_hexose_root, Nm, soil_temperature):
         if type == "Root_nodule":
             # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
-            vmax_bnf = self.vmax_bnf * (1 / (1 + (self.K_bnf_inibition / Nm))) * self.temperature_modification(soil_temperature=soil_temperature,
+            vmax_bnf = (self.vmax_bnf / (1 + (Nm / self.K_bnf_Nm_inibition))) * self.temperature_modification(soil_temperature=soil_temperature,
                                                                                                             T_ref=self.active_processes_T_ref,
                                                                                                             A=self.active_processes_A,
                                                                                                             B=self.active_processes_B,
                                                                                                             C=self.active_processes_C)
             # Michaelis-Menten formalism
-            return struct_mass * vmax_bnf * C_hexose_root / (self.Km_bnf + C_hexose_root)
+            return struct_mass * vmax_bnf * C_hexose_root / (self.Km_hexose_bnf + C_hexose_root)
         else:
             return 0.
+        
     @state
     def _mycorrhiza_infected_length(self, vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length):
         """
