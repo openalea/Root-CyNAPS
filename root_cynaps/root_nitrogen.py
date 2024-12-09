@@ -355,11 +355,11 @@ class RootNitrogenModel(Model):
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # Transport-related
-    vmax_N_to_roots_fungus: float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Maximal rate of amonium export from AMF to roots, per infected root length", 
-                                                min_value="", max_value="", value_comment="", references="Assumption", DOI="",
+    vmax_Nm_to_roots_fungus: float =   declare(default=2.55e-9 / 3600, unit="mol.s-1.m-1", unit_comment="", description="Maximal rate of amonium export from AMF to roots, per infected root length", 
+                                                min_value="", max_value="", value_comment="Assuming a length per struct_mass ratio stabilised at 70 for plants at 1200 DD", references="Hawkins et al. 2000; 1999", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_N_to_roots_fungus: float =   declare(default=0., unit="mol.s-1.m-1", unit_comment="", description="Affinity for amonium during export from AMF to roots", 
-                                                min_value="", max_value="", value_comment="", references="Assumption", DOI="",
+    Km_Nm_to_roots_fungus: float =   declare(default=16.6e-6, unit="mol.g-1", unit_comment="per g of AMF", description="Affinity of ZmAMT3;1 for amonium during export from AMF to roots", 
+                                                min_value="", max_value="", value_comment="Measured on yeast", references="Hui et al. 2022", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
     # Biological Nitrogen Fixation related parameters
