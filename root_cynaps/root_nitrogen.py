@@ -233,7 +233,7 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
-    mychorizal_mediated_import_Nm: float =          declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="Transfer of inorganic nitrogen from michoriza to root", 
+    mycorrhizal_mediated_import_Nm: float =          declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="Transfer of inorganic nitrogen from michoriza to root", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
@@ -1088,7 +1088,7 @@ class RootNitrogenModel(Model):
         return mycorrhiza_infected_length
 
     @rate
-    def _mychorizal_mediated_import_Nm(self, mycorrhiza_infected_length, Nm_fungus, soil_temperature):
+    def _mycorrhizal_mediated_import_Nm(self, mycorrhiza_infected_length, Nm_fungus, soil_temperature):
         """
         Mainly Ammonium active export by AMF to roots as reported from 
         """
@@ -1113,11 +1113,11 @@ class RootNitrogenModel(Model):
     
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, vertex_index, Nm, struct_mass, import_Nm, mychorizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
+    def _Nm(self, vertex_index, Nm, struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
         if struct_mass > 0:
             balance = Nm + (self.time_step / struct_mass) * (
                     import_Nm
-                    + mychorizal_mediated_import_Nm
+                    + mycorrhizal_mediated_import_Nm
                     - diffusion_Nm_soil
                     + diffusion_Nm_xylem
                     - export_Nm
