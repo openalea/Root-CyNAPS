@@ -19,7 +19,7 @@ requirements:
     - setuptools
     - openalea.deploy
   run:
-    - python >=3.8
+    - python >=3.9
     # Model
     - openalea.mtg
     - pandas
@@ -32,12 +32,12 @@ test:
   imports:
     - rhizodep
     - root_cynaps
-    - generic_fspm
+    - metafspm
   source_files:
     - test/**
   commands:
     - cd test
-    - pytest -v --ignore=test_aml.py  --ignore=test_stat.py
+    - pytest -v --ignore=test_ignored.py
 
 about:
   home: {{ data.get('url') }}
