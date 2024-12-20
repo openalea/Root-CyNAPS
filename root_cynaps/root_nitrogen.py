@@ -1060,15 +1060,16 @@ class RootNitrogenModel(Model):
             local_infection_probability = max(1 - distance_from_tip / self.mycorrhiza_max_distance_from_tip, 0.) * (
                 self.mycorrhiza_infection_probability * struct_mass_fungus * length * self.time_step)
             
-            if (np.random() < local_infection_probability and mycorrhiza_infected_length + (2 * self.mycorrhiza_internal_infection_speed * self.time_step) < length) or (
+            if (np.random.random() < local_infection_probability and mycorrhiza_infected_length + (2 * self.mycorrhiza_internal_infection_speed * self.time_step) < length) or (
                 mycorrhiza_infected_length > 0.):
                 # If new infection occurs in segment or the segment is already infected
                 mycorrhiza_infected_length += 2 * self.mycorrhiza_internal_infection_speed * self.time_step
                 
                 if mycorrhiza_infected_length > length:
                     infection_to_parent = (mycorrhiza_infected_length - length) / 2
-                    parent = self.g.parent(vertex_index)
-                    if parent:
+                    parent_id = self.g.parent(vertex_index)
+                    if parent_id:
+                        parent = self.g.node(parent_id)
                         if parent.length - parent.mycorrhiza_infected_length > infection_to_parent:
                             parent.mycorrhiza_infected_length += infection_to_parent
                         else:
@@ -1077,7 +1078,8 @@ class RootNitrogenModel(Model):
                     children = self.g.children(vertex_index)
                     if len(children) > 0:
                         infection_to_children = infection_to_parent / len(children)
-                        for child in children:
+                        for child_id in children:
+                            child = self.g.node(child_id)
                             if child.length - child.mycorrhiza_infected_length > infection_to_children:
                                 child.mycorrhiza_infected_length += infection_to_children
                             else:
@@ -1092,16 +1094,16 @@ class RootNitrogenModel(Model):
         """
         Mainly Ammonium active export by AMF to roots as reported from 
         """
-        vmax_N_to_roots_fungus = self.vmax_N_to_roots_fungus * self.temperature_modification(soil_temperature=soil_temperature,
+        vmax_Nm_to_roots_fungus = self.vmax_Nm_to_roots_fungus * self.temperature_modification(soil_temperature=soil_temperature,
                                                                                             T_ref=self.active_processes_T_ref,
                                                                                             A=self.active_processes_A,
                                                                                             B=self.active_processes_B,
                                                                                             C=self.active_processes_C)
-        return vmax_N_to_roots_fungus * mycorrhiza_infected_length * Nm_fungus / (Nm_fungus + self.Km_N_to_roots_fungus)
+        return vmax_Nm_to_roots_fungus * mycorrhiza_infected_length * Nm_fungus / (Nm_fungus + self.Km_Nm_to_roots_fungus)
 
     @totalrate
     def _cytokinin_synthesis(self, total_struct_mass, total_hexose, total_Nm, soil_temperature):
-        smax_cytok = self.smax_cytok * self.temperature_modification(soil_temperature=soil_temperature,
+        smax_cytok = self.smax_cytok * self.temperature_modification(soil_temperature=np.mean(list(soil_temperature.values())),
                                                                                             T_ref=self.active_processes_T_ref,
                                                                                             A=self.active_processes_A,
                                                                                             B=self.active_processes_B,

@@ -4,12 +4,14 @@ RootAnatomy:
   RootNitrogenModel: {}
   RootWaterModel: {}
   SoilModel: {}
+  
 RootGrowthModel:
   RootAnatomy: {}
   RootGrowthModel: {}
   RootNitrogenModel: {}
   RootWaterModel: {}
   SoilModel: {}
+
 RootNitrogenModel:
   RootAnatomy:
     cortex_exchange_surface:
@@ -52,6 +54,11 @@ RootNitrogenModel:
       C_amino_acids_soil: 1.0
     soil_Nm:
       C_mineralN_soil: 1.0
+    struct_mass_fungus:
+      microbial_C: 1.0
+    Nm_fungus:
+      microbial_N: 1.0
+
 RootWaterModel:
   RootAnatomy:
     apoplasmic_exchange_surface:
