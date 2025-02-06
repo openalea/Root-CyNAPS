@@ -13,15 +13,15 @@ RUN apt-get update && apt-get -y install libgl1
 
 RUN mkdir pp
 
-ADD . ./pp/root_cynaps
+ADD . ./package/root_cynaps
 
-WORKDIR ./pp/root_cynaps
+WORKDIR ./package/root_cynaps
 
 RUN python setup.py develop
 
-VOLUME ./pp/root_cynaps/simulations/running_scenarios/outputs
+VOLUME ./package/root_cynaps/simulations/outputs
 
 # Mandatory for good packages indexing
 USER root
 
-CMD python simulations/running_scenarios/main_run_scenarios.py
+CMD python -m ./package/root_cynaps/simulations/simutation.py
