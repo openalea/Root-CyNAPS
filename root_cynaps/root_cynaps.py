@@ -3,7 +3,7 @@ import root_cynaps
 from root_cynaps.root_nitrogen import RootNitrogenModel
 from root_cynaps.root_water import RootWaterModel
 from root_bridges.soil_model import SoilModel
-from rhizodep.root_anatomy import RootAnatomy
+from root_cynaps.root_anatomy import RootAnatomy
 from rhizodep.root_growth import RootGrowthModel
 
 from metafspm.composite_wrapper import CompositeModel
