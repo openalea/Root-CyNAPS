@@ -23,6 +23,9 @@ class RootWaterModel(Model):
     soil_temperature: float = declare(default=0., unit="°C", unit_comment="", description="", 
                                       min_value="", max_value="", value_comment="", references="", DOI="",
                                       variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
+    soil_solutes: float = declare(default=0., unit="mol.m-3", unit_comment="", description="Total soil solute volumic concentration", 
+                                      min_value="", max_value="", value_comment="", references="", DOI="",
+                                      variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
     xylem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
@@ -45,6 +48,14 @@ class RootWaterModel(Model):
     struct_mass: float = declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                  variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    
+    # FROM N MODEL
+    Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="",
+                                        min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
+    AA: float =                 declare(default=9e-4, unit="mol.g-1", unit_comment="of amino acids", description="",
+                                        min_value=1e-5, max_value=1e-2, value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
 
     # FROM SHOOT MODEL
     water_root_shoot_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
@@ -96,6 +107,12 @@ class RootWaterModel(Model):
                                         variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
     sap_viscosity: float = declare(default=1.3e6, unit="Pa", unit_comment="", description="", 
                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    nonN_solutes: float = declare(default=0, unit="mol.m-3", unit_comment="", description="Non N solutes volumic concentration in xylem", 
+                                   min_value="", max_value="", value_comment="Null for now, C could be ignored but other K and P minerals should probably be considered", references="", DOI="",
+                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    sigma_water: float = declare(default=1., unit="adim", unit_comment="", description="Effective reflection coefficient for osmotic related water transport flux", 
+                                   min_value="", max_value="", value_comment="", references="Bauget et al. 2023", DOI="",
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     # Vessel mechanical properties
@@ -209,7 +226,12 @@ class RootWaterModel(Model):
                 # radial exchanges are only hydrostatic-driven for now
                 apoplastic_water_import = self.apoplasmic_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.apoplasmic_exchange_surface[vid]
 
-                cross_membrane_water_import = self.cortex_water_conductivity * (self.soil_water_pressure[vid] - self.xylem_total_pressure[1]) * self.cortex_exchange_surface[vid]
+                cross_membrane_water_import = self.cortex_water_conductivity * (
+                    self.soil_water_pressure[vid] - self.xylem_total_pressure[1] + self.sigma_water * 8.314 * (273.15 + self.soil_temperature[vid])*(
+                        self.soil_solutes[vid] - (
+                        (self.Nm[vid] * self.struct_mass[vid] / self.xylem_volume[vid]) + (self.AA[vid] * self.struct_mass[vid] / self.xylem_volume[vid]) + self.nonN_solutes)
+                        )
+                    ) * self.cortex_exchange_surface[vid]
 
                 self.radial_import_water[vid] = (apoplastic_water_import + cross_membrane_water_import) * self.time_step
 
