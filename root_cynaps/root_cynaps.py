@@ -42,7 +42,6 @@ class Model(CompositeModel):
 
         parameters = scenario["parameters"]["root_cynaps"]["roots"]
         self.time = parameters["plant_age"]
-
         self.input_tables = scenario["input_tables"]
 
         # INIT INDIVIDUAL MODULES
@@ -57,12 +56,13 @@ class Model(CompositeModel):
         self.soil_voxels = self.soil.voxels
 
         # LINKING MODULES
-        self.declare_and_couple_components(self.soil, self.root_water, self.root_nitrogen, self.root_anatomy, self.root_growth,
-                                           translator_path=root_cynaps.__path__[0])
-        self.declare_data_structures(root=self.g, soil=self.soil_voxels)
+        self.declare_data_and_couple_components(root=self.g, soil=self.soil_voxels,
+                                                translator_path=root_cynaps.__path__[0],
+                                                components=(self.root_growth, self.root_anatomy, self.root_water, self.root_nitrogen, self.soil))
 
         # Some initialization must be performed after linking modules
         self.root_water.post_coupling_init()
+
         # Update topological surfaces and volumes based on initialized structural properties
         self.root_anatomy()
         self.soil()

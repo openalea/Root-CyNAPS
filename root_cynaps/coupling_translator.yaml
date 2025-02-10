@@ -58,6 +58,8 @@ RootNitrogenModel:
       microbial_C: 1.0
     Nm_fungus:
       microbial_N: 1.0
+    soil_temperature:
+      soil_temperature: 1.0
 
 RootWaterModel:
   RootAnatomy:

@@ -52,6 +52,9 @@ class RootNitrogenModel(Model):
     Nm_fungus: float = declare(default=1e-4, unit="mol.g-1", unit_comment="mol of inorganic nitrogen per g or hyphal structural mass", description="",
                             min_value="", max_value="", value_comment="", references="", DOI="", 
                             variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
+    soil_temperature: float = declare(default=20, unit="°C", unit_comment="", description="soil temperature in contact with roots",
+                            value_comment="", references="", DOI="",
+                            min_value="", max_value="", variable_type="input", by="model_temperature", state_variable_type="intensive", edit_by="user")
 
     # FROM ANATOMY MODEL
     root_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="",
@@ -229,7 +232,7 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     
-    mycorrhiza_infected_length: float =          declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="Length of the root segment infected by AMF", 
+    mycorrhiza_infected_length: float =          declare(default=0., unit="m", unit_comment="of root segment infected by mycorrhiza", description="Length of the root segment infected by AMF", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
@@ -1047,7 +1050,7 @@ class RootNitrogenModel(Model):
         else:
             return 0.
         
-    @state
+    #TP@state
     def _mycorrhiza_infected_length(self, vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length):
         """
         From Scnepf et al 2016, modified with distance from tip here to avoid not computed root age

@@ -15,13 +15,13 @@ def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo
     logger = Logger(model_instance=root_cynaps, components=root_cynaps.components,
                     outputs_dirpath=outputs_dirpath,
                     time_step_in_hours=1, logging_period_in_hours=6,
-                    echo=echo, auto_camera_position=True, **log_settings)
+                    echo=echo, static_mtg=True, **log_settings)
     
     try:
         for _ in range(simulation_length):
             # Placed here also to capture mtg initialization
-            logger()
             logger.run_and_monitor_model_step()
+            #logger()
             #root_cynaps.run()
 
     except (ZeroDivisionError, KeyboardInterrupt):
@@ -79,4 +79,4 @@ if __name__ == "__main__":
     # for scenarios_block in senarios_blocks:
     #     simulate_scenarios(scenarios_block, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
 
-    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
+    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.light_log, analyze=False)
