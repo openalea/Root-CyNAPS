@@ -71,16 +71,18 @@ RootWaterModel:
       xylem_volume: 1.0
   RootGrowthModel: {}
   RootNitrogenModel:
-    AA:
-      AA: 1.0
-    Nm:
-      Nm: 1.0
+    xylem_AA:
+      xylem_AA: 1.0
+    xylem_Nm:
+      xylem_Nm: 1.0
   RootWaterModel: {}
   SoilModel:
     soil_temperature:
       soil_temperature: 1.0
     soil_water_pressure:
       water_potential_soil: 1.0
+    C_solutes_soil:
+      C_solutes_soil: 1.0
 SoilModel:
   RootAnatomy:
     root_exchange_surface:
