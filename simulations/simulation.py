@@ -73,11 +73,15 @@ if __name__ == "__main__":
     #              "Input_RSML_R1_D07", "Input_RSML_R2_D07","Input_RSML_R3_D07",
     #              "Input_RSML_R1_D05","Input_RSML_R2_D05","Input_RSML_R3_D05","Input_RSML_R4_D05"])
 
-    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=[
+               "Input_RSML_R1_D13", "Input_RSML_R2_D13", "Input_RSML_R4_D13", 
+                 "Input_RSML_R1_D11", "Input_RSML_R2_D11", "Input_RSML_R3_D11", "Input_RSML_R4_D11"])
+
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_24_09_22.xlsx", which=["Input_RSML_R4_D13"])
     
     # senarios_blocks = ms.variate_scenario_sets(scenarios, simulation_block)
 
     # for scenarios_block in senarios_blocks:
     #     simulate_scenarios(scenarios_block, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)
 
-    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.light_log, analyze=False)
+    simulate_scenarios(scenarios, simulation_length=48, log_settings=Logger.heavy_log, analyze=False)

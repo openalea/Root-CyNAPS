@@ -1,4 +1,5 @@
 import numpy as np
+from numba import njit
 from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
 
@@ -199,21 +200,6 @@ class RootWaterModel(Model):
                                                     parent: getattr(self, prop)[parent] * (1 - mass_fraction)})
     
 
-    def _radial_import_water(self, xylem_total_pressure, args):
-        '''
-        :param: args dictionnary of numpy inputs of the system
-        '''
-        apoplastic_water_import = self.apoplasmic_water_conductivity * (args["soil_water_pressure"] - xylem_total_pressure) * args["apoplasmic_exchange_surface"]
-            
-        cross_membrane_water_import = self.cortex_water_conductivity * (
-                    args["soil_water_pressure"] - xylem_total_pressure - self.sigma_water * 8.314 * (273.15 + args["soil_temperature"])*(
-                        args["C_solutes_soil"] -
-                        (args["xylem_Nm"] * args["xylem_struct_mass"] / args["xylem_volume"]) + (args["xylem_AA"] * args["xylem_struct_mass"] / args["xylem_volume"]) + self.nonN_solutes)
-                    ) * args["cortex_exchange_surface"]
-        
-        return apoplastic_water_import + cross_membrane_water_import
-    
-
     @rate
     def transport_water(self):
 
@@ -221,6 +207,12 @@ class RootWaterModel(Model):
         numpy_args = ["radius", "length", "xylem_volume", "soil_water_pressure", "apoplasmic_exchange_surface", "soil_temperature", "C_solutes_soil", "xylem_Nm", "xylem_AA", "xylem_struct_mass", "cortex_exchange_surface"]
         
         args = {arg: np.array(list(getattr(self, arg).values())) for arg in numpy_args}
+        states = [self.water_root_shoot_xylem[1]]
+        states += [args[arg] for arg in ("soil_water_pressure", "apoplasmic_exchange_surface", "soil_temperature", "C_solutes_soil", "xylem_Nm", "xylem_struct_mass", "xylem_volume", "xylem_AA", "cortex_exchange_surface")]
+
+        class_params = ["apoplasmic_water_conductivity", "cortex_water_conductivity", "sigma_water", "nonN_solutes"]
+
+        params = [getattr(self, param) for param in class_params]
 
         norm_soil_pressure = np.sum((args["radius"]**2) * args["length"] * args["soil_water_pressure"]) / np.sum((args["radius"]**2) * args["length"])
         
@@ -229,22 +221,14 @@ class RootWaterModel(Model):
         #A = - self.xylem_young_modulus + norm_soil_pressure
         B = 4 * self.xylem_young_modulus * norm_soil_pressure + ((norm_soil_pressure)**2) - norm_soil_pressure_square
         C = (self.xylem_young_modulus**2) * self.water_molar_mass / (np.pi * self.xylem_cross_area_ratio * self.water_volumic_mass * np.sum((args["radius"]**2) * args["length"]))
-
-        def solve_water_transport(t, y):
-
-            total_xylem_water, xylem_total_pressure = y
-            
-            water_variation_rate = np.sum(self._radial_import_water(xylem_total_pressure, args)) - self.water_root_shoot_xylem[1]
-
-            pressure_derivative = C * ((B + C*total_xylem_water)**-0.5) * water_variation_rate
-
-            return [water_variation_rate, pressure_derivative]
         
+        params.append(B)
+        params.append(C)
         
         y0 = [self.total_xylem_water[1], self.xylem_total_pressure[1]]
 
         # Solve the system
-        sol = solve_ivp(solve_water_transport, (0, self.time_step), y0)
+        sol = solve_ivp(solve_water_transport, (0, self.time_step), y0, args=states + params)
         
         # Extract results
         self.total_xylem_water[1] = sol.y[0][-1]
@@ -257,11 +241,11 @@ class RootWaterModel(Model):
         # But we don't uptake the dict now to compute the delta
         new_xylem_water = dict(zip(self.xylem_water.keys(), xylem_water))
 
-        #self.xylem_water.update(new_xylem_water)
-
         # Same step for radial water transport
-        self.radial_import_water.update(dict(zip(self.xylem_water.keys(), self._radial_import_water(self.xylem_total_pressure[1], args))))
-
+        self.radial_import_water.update(dict(zip(self.xylem_water.keys(), np.where(args["xylem_volume"] != 0, 
+            _radial_import_water(self.xylem_total_pressure[1], args["soil_water_pressure"], args["soil_temperature"], args["C_solutes_soil"], args["xylem_Nm"], args["xylem_AA"], args["xylem_struct_mass"], args["xylem_volume"], args["apoplasmic_exchange_surface"], args["cortex_exchange_surface"],
+                                 (self.apoplasmic_water_conductivity, self.cortex_water_conductivity, self.sigma_water, self.nonN_solutes))
+                                                                                    , 0))))
                 
         # Finally we compute the axial result of the transpiration flux downward propagation
         self.axial_export_water_up[1] = self.water_root_shoot_xylem[1] * self.time_step
@@ -321,3 +305,39 @@ class RootWaterModel(Model):
                     for k in range(len(child)):
                         self.axial_export_water_up[child[k]] = (HP[k] / HP_tot) * self.axial_import_water_down[vid]
 
+#@njit
+def solve_water_transport(t, y, *args):
+
+    total_xylem_water, xylem_total_pressure = y
+
+    # Unpack states
+    (water_root_shoot_xylem, soil_water_pressure, apoplasmic_exchange_surface, soil_temperature, C_solutes_soil, xylem_Nm, xylem_struct_mass, xylem_volume, xylem_AA, cortex_exchange_surface, 
+    # Then parameters
+    apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes, B, C) = args
+
+    water_variation_rate = np.sum(
+        _radial_import_water(xylem_total_pressure, soil_water_pressure, soil_temperature, 
+                         C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
+                         apoplasmic_exchange_surface, cortex_exchange_surface, 
+                         (apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes)) # parameters
+    ) - water_root_shoot_xylem
+
+    pressure_derivative = C * ((B + C*total_xylem_water)**-0.5) * water_variation_rate
+
+    return [water_variation_rate, pressure_derivative]
+
+#@njit
+def _radial_import_water(xylem_total_pressure, soil_water_pressure, soil_temperature, 
+                         C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
+                         apoplasmic_exchange_surface, cortex_exchange_surface, params):
+    
+    apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes = params
+
+    apoplastic_water_import = apoplasmic_water_conductivity * (soil_water_pressure - xylem_total_pressure) * apoplasmic_exchange_surface
+    
+    cross_membrane_water_import = cortex_water_conductivity * (
+                soil_water_pressure - xylem_total_pressure - sigma_water * 8.314 * (273.15 + soil_temperature)*(C_solutes_soil -
+                    (xylem_Nm * xylem_struct_mass / xylem_volume) + (xylem_AA * xylem_struct_mass / xylem_volume) + nonN_solutes)
+                ) * cortex_exchange_surface
+    
+    return apoplastic_water_import + cross_membrane_water_import
