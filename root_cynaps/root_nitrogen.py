@@ -78,6 +78,9 @@ class RootNitrogenModel(Model):
     xylem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                   variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    xylem_struct_mass: float = declare(default=0, unit="g", unit_comment="of structural mass", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_anatomy", state_variable_type="extensive", edit_by="user")
                                             
 
     # FROM WATER BALANCE MODEL
@@ -199,12 +202,6 @@ class RootNitrogenModel(Model):
     storage_catabolism: float =             declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
-    xylem_struct_mass: float =              declare(default=1e-6, unit="g", unit_comment="of structural mass", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
-    phloem_struct_mass: float =              declare(default=1e-6, unit="g", unit_comment="of structural mass", description="", 
-                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     displaced_Nm_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
@@ -472,9 +469,6 @@ class RootNitrogenModel(Model):
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     r_AA_stor: float =                  declare(default=65, unit="adim", unit_comment="concentration ratio", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    histologic_xylem_cross_area_ratio: float =     declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="surface ratio", description="xylem cross-section area ratio * stele radius ratio^2",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     phloem_cross_area_ratio: float =    declare(default=0.15 * (0.36 ** 2), unit="adim", unit_comment="surface ratio", description="phloem cross-section area ratio * stele radius ratio^2", 
@@ -1179,15 +1173,6 @@ class RootNitrogenModel(Model):
             return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / xylem_struct_mass
         else:
             return 0
-
-    @state
-    # UPDATE STRUCTURAL VALUES TODO : do not keep in this module
-    def _xylem_struct_mass(self, struct_mass):
-        return struct_mass * self.histologic_xylem_cross_area_ratio
-
-    @state
-    def _phloem_struct_mass(self, struct_mass):
-        return struct_mass * self.phloem_cross_area_ratio
 
     # PLANT SCALE PROPERTIES UPDATE
 

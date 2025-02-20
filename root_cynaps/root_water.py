@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit
 from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
+import inspect
 
 from metafspm.component import Model, declare
 from metafspm.component_factory import *
@@ -51,6 +52,9 @@ class RootWaterModel(Model):
     struct_mass: float = declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                  variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    type: str = declare(default="Normal_root_after_emergence", unit="", unit_comment="", description="Example segment type provided by root growth model", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     
     # FROM N MODEL
     xylem_Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="",
@@ -153,6 +157,12 @@ class RootWaterModel(Model):
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
+        # Initial solved function lookup for efficient solver feeding
+        self.water_solver_kwargs = [param.name for param in inspect.signature(root_water_dynamics).parameters.values() 
+                                    if param.name not in {"t", "y", "adjacency", "K_axial"}]
+        self.water_solver_inputs_names = [name for name in self.water_solver_kwargs if isinstance(getattr(self, name), dict)]
+        self.water_solver_params = {name: getattr(self, name) for name in self.water_solver_kwargs if not isinstance(getattr(self, name), dict)}
+
     def post_coupling_init(self):
         self.pull_available_inputs()
         
@@ -164,10 +174,10 @@ class RootWaterModel(Model):
         # CHANGE TO TYPE DESCRIPTION!!!
         self.collar_children, self.collar_skip = [], []
         for vid in self.vertices:
-            child = self.g.children(vid)
-            if (self.struct_mass[vid] == 0) and (True in [self.struct_mass[k] > 0 for k in child]):
+            children = self.g.children(vid)
+            if self.type[vid] in ('Support_for_seminal_root', 'Support_for_adventitious_root') and children:
                 self.collar_skip += [vid]
-                self.collar_children += [k for k in self.g.children(vid) if self.struct_mass[k] > 0]
+                self.collar_children += [k for k in children if self.type[k] not in ('Support_for_seminal_root', 'Support_for_adventitious_root')]
         
     def init_xylem_water(self):
         # We initialize the xylem water content heterogeneity from initial soil - root pressure gradients
@@ -179,6 +189,7 @@ class RootWaterModel(Model):
                 np.pi*(self.radius[vid]**2)*self.length[vid]*self.xylem_cross_area_ratio*self.water_volumic_mass)/self.water_molar_mass
 
                 self.total_xylem_water[1] += self.xylem_water[vid]
+
 
     def post_growth_updating(self):
         """
@@ -201,6 +212,61 @@ class RootWaterModel(Model):
     
 
     @rate
+    def transport_water_heterogeneous(self):
+        # We map vid to matrix indices to avoid any mistake when updating the dictionnaries from numpy arrays
+        vid_to_indice = {vid: i for i, vid in enumerate(self.struct_mass.keys())}
+        n = len(vid_to_indice)
+
+        adjacency = np.zeros((n, n))
+
+        for vid, i in vid_to_indice.items():
+            if vid == 1: # If this is collar we assign precomputed children
+                children = self.collar_children
+            elif vid not in self.collar_skip:
+                children = self.g.children(vid)
+            else:
+                continue
+            # Then we edit the adjacency matrix
+            for child in children:
+                adjacency[i, vid_to_indice[child]] = 1
+
+        # Parameters don't change but inputs are to be retrieved
+        kwargs = self.water_solver_params
+        kwargs.update({name: np.array(list(getattr(self, name).values())) for name in self.water_solver_inputs_names})
+
+        # Specific inputs are finally added here
+        kwargs["adjacency"] = adjacency
+        kwargs["K_axial"] = np.where(kwargs["length"] > 0., np.pi * (kwargs["radius"]**4) / (8 * self.sap_viscosity * kwargs["length"]), 0.)
+
+        # Solver call preparation
+        W_init = np.array(list(getattr(self, "xylem_water").values()))
+
+        n = len(W_init)
+
+        y0 = np.concatenate((W_init, np.zeros_like(W_init), np.zeros_like(W_init), np.zeros_like(W_init)))
+
+        # Solve ODE system with adaptive time stepping and step rejection
+        sol = solve_ivp(
+            wrapped_root_water_dynamics, t_span=(0, self.time_step), y0=y0,
+            args=(kwargs,), method="RK45", dense_output=True,
+            events=lambda t, y, unused_kwargs: water_violation_event(t, y, xylem_water_min=0.5*kwargs["xylem_volume"], n=n)  # Step rejection event
+        )
+
+        # Only final root state is of insterest when interacting with other modules
+        W_solutions = sol.y[:n, :][:, -1] 
+        q_axial_out_solutions = sol.y[n:2*n, :][:, -1]
+        q_axial_in_solutions = sol.y[2*n:3*n, :][:, -1]
+        q_radial_solutions = sol.y[3*n:, :][:, -1]
+
+        # expected = W_init + q_axial_in_solutions - q_axial_out_solutions + q_radial_solutions 
+        # obtained = W_solutions
+        # assert False in (obtained == expected)
+
+        print(W_solutions, q_axial_out_solutions, q_axial_in_solutions, q_radial_solutions)
+
+        
+
+    #@rate
     def transport_water(self):
 
         # Using previous time-step flows, we compute current time-step pressure for flows computation
@@ -218,34 +284,37 @@ class RootWaterModel(Model):
         
         norm_soil_pressure_square = np.sum((args["radius"]**2) * args["length"] * (args["soil_water_pressure"]**2)) / np.sum((args["radius"]**2) * args["length"])
 
-        #A = - self.xylem_young_modulus + norm_soil_pressure
+        A = - self.xylem_young_modulus + norm_soil_pressure
         B = 4 * self.xylem_young_modulus * norm_soil_pressure + ((norm_soil_pressure)**2) - norm_soil_pressure_square
         C = (self.xylem_young_modulus**2) * self.water_molar_mass / (np.pi * self.xylem_cross_area_ratio * self.water_volumic_mass * np.sum((args["radius"]**2) * args["length"]))
         
+        params.append(A)
         params.append(B)
         params.append(C)
         
-        y0 = [self.total_xylem_water[1], self.xylem_total_pressure[1]]
+        y0 = np.concatenate([[self.total_xylem_water[1]], np.zeros_like(args["xylem_struct_mass"])])
 
         # Solve the system
         sol = solve_ivp(solve_water_transport, (0, self.time_step), y0, args=states + params)
         
         # Extract results
         self.total_xylem_water[1] = sol.y[0][-1]
-        self.xylem_total_pressure[1] = sol.y[1][-1]
+        self.radial_import_water.update(dict(zip(self.xylem_water.keys(), sol.y[1:][:, -1])))
 
         # Then knowing the system convergence we compute the related local water content
+        if B + C * self.total_xylem_water[1] > 0:
+            self.xylem_total_pressure[1] = A + (B + C*self.total_xylem_water[1])**0.5
+        else:
+            self.xylem_total_pressure[1] = A
+
         xylem_water = ((((args["soil_water_pressure"] - self.xylem_total_pressure[1])/self.xylem_young_modulus) + 1)**2)*(
             np.pi*(args["radius"]**2)*args["length"]*self.xylem_cross_area_ratio*self.water_volumic_mass)/self.water_molar_mass
         
+        print(self.total_xylem_water[1], np.sum(xylem_water))
+
         # But we don't uptake the dict now to compute the delta
         new_xylem_water = dict(zip(self.xylem_water.keys(), xylem_water))
 
-        # Same step for radial water transport
-        self.radial_import_water.update(dict(zip(self.xylem_water.keys(), np.where(args["xylem_volume"] != 0, 
-            _radial_import_water(self.xylem_total_pressure[1], args["soil_water_pressure"], args["soil_temperature"], args["C_solutes_soil"], args["xylem_Nm"], args["xylem_AA"], args["xylem_struct_mass"], args["xylem_volume"], args["apoplasmic_exchange_surface"], args["cortex_exchange_surface"],
-                                 (self.apoplasmic_water_conductivity, self.cortex_water_conductivity, self.sigma_water, self.nonN_solutes))
-                                                                                    , 0))))
                 
         # Finally we compute the axial result of the transpiration flux downward propagation
         self.axial_export_water_up[1] = self.water_root_shoot_xylem[1] * self.time_step
@@ -308,36 +377,151 @@ class RootWaterModel(Model):
 #@njit
 def solve_water_transport(t, y, *args):
 
-    total_xylem_water, xylem_total_pressure = y
+    total_xylem_water = y[0]
+    Tf_water = y[1:]
 
     # Unpack states
     (water_root_shoot_xylem, soil_water_pressure, apoplasmic_exchange_surface, soil_temperature, C_solutes_soil, xylem_Nm, xylem_struct_mass, xylem_volume, xylem_AA, cortex_exchange_surface, 
     # Then parameters
-    apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes, B, C) = args
+    apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes, A, B, C) = args
 
-    water_variation_rate = np.sum(
-        _radial_import_water(xylem_total_pressure, soil_water_pressure, soil_temperature, 
+    if B + C * total_xylem_water > 0:
+        xylem_total_pressure = A + (B + C*total_xylem_water)**0.5
+    else:
+        xylem_total_pressure = A
+
+    dradial_water_dt = _radial_import_water(xylem_total_pressure, soil_water_pressure, soil_temperature, 
                          C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
                          apoplasmic_exchange_surface, cortex_exchange_surface, 
-                         (apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes)) # parameters
-    ) - water_root_shoot_xylem
+                         (apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes))
 
-    pressure_derivative = C * ((B + C*total_xylem_water)**-0.5) * water_variation_rate
+    dtotal_water_dt = np.sum(dradial_water_dt) - water_root_shoot_xylem
 
-    return [water_variation_rate, pressure_derivative]
+    
+    return [dtotal_water_dt] + list(dradial_water_dt)
+
 
 #@njit
-def _radial_import_water(xylem_total_pressure, soil_water_pressure, soil_temperature, 
+def root_water_dynamics(t, y, 
+                        # Fixed input root states...
+                        # (Axial flux related)
+                        adjacency, water_root_shoot_xylem, radius, length, soil_water_pressure, K_axial, 
+                        # (Radial uptake related)
+                        apoplasmic_exchange_surface, soil_temperature, C_solutes_soil, xylem_Nm, xylem_struct_mass, xylem_volume, xylem_AA, cortex_exchange_surface, 
+                        
+                        # Then parameters...
+                        # (Pressure related)
+                        xylem_young_modulus, water_molar_mass, xylem_cross_area_ratio, water_volumic_mass, 
+                        # (Radial uptake related)
+                        apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes):
+    """
+    Computes the time derivatives of xylem pressure and returns fluxes.
+
+    t: Current time (needed for solve_ivp, but not used here)
+    y: Solved states provided as input
+    args: Fixed boundary conditions of the model, to be provided in a specific order and not with keywords to remain numba compatible
+
+    Returns:
+    dpsi_dt: Time derivative of xylem pressures
+    """
+    # # Unpack fixed input root states...
+    # # (Axial flux related)
+    # (adjacency, water_root_shoot_xylem, radius, length, soil_water_pressure, K_axial, 
+    # # (Radial uptake related)
+    # apoplasmic_exchange_surface, soil_temperature, C_solutes_soil, xylem_Nm, xylem_struct_mass, xylem_volume, xylem_AA, cortex_exchange_surface, 
+    
+    # # Then parameters...
+    # # (Pressure related)
+    # xylem_young_modulus, water_molar_mass, xylem_cross_area_ratio, water_volumic_mass, 
+    # # (Radial uptake related)
+    # apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes) = args
+
+    # Unpack solved variables...
+    n = len(xylem_struct_mass)
+    xylem_water = y[:n]
+    q_axial_out_previous = y[n:2*n]
+    q_axial_in_previous = y[2*n:3*n]
+    q_radial_previous = y[3*n:]
+
+    # Computing local water pressure
+    xylem_water_pressure = np.where(length > 0, xylem_young_modulus * (
+        ((xylem_water * water_molar_mass / (np.pi * (radius**2) * length * xylem_cross_area_ratio * water_volumic_mass) )**0.5) - 1
+                                                  ) + soil_water_pressure, 0.)
+
+    # Compute axial flux using matrix operations (Hagen-Poiseuille) and Δψ between connected segments
+    q_axial_out = K_axial * (adjacency.T @ xylem_water_pressure - xylem_water_pressure)
+
+    # Collar element export wouldn't have been computed in previous step, so we set this boundary condition here
+    q_axial_out[0] = water_root_shoot_xylem[0]
+
+    # Compute total inflow per node
+    # Sum of children fluxes, when there are no children, a zero downward boundary condition is set implicitely here
+    q_axial_in = adjacency @ q_axial_out
+      
+    # Compute radial flux
+    q_radial = _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_temperature, 
+                         C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
+                         apoplasmic_exchange_surface, cortex_exchange_surface, 
+                         (apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes))
+
+    # Compute pressure derivatives using water balance
+    dxylem_water_dt = q_axial_in - q_axial_out + q_radial  # Element-wise division
+
+    # Stack the outputs so we can return both pressure changes and fluxes
+    return np.concatenate((dxylem_water_dt, q_axial_out, q_axial_in, q_radial))
+
+
+def wrapped_root_water_dynamics(t, y, *kwargs_in_args):
+    return root_water_dynamics(t, y, **kwargs_in_args[0])
+
+#@njit
+def _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_temperature, 
                          C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
                          apoplasmic_exchange_surface, cortex_exchange_surface, params):
     
     apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes = params
 
-    apoplastic_water_import = apoplasmic_water_conductivity * (soil_water_pressure - xylem_total_pressure) * apoplasmic_exchange_surface
+    apoplastic_water_import = apoplasmic_water_conductivity * (soil_water_pressure - xylem_water_pressure) * apoplasmic_exchange_surface
     
+    # xylem_Nm_volumic = np.divide(xylem_Nm * xylem_struct_mass, xylem_volume, where=xylem_volume > 0., out=np.zeros_like(xylem_volume))
+    # xylem_AA_volumic = np.divide(xylem_AA * xylem_struct_mass, xylem_volume, where=xylem_volume > 0., out=np.zeros_like(xylem_volume))
+    
+    #If njit
+    xylem_Nm_volumic = np.where(xylem_volume > 0., xylem_Nm * xylem_struct_mass / xylem_volume, 0.)
+    xylem_AA_volumic = np.where(xylem_volume > 0., xylem_AA * xylem_struct_mass / xylem_volume, 0.)
+
     cross_membrane_water_import = cortex_water_conductivity * (
-                soil_water_pressure - xylem_total_pressure - sigma_water * 8.314 * (273.15 + soil_temperature)*(C_solutes_soil -
-                    (xylem_Nm * xylem_struct_mass / xylem_volume) + (xylem_AA * xylem_struct_mass / xylem_volume) + nonN_solutes)
+                soil_water_pressure - xylem_water_pressure - sigma_water * 8.314 * (273.15 + soil_temperature)*(C_solutes_soil -
+                    xylem_Nm_volumic + xylem_AA_volumic + nonN_solutes)
                 ) * cortex_exchange_surface
     
     return apoplastic_water_import + cross_membrane_water_import
+
+
+def water_violation_event(t, y, xylem_water_min, n):
+    """
+    Event function to detect when water content W goes below W_min.
+    If W < W_min significantly, the solver should reject the step.
+
+    t: Current time step
+    y: Current state vector (contains xylem water content W)
+    W_min: Minimum allowable water content per segment
+    n: Number of root segments
+
+    Returns:
+    A small positive value when W is okay, negative when W is too low.
+    """
+
+    xylem_water = y[:n]  # Extract water content from the state vector
+    W_diff = xylem_water - xylem_water_min  # Difference between current W and W_min
+
+    # If any W is significantly below W_min, trigger a hard rejection event
+    if np.any(W_diff < -0.05 * xylem_water_min):  # Customize threshold for "too far"
+        return -1.0  # Hard rejection → solver must retry
+
+    # If W is slightly below W_min, trigger a soft step reduction
+    return np.min(W_diff)
+
+# Configure event properties
+water_violation_event.terminal = True  # Stop and retry step when triggered
+water_violation_event.direction = -1   # Detect only when approaching from positive values towards negative
