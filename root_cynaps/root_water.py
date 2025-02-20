@@ -126,7 +126,7 @@ class RootWaterModel(Model):
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     # Vessel mechanical properties
-    xylem_young_modulus: float = declare(default=1e6, unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)",
+    xylem_young_modulus: float = declare(default=1e7, unit="Pa", unit_comment="", description="radial elastic modulus of xylem tissues (Has to be superior to initial difference between root and soil)",
                                          min_value="", max_value="1e6", value_comment="", references="Plavcova 1e9 bending modulus woody species", DOI="",
                                          variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
     xylem_cross_area_ratio: float = declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="", description=" apoplasmic cross-section area ratio * stele radius ratio^2",
@@ -162,6 +162,7 @@ class RootWaterModel(Model):
                                     if param.name not in {"t", "y", "adjacency", "K_axial"}]
         self.water_solver_inputs_names = [name for name in self.water_solver_kwargs if isinstance(getattr(self, name), dict)]
         self.water_solver_params = {name: getattr(self, name) for name in self.water_solver_kwargs if not isinstance(getattr(self, name), dict)}
+        self.minimal_water_fraction = ((-1e6 / self.xylem_young_modulus) + 1)**2
 
     def post_coupling_init(self):
         self.pull_available_inputs()
@@ -248,9 +249,8 @@ class RootWaterModel(Model):
         # Solve ODE system with adaptive time stepping and step rejection
         sol = solve_ivp(
             wrapped_root_water_dynamics, t_span=(0, self.time_step), y0=y0,
-            args=(kwargs,), method="RK45", dense_output=True,
-            events=lambda t, y, unused_kwargs: water_violation_event(t, y, xylem_water_min=0.5*kwargs["xylem_volume"], n=n)  # Step rejection event
-        )
+            args=(kwargs,), method="RK45",  # Use LSODA instead of RK45 might speed up
+            events=lambda t, y, unused_kwargs: water_violation_event(t, y, xylem_water_min=self.minimal_water_fraction*kwargs["xylem_volume"], n=n))  # Step rejection event
 
         # Only final root state is of insterest when interacting with other modules
         W_solutions = sol.y[:n, :][:, -1] 
@@ -262,9 +262,12 @@ class RootWaterModel(Model):
         # obtained = W_solutions
         # assert False in (obtained == expected)
 
-        print(W_solutions, q_axial_out_solutions, q_axial_in_solutions, q_radial_solutions)
+        # Update state variables dictionnaries in mtg properties
+        self.xylem_water.update(dict(zip(vid_to_indice.keys(), W_solutions)))
+        self.axial_export_water_up.update(dict(zip(vid_to_indice.keys(), q_axial_out_solutions)))
+        self.axial_import_water_down.update(dict(zip(vid_to_indice.keys(), q_axial_in_solutions)))
+        self.radial_import_water.update(dict(zip(vid_to_indice.keys(), q_radial_solutions)))
 
-        
 
     #@rate
     def transport_water(self):
@@ -401,7 +404,7 @@ def solve_water_transport(t, y, *args):
     return [dtotal_water_dt] + list(dradial_water_dt)
 
 
-#@njit
+@njit
 def root_water_dynamics(t, y, 
                         # Fixed input root states...
                         # (Axial flux related)
@@ -424,17 +427,6 @@ def root_water_dynamics(t, y,
     Returns:
     dpsi_dt: Time derivative of xylem pressures
     """
-    # # Unpack fixed input root states...
-    # # (Axial flux related)
-    # (adjacency, water_root_shoot_xylem, radius, length, soil_water_pressure, K_axial, 
-    # # (Radial uptake related)
-    # apoplasmic_exchange_surface, soil_temperature, C_solutes_soil, xylem_Nm, xylem_struct_mass, xylem_volume, xylem_AA, cortex_exchange_surface, 
-    
-    # # Then parameters...
-    # # (Pressure related)
-    # xylem_young_modulus, water_molar_mass, xylem_cross_area_ratio, water_volumic_mass, 
-    # # (Radial uptake related)
-    # apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes) = args
 
     # Unpack solved variables...
     n = len(xylem_struct_mass)
@@ -474,7 +466,8 @@ def root_water_dynamics(t, y,
 def wrapped_root_water_dynamics(t, y, *kwargs_in_args):
     return root_water_dynamics(t, y, **kwargs_in_args[0])
 
-#@njit
+
+@njit
 def _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_temperature, 
                          C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
                          apoplasmic_exchange_surface, cortex_exchange_surface, params):
@@ -497,7 +490,7 @@ def _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_tempera
     
     return apoplastic_water_import + cross_membrane_water_import
 
-
+@njit
 def water_violation_event(t, y, xylem_water_min, n):
     """
     Event function to detect when water content W goes below W_min.
