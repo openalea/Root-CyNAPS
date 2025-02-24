@@ -81,6 +81,9 @@ class RootWaterModel(Model):
     xylem_water: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
                                  min_value="", max_value="", value_comment="", references="",  DOI="",
                                  variable_type="state_variable", by="model_water", state_variable_type="extensive", edit_by="user")
+    xylem_pressure: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
+                                          min_value="", max_value="", value_comment="", references="", DOI="",
+                                          variable_type="state_variable", by="model_water", state_variable_type="intensive", edit_by="user")
 
     # Water transport processes
     radial_import_water: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="", 
@@ -98,9 +101,6 @@ class RootWaterModel(Model):
     total_xylem_water: float = declare(default=0., unit="mol", unit_comment="of water", description="", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                        variable_type="plant_scale_state", by="model_water", state_variable_type="", edit_by="user")
-    xylem_total_pressure: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
-                                          min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="plant_scale_state", by="model_water", state_variable_type="", edit_by="user")
 
     # --- INITIALIZES MODEL PARAMETERS ---
 
@@ -163,7 +163,7 @@ class RootWaterModel(Model):
                                     if param.name not in {"t", "y", "adjacency", "K_axial"}]
         self.water_solver_inputs_names = [name for name in self.water_solver_kwargs if isinstance(getattr(self, name), dict)]
         self.water_solver_params = {name: getattr(self, name) for name in self.water_solver_kwargs if not isinstance(getattr(self, name), dict)}
-        self.minimal_water_fraction = ((-0.9e6 / self.xylem_young_modulus) + 1)**2 # Here we set the maximum difference with soil potential to 3 MPa
+        self.minimal_water_fraction = ((-0.9e6 / self.xylem_young_modulus) + 1)**2 # Here we set the maximum difference with soil potential to 0.9 MPa
 
         self.tp_ct = 0
 
@@ -189,10 +189,8 @@ class RootWaterModel(Model):
         for vid in self.vertices:
             # if root segment emerged
             if self.struct_mass[vid] > 0:
-                self.xylem_water[vid] = ((((self.soil_water_pressure[vid] - self.xylem_total_pressure[1])/self.xylem_young_modulus) + 1)**2)*(
+                self.xylem_water[vid] = ((((self.soil_water_pressure[vid] - self.xylem_pressure[vid])/self.xylem_young_modulus) + 1)**2)*(
                 np.pi*(self.radius[vid]**2)*self.length[vid]*self.xylem_cross_area_ratio*self.water_volumic_mass)/self.water_molar_mass
-
-                self.total_xylem_water[1] += self.xylem_water[vid]
 
 
     def post_growth_updating(self):
@@ -202,7 +200,7 @@ class RootWaterModel(Model):
         """
         self.vertices = self.g.vertices(scale=self.g.max_scale())
         for vid in self.vertices:
-            if vid not in list(self.xylem_water.keys()):
+            if vid not in list(self.xylem_water.keys()) or (self.xylem_water[vid] == 0. and self.struct_mass[vid] > 0.):
                 parent = self.g.parent(vid)
                 mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
                 for prop in self.state_variables:
@@ -210,9 +208,13 @@ class RootWaterModel(Model):
                     if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
                         getattr(self, prop).update({vid: getattr(self, prop)[parent]})
                     # if extensive, we need structural mass wise partitioning
-                    else:
+                    elif prop != "xylem_water":
                         getattr(self, prop).update({vid: getattr(self, prop)[parent] * mass_fraction,
                                                     parent: getattr(self, prop)[parent] * (1 - mass_fraction)})
+                        
+                # Once pressure has been set equal to parent
+                self.xylem_water[vid] = ((((self.soil_water_pressure[vid] - self.xylem_pressure[vid])/self.xylem_young_modulus) + 1)**2)*(
+                                    np.pi*(self.radius[vid]**2)*self.length[vid]*self.xylem_cross_area_ratio*self.water_volumic_mass)/self.water_molar_mass
     
 
     @rate
@@ -244,12 +246,6 @@ class RootWaterModel(Model):
 
         # Solver call preparation
         W_init = np.array(list(getattr(self, "xylem_water").values()))
-
-        # y = root_water_dynamics(t=0, y=y0, **kwargs)
-        # W_solutions = W_init + y[:n] * self.time_step
-
-        # if np.any(W_solutions < 0.):
-        #     print(True)
             
         # Solve ODE system with adaptive time stepping and step rejection
         sol = solve_ivp(
@@ -257,23 +253,29 @@ class RootWaterModel(Model):
             args=(kwargs,), method="Radau", # Try LSODA instead of RK45 might speed up / RK45 / Radau
             events=lambda t, y, unused_kwargs: water_violation_event(t, y, 
                                                 xylem_water_min=self.minimal_water_fraction*kwargs["xylem_volume"]*self.water_volumic_mass/self.water_molar_mass, n=n),
-            jac=lambda t, y, jac_kwargs: root_water_jacobian_derivatives(t, y, **jac_kwargs))
+            jac=lambda t, y, jac_kwargs: root_water_jacobian_derivatives(t, y, **jac_kwargs)
+            )
 
         # Only final root state is of insterest when interacting with other modules
         W_solutions = sol.y[:, -1]
+
+        if np.any(W_solutions < 0.):
+            print(True)
+
         # Update state variables dictionnaries in mtg properties
         self.xylem_water.update(dict(zip(vid_to_indice.keys(), W_solutions)))
 
         # Recompute fluxes at outputed times
-        q_axial_out_solutions, q_axial_in_solutions, q_radial_solutions = root_water_derivatives(xylem_water=W_solutions, **kwargs)        
+        q_axial_out_solutions, q_axial_in_solutions, q_radial_solutions, xylem_pressure = root_water_derivatives(xylem_water=W_solutions, **kwargs)        
         self.axial_export_water_up.update(dict(zip(vid_to_indice.keys(), q_axial_out_solutions)))
         self.axial_import_water_down.update(dict(zip(vid_to_indice.keys(), q_axial_in_solutions)))
         self.radial_import_water.update(dict(zip(vid_to_indice.keys(), q_radial_solutions)))
+        self.xylem_pressure.update(dict(zip(vid_to_indice.keys(), xylem_pressure)))
 
         self.tp_ct += 1
 
 
-@njit
+#@njit
 def root_water_dynamics(t, y, 
                             # Fixed input root states...
                             # (Axial flux related)
@@ -300,7 +302,7 @@ def root_water_dynamics(t, y,
     # Unpack solved variables...
     xylem_water = y
 
-    q_axial_out, q_axial_in, q_radial = root_water_derivatives(xylem_water, 
+    q_axial_out, q_axial_in, q_radial, _ = root_water_derivatives(xylem_water, 
                             adjacency, water_root_shoot_xylem, radius, length, soil_water_pressure, K_axial, 
                             apoplasmic_exchange_surface, soil_temperature, C_solutes_soil, xylem_Nm, xylem_struct_mass, xylem_volume, xylem_AA, cortex_exchange_surface, 
                             xylem_young_modulus, water_molar_mass, xylem_cross_area_ratio, water_volumic_mass, 
@@ -321,7 +323,7 @@ def wrapped_root_water_dynamics(t, y, *kwargs_in_args):
     return root_water_dynamics(t, y, **kwargs_in_args[0])
 
 
-@njit
+#@njit
 def root_water_derivatives(xylem_water,
                             # Fixed input root states...
                             # (Axial flux related)
@@ -340,7 +342,7 @@ def root_water_derivatives(xylem_water,
                                                   ) + soil_water_pressure, 0.)
 
     # Compute axial flux using matrix operations (Hagen-Poiseuille) and Δψ between connected segments
-    q_axial_out = K_axial * (xylem_water_pressure - adjacency.T @ xylem_water_pressure) # current - parent pressure
+    q_axial_out = np.where(xylem_water > 0, K_axial * (xylem_water_pressure - adjacency.T @ xylem_water_pressure), 0) # current - parent pressure
 
     # Collar element export wouldn't have been computed in previous step, so we set this boundary condition here
     q_axial_out[0] = water_root_shoot_xylem[0]
@@ -350,15 +352,15 @@ def root_water_derivatives(xylem_water,
     q_axial_in = adjacency @ q_axial_out
       
     # Compute radial flux
-    q_radial = _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_temperature, 
+    q_radial = np.where(xylem_water > 0, _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_temperature, 
                          C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
                          apoplasmic_exchange_surface, cortex_exchange_surface, 
-                         (apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes))
+                         (apoplasmic_water_conductivity, cortex_water_conductivity, sigma_water, nonN_solutes)), 0)
 
     # return derivatives for water balance
-    return q_axial_in, q_axial_out, q_radial
+    return q_axial_out, q_axial_in, q_radial, xylem_water_pressure
     
-@njit
+#@njit
 def root_water_jacobian_derivatives(t, y,
                             # Fixed input root states...
                             # (Axial flux related)
@@ -390,7 +392,7 @@ def root_water_jacobian_derivatives(t, y,
     return  J
 
 
-@njit
+#@njit
 def _radial_import_water(xylem_water_pressure, soil_water_pressure, soil_temperature, 
                          C_solutes_soil, xylem_Nm, xylem_AA, xylem_struct_mass, xylem_volume, 
                          apoplasmic_exchange_surface, cortex_exchange_surface, params):
