@@ -107,10 +107,10 @@ class RootWaterModel(Model):
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     # exchange surface properties
-    cortex_water_conductivity: float = declare(default=1e-14 * 1e3, unit="m.s-1.Pa-1", unit_comment="", description="",
+    cortex_water_conductivity: float = declare(default=104 * 1e-9 / 18 / 10, unit="mol.s-1.Pa-1.m-2", unit_comment="", description="",
                                                min_value="", max_value="", value_comment="", references="", DOI="",
                                                variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    apoplasmic_water_conductivity: float = declare(default=1e-14 * 1e4, unit="m.s-1.Pa-1", unit_comment="", description="",
+    apoplasmic_water_conductivity: float = declare(default=104 * 1e-9 / 18, unit="mol.s-1.Pa-1.m-2", unit_comment="", description="",
                                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
@@ -249,7 +249,7 @@ class RootWaterModel(Model):
 
                 self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (self.k[v] + Keq_children)) / (self.k[v] + self.K[v] + Keq_children)
                 self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * self.k[v]
-                
+
                 # Computed to avoid children iteration when needed by other modules
                 self.axial_import_water_down[v] = self.axial_export_water_up[v] - self.radial_import_water[v]
 
