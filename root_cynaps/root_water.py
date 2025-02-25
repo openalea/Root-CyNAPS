@@ -249,9 +249,10 @@ class RootWaterModel(Model):
 
                 self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (self.k[v] + Keq_children)) / (self.k[v] + self.K[v] + Keq_children)
                 self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * self.k[v]
+                
                 # Computed to avoid children iteration when needed by other modules
                 self.axial_import_water_down[v] = self.axial_export_water_up[v] - self.radial_import_water[v]
-                
+
 
     @state
     def _xylem_water(self, xylem_volume):

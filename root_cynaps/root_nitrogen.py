@@ -743,10 +743,10 @@ class RootNitrogenModel(Model):
         for v in self.vertices:
             if self.struct_mass[v] > 0 :
                 # If this is only an out flow to up parents
-                if self.axial_export_water_up[v] > 0:
+                if self.axial_export_water_up[v] * self.time_step > 0:
                     # Turnover defines a dilution factor of radial transport processes over the axially transported
                     # water column
-                    turnover = self.axial_export_water_up[v] / self.xylem_water[v]
+                    turnover = self.axial_export_water_up[v] * self.time_step / self.xylem_water[v]
                     if turnover <= 1:
                         # Transport only affects considered segment
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
@@ -774,7 +774,7 @@ class RootNitrogenModel(Model):
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
                         self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time
 
-                        exported_water = self.axial_export_water_up[v]
+                        exported_water = self.axial_export_water_up[v] * self.time_step
                         child = v
                         # Loading of the current vertex into the vertices who have received water from it
                         while exported_water > 0:
@@ -823,10 +823,10 @@ class RootNitrogenModel(Model):
                                 child = up_parent
 
                 # If this is only a out flow to down children
-                if self.axial_import_water_down[v] < 0:
+                if self.axial_import_water_down[v] * self.time_step < 0:
                     # Turnover defines a dilution factor of radial transport processes over the axially transported
                     # water column
-                    turnover = - self.axial_import_water_down[v] / self.xylem_water[v]
+                    turnover = - self.axial_import_water_down[v] * self.time_step / self.xylem_water[v]
                     if turnover <= 1:
                         # Transport only affects considered segment
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
@@ -857,7 +857,7 @@ class RootNitrogenModel(Model):
                         # We initialize a list tracking water repartition among down axes
                         axis_proportion = [1.0]
                         # We remove the amount of water which has already been received
-                        exported_water = [-self.axial_import_water_down[v] - self.xylem_water[v]]
+                        exported_water = [-self.axial_import_water_down[v] * self.time_step - self.xylem_water[v]]
                         # Loading of the current vertex into the vertices who have received water from it
                         while True in [k > 0 for k in exported_water]:
                             children_list = []
@@ -954,7 +954,7 @@ class RootNitrogenModel(Model):
                             exported_water = children_exported_water
 
                 # If this is an inflow from both up an down segments
-                if self.axial_import_water_down[v] >= 0 >= self.axial_export_water_up[v]:
+                if self.axial_import_water_down[v] * self.time_step >= 0 >= self.axial_export_water_up[v] * self.time_step:
                     # There is no exported matter, thus no receiver
                     self.displaced_Nm_out[v] = 0
                     self.displaced_AA_out[v] = 0
