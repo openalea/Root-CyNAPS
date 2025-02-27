@@ -30,9 +30,6 @@ class RootWaterModel(Model):
     cortex_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="", 
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    apoplasmic_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="", 
-                                                 min_value="", max_value="", value_comment="", references="", DOI="",
-                                                 variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
@@ -175,9 +172,10 @@ class RootWaterModel(Model):
 
     @potential
     @rate
-    def _k(self, apoplasmic_exchange_surface, cortex_exchange_surface):
-        result = self.apoplasmic_water_conductivity * apoplasmic_exchange_surface + self.cortex_water_conductivity * cortex_exchange_surface
-        return self.apoplasmic_water_conductivity * apoplasmic_exchange_surface + self.cortex_water_conductivity * cortex_exchange_surface
+    def _k(self, radius, length):
+        
+
+        return 
 
     @actual
     @rate
@@ -219,7 +217,7 @@ class RootWaterModel(Model):
 
                 r = 1./(self.k[v] + sum(self.Keq[cid] for cid in children))
                 R = 1./self.K[v]
-                self.Keq[v] = 1. / ( r + R)
+                self.Keq[v] = 1. / (r + R)
 
         # Water flux and water potential computation
         for v in pre_order2(g, root):

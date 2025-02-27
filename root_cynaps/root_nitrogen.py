@@ -78,9 +78,6 @@ class RootNitrogenModel(Model):
     xylem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                   variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    xylem_struct_mass: float = declare(default=0, unit="g", unit_comment="of structural mass", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="input", by="model_anatomy", state_variable_type="extensive", edit_by="user")
                                             
 
     # FROM WATER BALANCE MODEL
@@ -145,10 +142,10 @@ class RootNitrogenModel(Model):
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
-    xylem_Nm: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
+    xylem_Nm: float =           declare(default=1e-4, unit="mol.m-3", unit_comment="of structural nitrates", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
-    xylem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
+    xylem_AA: float =           declare(default=1e-4, unit="mol.m-3", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="intensive", edit_by="user")
     # Transport processes
@@ -262,10 +259,10 @@ class RootNitrogenModel(Model):
     total_struct_mass: float =          declare(default=1e-3, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_xylem_Nm: float =             declare(default=0., unit="mol.g-1", unit_comment="of nitrates", description="", 
+    total_xylem_Nm: float =             declare(default=0., unit="mol", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_xylem_AA: float =             declare(default=0., unit="mol.g-1", unit_comment="of amino acids", description="", 
+    total_xylem_AA: float =             declare(default=0., unit="mol", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_phloem_AA: float =            declare(default=1e-3, unit="mol.g-1", unit_comment="of amino acids", description="",
@@ -637,14 +634,14 @@ class RootNitrogenModel(Model):
                 C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
     @rate
-    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature):
+    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, struct_mass, symplasmic_volume):
         # Passive radial diffusion between xylem and cortex through plasmalema
         diffusion_xylem = self.diffusion_xylem * self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.passive_processes_T_ref,
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-        return diffusion_xylem * (xylem_Nm - Nm) * (root_exchange_surface - cortex_exchange_surface)
+        return diffusion_xylem * (xylem_Nm - Nm * struct_mass / symplasmic_volume) * (root_exchange_surface - cortex_exchange_surface)
 
     @rate
     def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume, soil_temperature):
@@ -658,8 +655,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-            return diffusion_apoplasm * (
-                    (xylem_Nm * struct_mass / xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+            return diffusion_apoplasm * (xylem_Nm - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
     # AMINO ACID TRANSPORT
     @rate
@@ -711,8 +707,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-            return (diffusion_apoplasm * ((xylem_AA * struct_mass / xylem_volume) - soil_AA)
-                    * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
+            return (diffusion_apoplasm * (xylem_AA - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
 
     @rate
     def _diffusion_AA_phloem(self, AA, phloem_exchange_surface, soil_temperature):
@@ -752,8 +747,8 @@ class RootNitrogenModel(Model):
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
                         self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
                         # Exported matter corresponds to the exported water proportion
-                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_volume[v]
+                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_volume[v]
                         up_parent = self.g.parent(v)
                         # If this is collar, this flow is exported
                         if up_parent == None:
@@ -766,8 +761,8 @@ class RootNitrogenModel(Model):
                     else:
                         #print("Uturnover >1")
                         # Exported matter corresponds to the whole segment's water content
-                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_volume[v]
+                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_volume[v]
                         # Transport affects a chain of parents
                         water_exchange_time = self.time_step / turnover
                         # Loading of the current vertex into the current vertex's xylem
@@ -832,8 +827,8 @@ class RootNitrogenModel(Model):
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
                         self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
                         # Exported matter corresponds to the exported water proportion
-                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.xylem_volume[v]
+                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.xylem_volume[v]
                         down_children = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
                         # The immediate children receive this flow
                         radius_sum = sum([self.radius[k] for k in down_children])
@@ -845,8 +840,8 @@ class RootNitrogenModel(Model):
                     else:
                         # Transport affects several segments, and we verified it often happens under high transpiration
                         # Exported matter corresponds to the whole segment's water content
-                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_struct_mass[v]
-                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_struct_mass[v]
+                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.xylem_volume[v]
+                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.xylem_volume[v]
                         # Transport affects a chain of children
                         water_exchange_time = self.time_step / turnover
                         # Loading of the current vertex into the current vertex's xylem
@@ -1159,18 +1154,18 @@ class RootNitrogenModel(Model):
             return 0
 
     @state
-    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, xylem_struct_mass):
-        if xylem_struct_mass > 0:
+    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, xylem_volume):
+        if xylem_volume > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
-            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / xylem_struct_mass
+            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / xylem_volume
         else:
             return 0
 
     @state
-    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, xylem_struct_mass):
-        if xylem_struct_mass > 0:
-            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / xylem_struct_mass
+    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, xylem_volume):
+        if xylem_volume > 0:
+            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / xylem_volume
         else:
             return 0
 
@@ -1207,12 +1202,12 @@ class RootNitrogenModel(Model):
         return sum([x * y for x, y in zip(AA.values(), struct_mass.values())]) / total_struct_mass[1]
 
     @totalstate
-    def _total_xylem_Nm(self, xylem_Nm, xylem_struct_mass, total_struct_mass):
-        return sum([x*y for x, y in zip(xylem_Nm.values(), xylem_struct_mass.values())]) / total_struct_mass[1]
+    def _total_xylem_Nm(self, xylem_Nm, xylem_volume):
+        return sum([x*y for x, y in zip(xylem_Nm.values(), xylem_volume.values())])
 
     @totalstate
-    def _total_xylem_AA(self, xylem_AA, xylem_struct_mass, total_struct_mass):
-        return sum([x*y for x, y in zip(xylem_AA.values(), xylem_struct_mass.values())]) / total_struct_mass[1]
+    def _total_xylem_AA(self, xylem_AA, xylem_volume):
+        return sum([x*y for x, y in zip(xylem_AA.values(), xylem_volume.values())])
 
     @totalstate
     def _total_AA_rhizodeposition(self, diffusion_AA_soil, import_AA):
