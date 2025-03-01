@@ -101,13 +101,10 @@ class RootNitrogenModel(Model):
     radius: float =                     declare(default=0, unit="m", unit_comment="of root segment", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
-    struct_mass: float =                declare(default=0, unit="g", unit_comment="of dry weight", description="", 
+    living_struct_mass: float =                declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     total_living_struct_mass: float =          declare(default=0, unit="g", unit_comment="of dry weight", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
-    initial_struct_mass: float =        declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     struct_mass_produced: float =       declare(default=0, unit="g", unit_comment="of dry weight", description="", 
@@ -496,48 +493,6 @@ class RootNitrogenModel(Model):
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
-    def post_growth_updating(self):
-        """
-        Description :
-            Extend property dictionary upon new element partitioning and updates concentrations upon structural_mass change
-        """
-        self.vertices = self.g.vertices(scale=self.g.max_scale())
-        already_updated = []
-        for vid in self.vertices:
-            # We ignore already updated elements, e.g. parents of apices
-            if vid in already_updated:
-                continue
-
-            # If we focus on a new element
-            if vid not in list(self.Nm.keys()):
-                parent = self.g.parent(vid)
-                for prop in self.state_variables:
-                    # if intensive, equals to parent AFTER it has been updated
-                    if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
-                        getattr(self, prop).update({parent: getattr(self, prop)[parent] * (
-                                self.initial_struct_mass[parent] / self.struct_mass[parent])})
-                        getattr(self, prop).update({vid: getattr(self, prop)[parent]})
-                    # if extensive, we need structural mass wise partitioning
-                    else:
-                        # we partition the initial flow in the parent accounting for mass fraction
-                        # We use struct_mass, the resulting structural mass after growth
-                        mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
-                        getattr(self, prop).update({vid: getattr(self, prop)[parent] * mass_fraction,
-                                                    parent: getattr(self, prop)[parent] * (1-mass_fraction)})
-                already_updated += [vid, parent]
-
-            # If the element already exists and isn't immediate neighbor of an apex
-            else:
-                # If after growth the element actually grown
-                if self.struct_mass[vid] > 0:
-                    for prop in self.state_variables:
-                        # if intensive, concentrations have to be updated based on new structural mass
-                        if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
-                            getattr(self, prop).update({vid: getattr(self, prop)[vid] * (
-                                self.initial_struct_mass[vid] / self.struct_mass[vid])})
-                        # if extensive, it doesn't need to be updated and if parent is segmented,
-
-                already_updated += [vid]
     
     @stepinit
     def initialize_cumulative(self):
@@ -608,7 +563,7 @@ class RootNitrogenModel(Model):
                      * np.exp(-Nm / self.span_N_regulation)))
 
     @rate
-    def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, struct_mass, symplasmic_volume, soil_temperature):
+    def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, living_struct_mass, symplasmic_volume, soil_temperature):
         if symplasmic_volume <= 0:
             return 0.
         else:
@@ -620,7 +575,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-            return (diffusion_soil * ((Nm * struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
+            return (diffusion_soil * ((Nm * living_struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
 
     @rate
     def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, C_hexose_root=1e-4):
@@ -635,17 +590,17 @@ class RootNitrogenModel(Model):
                 C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
     @rate
-    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, struct_mass, symplasmic_volume, xylem_volume):
+    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, xylem_volume):
         # Passive radial diffusion between xylem and cortex through plasmalema
         diffusion_xylem = self.diffusion_xylem * self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.passive_processes_T_ref,
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-        return diffusion_xylem * ((xylem_Nm * struct_mass / xylem_volume) - (Nm * struct_mass / symplasmic_volume)) * (root_exchange_surface - cortex_exchange_surface)
+        return diffusion_xylem * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * (root_exchange_surface - cortex_exchange_surface)
 
     @rate
-    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume, soil_temperature):
+    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0.:
             return 0.
         else:
@@ -656,7 +611,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-            return diffusion_apoplasm * (xylem_Nm * struct_mass / xylem_volume - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+            return diffusion_apoplasm * (xylem_Nm * living_struct_mass / xylem_volume - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
     # AMINO ACID TRANSPORT
     @rate
@@ -671,7 +626,7 @@ class RootNitrogenModel(Model):
             C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, struct_mass, symplasmic_volume, soil_temperature):
+    def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, living_struct_mass, symplasmic_volume, soil_temperature):
         if symplasmic_volume <= 0:
             return 0.
         else:
@@ -681,7 +636,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-            return (diffusion_soil * ((AA * struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
+            return (diffusion_soil * ((AA * living_struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
 
     @rate
     def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, soil_temperature, C_hexose_root=1e-4):
@@ -698,7 +653,7 @@ class RootNitrogenModel(Model):
                         C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, struct_mass, xylem_volume, soil_temperature):
+    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0:
             return 0.
         else:
@@ -708,10 +663,10 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-            return (diffusion_apoplasm * (xylem_AA * struct_mass / xylem_volume - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
+            return (diffusion_apoplasm * (xylem_AA * living_struct_mass / xylem_volume - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
 
     @rate
-    def _diffusion_AA_phloem(self, AA, phloem_exchange_surface, soil_temperature, struct_mass, symplasmic_volume):
+    def _diffusion_AA_phloem(self, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume):
         # Passive radial diffusion between phloem and cortex through plasmodesmata
         # TODO : Change diffusive flow to enable realistic ranges, now, unloading is limited by a ping pong bug related to diffusion
         # TODO : resolve exception when mapping has to deal with plant scale properties AND local ones
@@ -720,7 +675,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-        return diffusion_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1] - AA * struct_mass / symplasmic_volume) * phloem_exchange_surface
+        return diffusion_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
 
     @axial
     @rate
@@ -736,7 +691,7 @@ class RootNitrogenModel(Model):
 
         # AXIAL TRANSPORT
         for v in self.vertices:
-            if self.struct_mass[v] > 0 :
+            if self.living_struct_mass[v] > 0 :
                 # If this is only an out flow to up parents
                 if self.axial_export_water_up[v] * self.time_step > 0:
                     # Turnover defines a dilution factor of radial transport processes over the axially transported
@@ -747,8 +702,8 @@ class RootNitrogenModel(Model):
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
                         self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
                         # Exported matter corresponds to the exported water proportion
-                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.struct_mass[v]
-                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.struct_mass[v]
+                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.living_struct_mass[v]
+                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.living_struct_mass[v]
                         up_parent = self.g.parent(v)
                         # If this is collar, this flow is exported
                         if up_parent == None:
@@ -761,8 +716,8 @@ class RootNitrogenModel(Model):
                     else:
                         #print("Uturnover >1")
                         # Exported matter corresponds to the whole segment's water content
-                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.struct_mass[v]
-                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.struct_mass[v]
+                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.living_struct_mass[v]
+                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.living_struct_mass[v]
                         # Transport affects a chain of parents
                         water_exchange_time = self.time_step / turnover
                         # Loading of the current vertex into the current vertex's xylem
@@ -827,9 +782,9 @@ class RootNitrogenModel(Model):
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
                         self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
                         # Exported matter corresponds to the exported water proportion
-                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.struct_mass[v]
-                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.struct_mass[v]
-                        down_children = [k for k in self.g.children(v) if self.struct_mass[k] > 0]
+                        self.displaced_Nm_out[v] = turnover * self.xylem_Nm[v] * self.living_struct_mass[v]
+                        self.displaced_AA_out[v] = turnover * self.xylem_AA[v] * self.living_struct_mass[v]
+                        down_children = [k for k in self.g.children(v) if self.living_struct_mass[k] > 0]
                         # The immediate children receive this flow
                         radius_sum = sum([self.radius[k] for k in down_children])
                         children_radius_prop = [self.radius[k] / radius_sum for k in down_children]
@@ -840,8 +795,8 @@ class RootNitrogenModel(Model):
                     else:
                         # Transport affects several segments, and we verified it often happens under high transpiration
                         # Exported matter corresponds to the whole segment's water content
-                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.struct_mass[v]
-                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.struct_mass[v]
+                        self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.living_struct_mass[v]
+                        self.displaced_AA_out[v] = self.xylem_AA[v] * self.living_struct_mass[v]
                         # Transport affects a chain of children
                         water_exchange_time = self.time_step / turnover
                         # Loading of the current vertex into the current vertex's xylem
@@ -859,7 +814,7 @@ class RootNitrogenModel(Model):
                             children_exported_water = []
                             for p in range(len(parent)):
                                 if exported_water[p] > 0:
-                                    down_children = [k for k in self.g.children(parent[p]) if self.struct_mass[k] > 0]
+                                    down_children = [k for k in self.g.children(parent[p]) if self.living_struct_mass[k] > 0]
                                     # if the parent is an apex and water has been exported from it,
                                     # it means that the apex concentrates the associated carried and loaded nitrogen matter
                                     if len(down_children) == 0:
@@ -961,7 +916,7 @@ class RootNitrogenModel(Model):
 
     # METABOLIC PROCESSES
     @rate
-    def _AA_synthesis(self, struct_mass, Nm, soil_temperature, C_hexose_root=1e-4):
+    def _AA_synthesis(self, living_struct_mass, Nm, soil_temperature, C_hexose_root=1e-4):
         # amino acid synthesis
         if C_hexose_root > 0 and Nm > 0:
             smax_AA = self.smax_AA * self.temperature_modification(soil_temperature=soil_temperature,
@@ -969,7 +924,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.active_processes_A,
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
-            return struct_mass * smax_AA / (
+            return living_struct_mass * smax_AA / (
                     ((1 + self.Km_Nm_AA) / Nm) + ((1 + self.Km_C_AA) / C_hexose_root))
         else:
             return 0
@@ -980,17 +935,17 @@ class RootNitrogenModel(Model):
         return (struct_mass_produced + root_hairs_struct_mass_produced) * self.struct_mass_N_content / self.r_Nm_AA
         
     @rate
-    def _storage_synthesis(self, struct_mass, AA, soil_temperature):
+    def _storage_synthesis(self, living_struct_mass, AA, soil_temperature):
         # Organic storage synthesis (Michaelis-Menten kinetic)
         smax_stor = self.smax_stor * self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.active_processes_T_ref,
                                                                      A=self.active_processes_A,
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
-        return struct_mass * (smax_stor * AA / (self.Km_AA_stor + AA))
+        return living_struct_mass * (smax_stor * AA / (self.Km_AA_stor + AA))
 
     @rate
-    def _storage_catabolism(self, struct_mass, storage_protein, soil_temperature, C_hexose_root=1e-4):
+    def _storage_catabolism(self, living_struct_mass, storage_protein, soil_temperature, C_hexose_root=1e-4):
         # Organic storage catabolism through proteinase
         Km_stor_root = self.Km_stor_catab * np.exp(self.storage_C_regulation * C_hexose_root)
         cmax_stor = self.cmax_stor * self.temperature_modification(soil_temperature=soil_temperature,
@@ -998,10 +953,10 @@ class RootNitrogenModel(Model):
                                                                      A=self.active_processes_A,
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
-        return struct_mass * cmax_stor * storage_protein / (Km_stor_root + storage_protein)
+        return living_struct_mass * cmax_stor * storage_protein / (Km_stor_root + storage_protein)
 
     @rate
-    def _AA_catabolism(self, struct_mass, AA, soil_temperature, C_hexose_root=1e-4):
+    def _AA_catabolism(self, living_struct_mass, AA, soil_temperature, C_hexose_root=1e-4):
         # AA catabolism through GDH
         Km_stor_root = self.Km_AA_catab * np.exp(self.storage_C_regulation * C_hexose_root)
         cmax_AA = self.cmax_AA * self.temperature_modification(soil_temperature=soil_temperature,
@@ -1009,10 +964,10 @@ class RootNitrogenModel(Model):
                                                                      A=self.active_processes_A,
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
-        return struct_mass * cmax_AA * AA / (Km_stor_root + AA)
+        return living_struct_mass * cmax_AA * AA / (Km_stor_root + AA)
 
     #@rate
-    def _nitrogenase_fixation(self, type, struct_mass, C_hexose_root, Nm, soil_temperature):
+    def _nitrogenase_fixation(self, type, living_struct_mass, C_hexose_root, Nm, soil_temperature):
         if type == "Root_nodule":
             # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
             vmax_bnf = (self.vmax_bnf / (1 + (Nm / self.K_bnf_Nm_inibition))) * self.temperature_modification(soil_temperature=soil_temperature,
@@ -1021,7 +976,7 @@ class RootNitrogenModel(Model):
                                                                                                             B=self.active_processes_B,
                                                                                                             C=self.active_processes_C)
             # Michaelis-Menten formalism
-            return struct_mass * vmax_bnf * C_hexose_root / (self.Km_hexose_bnf + C_hexose_root)
+            return living_struct_mass * vmax_bnf * C_hexose_root / (self.Km_hexose_bnf + C_hexose_root)
         else:
             return 0.
         
@@ -1093,9 +1048,9 @@ class RootNitrogenModel(Model):
     
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, vertex_index, Nm, struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
-        if struct_mass > 0:
-            balance = Nm + (self.time_step / struct_mass) * (
+    def _Nm(self, vertex_index, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
+        if living_struct_mass > 0:
+            balance = Nm + (self.time_step / living_struct_mass) * (
                     import_Nm
                     + mycorrhizal_mediated_import_Nm
                     - diffusion_Nm_soil
@@ -1106,7 +1061,7 @@ class RootNitrogenModel(Model):
                     + nitrogenase_fixation
                     - deficit_Nm)
             if balance < 0.:
-                deficit = - balance * (struct_mass) / self.time_step
+                deficit = - balance * (living_struct_mass) / self.time_step
                 self.deficit_Nm[vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
             else:
@@ -1117,11 +1072,11 @@ class RootNitrogenModel(Model):
 
 
     @state
-    def _AA(self, vertex_index, AA, struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
                   struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
         
-        if struct_mass > 0:
-            balance =  AA + (self.time_step / struct_mass) * (
+        if living_struct_mass > 0:
+            balance =  AA + (self.time_step / living_struct_mass) * (
                     diffusion_AA_phloem
                     + import_AA
                     - diffusion_AA_soil
@@ -1133,7 +1088,7 @@ class RootNitrogenModel(Model):
                     - AA_catabolism
                     - deficit_AA)
             if balance < 0.:
-                deficit = - balance * (struct_mass) / self.time_step
+                deficit = - balance * (living_struct_mass) / self.time_step
                 self.deficit_AA[vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
             else:
@@ -1144,9 +1099,9 @@ class RootNitrogenModel(Model):
             return 0
 
     @state
-    def _storage_protein(self, storage_protein, struct_mass, storage_synthesis, storage_catabolism):
-        if struct_mass > 0:
-            return storage_protein + (self.time_step / struct_mass) * (
+    def _storage_protein(self, storage_protein, living_struct_mass, storage_synthesis, storage_catabolism):
+        if living_struct_mass > 0:
+            return storage_protein + (self.time_step / living_struct_mass) * (
                     storage_synthesis
                     - storage_catabolism
             )
@@ -1154,18 +1109,18 @@ class RootNitrogenModel(Model):
             return 0
 
     @state
-    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, struct_mass):
-        if struct_mass > 0:
+    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, living_struct_mass):
+        if living_struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
-            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / struct_mass
+            return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / living_struct_mass
         else:
             return 0
 
     @state
-    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, struct_mass):
-        if struct_mass > 0:
-            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / struct_mass
+    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, living_struct_mass):
+        if living_struct_mass > 0:
+            return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / living_struct_mass
         else:
             return 0
 
@@ -1184,25 +1139,25 @@ class RootNitrogenModel(Model):
         return total_cytokinins[1] + cytokinin_synthesis[1] * self.time_step - cytokinins_root_shoot_xylem[1]
 
     @totalstate
-    def _C_Nm_average(self, Nm, struct_mass, total_living_struct_mass):
-        return sum([x*y for x, y in zip(Nm.values(), struct_mass.values())]) / total_living_struct_mass[1]
+    def _C_Nm_average(self, Nm, living_struct_mass, total_living_struct_mass):
+        return sum([x*y for x, y in zip(Nm.values(), living_struct_mass.values())]) / total_living_struct_mass[1]
 
     @totalstate
-    def _C_AA_average(self, AA, struct_mass, total_living_struct_mass):
-        return sum([x * y for x, y in zip(AA.values(), struct_mass.values())]) / total_living_struct_mass[1]
+    def _C_AA_average(self, AA, living_struct_mass, total_living_struct_mass):
+        return sum([x * y for x, y in zip(AA.values(), living_struct_mass.values())]) / total_living_struct_mass[1]
 
     @totalstate
-    def _C_xylem_Nm_average(self, xylem_Nm, struct_mass, total_living_struct_mass):
-        return sum([x*y for x, y in zip(xylem_Nm.values(), struct_mass.values())])  / total_living_struct_mass[1]
+    def _C_xylem_Nm_average(self, xylem_Nm, living_struct_mass, total_living_struct_mass):
+        return sum([x*y for x, y in zip(xylem_Nm.values(), living_struct_mass.values())])  / total_living_struct_mass[1]
 
     @totalstate
-    def _C_xylem_AA_average(self, xylem_AA, struct_mass, total_living_struct_mass):
-        return sum([x*y for x, y in zip(xylem_AA.values(), struct_mass.values())])  / total_living_struct_mass[1]
+    def _C_xylem_AA_average(self, xylem_AA, living_struct_mass, total_living_struct_mass):
+        return sum([x*y for x, y in zip(xylem_AA.values(), living_struct_mass.values())])  / total_living_struct_mass[1]
 
     @totalstate
     def _total_AA_rhizodeposition(self, diffusion_AA_soil, import_AA):
         return self.time_step * (sum(diffusion_AA_soil.values()) - sum(import_AA.values()))
 
     @totalstate
-    def _C_hexose_average(self, struct_mass, total_living_struct_mass, C_hexose_root=1e-4):
-        return sum([x*y for x, y in zip(C_hexose_root.values(), struct_mass.values())]) / total_living_struct_mass[1]
+    def _C_hexose_average(self, living_struct_mass, total_living_struct_mass, C_hexose_root=1e-4):
+        return sum([x*y for x, y in zip(C_hexose_root.values(), living_struct_mass.values())]) / total_living_struct_mass[1]

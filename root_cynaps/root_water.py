@@ -144,26 +144,6 @@ class RootWaterModel(Model):
                 self.collar_children += [k for k in children if self.type[k] not in ('Support_for_seminal_root', 'Support_for_adventitious_root')]
         
 
-
-    def post_growth_updating(self):
-        """
-        Description :
-            Extend property dictionnary uppon new element partionning and updates concentrations uppon structural_mass change
-        """
-        self.vertices = self.g.vertices(scale=self.g.max_scale())
-        for vid in self.vertices:
-            if vid not in list(self.radial_import_water.keys()):
-                parent = self.g.parent(vid)
-                mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
-                for prop in self.state_variables:
-                    # if intensive, equals to parent
-                    if self.__dataclass_fields__[prop].metadata["state_variable_type"] == "intensive":
-                        getattr(self, prop).update({vid: getattr(self, prop)[parent]})
-                    # if extensive, we need structural mass wise partitioning
-                    else:
-                        getattr(self, prop).update({vid: getattr(self, prop)[parent] * mass_fraction,
-                                                    parent: getattr(self, prop)[parent] * (1 - mass_fraction)})
-
     @potential
     @rate
     def _K(self, length, xylem_vessel_radii):
