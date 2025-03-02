@@ -36,6 +36,12 @@ class RootWaterModel(Model):
     xylem_volume: float = declare(default=0, unit="m3", unit_comment="", description="xylem volume for water transport between elements", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    kr_symplasmic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Symplasmic water conductance of all cell layer contribution, including transmembrane and plasmodesmata resistance", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    kr_apoplastic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Apolastic water conductance including the endoderm differentiation blocking this pathway. Considering xylem volume to be equivalent to whole stele apoplasm, we only account for the cumulated resistance of cortex and epidermis cell wals.", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
     length: float = declare(default=0, unit="m", unit_comment="of root segment", description="", 
@@ -75,9 +81,6 @@ class RootWaterModel(Model):
                                           variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
     
     # Conductance values
-    k: float = declare(default=0, unit="mol.Pa-1.s-1", unit_comment="", description="radial root segment conductance", 
-                                          min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
     K: float = declare(default=0, unit="mol.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
@@ -149,14 +152,6 @@ class RootWaterModel(Model):
     def _K(self, length, xylem_vessel_radii):
         return sum((np.pi * (vessel_radius ** 4) / (8 * self.sap_viscosity * length)) for vessel_radius in xylem_vessel_radii)
 
-
-    @potential
-    @rate
-    def _k(self, radius, length):
-        
-
-        return 
-
     @actual
     @rate
     def water_transport(self):
@@ -195,7 +190,7 @@ class RootWaterModel(Model):
                 else:
                     children = g.children(v)
 
-                r = 1./(self.k[v] + sum(self.Keq[cid] for cid in children))
+                r = 1./(self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v] + sum(self.Keq[cid] for cid in children))
                 R = 1./self.K[v]
                 self.Keq[v] = 1. / (r + R)
 
@@ -224,9 +219,11 @@ class RootWaterModel(Model):
                 else:
                     self.xylem_pressure_out[v] = self.xylem_pressure_in[parent]
                     self.axial_export_water_up[v] = (self.axial_export_water_up[parent] - self.radial_import_water[parent]) * ( self.Keq[v] / Keq_brothers )
+                
+                k_radial = self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v]
 
-                self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (self.k[v] + Keq_children)) / (self.k[v] + self.K[v] + Keq_children)
-                self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * self.k[v]
+                self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (k_radial + Keq_children)) / (k_radial + self.K[v] + Keq_children)
+                self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * k_radial
 
                 # Computed to avoid children iteration when needed by other modules
                 self.axial_import_water_down[v] = self.axial_export_water_up[v] - self.radial_import_water[v]
