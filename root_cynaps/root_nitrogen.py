@@ -36,7 +36,7 @@ class RootNitrogenModel(Model):
     # FROM CARBON MODEL
     C_hexose_root: float = declare(default=1e-4, unit="mol.g-1", unit_comment="of labile hexose", description="Hexose concentration in root",
                                   min_value="", max_value="", value_comment="", references="", DOI="",
-                                   variable_type="input", by="model_carbon", state_variable_type="intensive", edit_by="user")
+                                   variable_type="input", by="model_carbon", state_variable_type="", edit_by="user")
     
 
     # FROM SOIL MODEL
@@ -54,7 +54,7 @@ class RootNitrogenModel(Model):
                             variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
     soil_temperature: float = declare(default=20, unit="°C", unit_comment="", description="soil temperature in contact with roots",
                             value_comment="", references="", DOI="",
-                            min_value="", max_value="", variable_type="input", by="model_temperature", state_variable_type="intensive", edit_by="user")
+                            min_value="", max_value="", variable_type="input", by="model_temperature", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
     root_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="",
@@ -95,6 +95,9 @@ class RootNitrogenModel(Model):
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
+    type: str = declare(default="Normal_root_after_emergence", unit="", unit_comment="", description="Example segment type provided by root growth model", 
+                       min_value="", max_value="", value_comment="", references="", DOI="",
+                        variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     length: float =                     declare(default=0, unit="m", unit_comment="of root segment", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
@@ -150,93 +153,93 @@ class RootNitrogenModel(Model):
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     xylem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
-                                        variable_type="input", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
+                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
     # Transport processes
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     nitrate_transporters_affinity_factor: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
                                                     min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialIntensive", edit_by="user")
     import_AA: float =                      declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     export_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     export_AA: float =                      declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_Nm_soil: float =              declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_Nm_xylem: float =             declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="",
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_Nm_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_AA_soil: float =              declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_AA_phloem: float =            declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_AA_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     
     # Metabolic processes
     AA_synthesis: float =                   declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     struct_synthesis: float =               declare(default=0., unit="mol.s-1", unit_comment="of functional structure", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     storage_synthesis: float =              declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     AA_catabolism: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     storage_catabolism: float =             declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     displaced_Nm_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     displaced_Nm_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     Nm_differential_by_water_transport: float =    declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value=-1e9, max_value=1e9, value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     displaced_AA_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     displaced_AA_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     cumulated_radial_exchanges_Nm: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     cumulated_radial_exchanges_AA: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Symbiotic-specific nitrogen exchanges
     nitrogenase_fixation: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     
     mycorrhiza_infected_length: float =          declare(default=0., unit="m", unit_comment="of root segment infected by mycorrhiza", description="Length of the root segment infected by AMF", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
     mycorrhizal_mediated_import_Nm: float =          declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="Transfer of inorganic nitrogen from michoriza to root", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="self_rate_state", edit_by="user")
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Deficits
     deficit_Nm: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
@@ -966,7 +969,7 @@ class RootNitrogenModel(Model):
                                                                      C=self.active_processes_C)
         return living_struct_mass * cmax_AA * AA / (Km_stor_root + AA)
 
-    #@rate
+    @rate
     def _nitrogenase_fixation(self, type, living_struct_mass, C_hexose_root, Nm, soil_temperature):
         if type == "Root_nodule":
             # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
@@ -980,7 +983,7 @@ class RootNitrogenModel(Model):
         else:
             return 0.
         
-    #TP@state
+    @state
     def _mycorrhiza_infected_length(self, vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length):
         """
         From Scnepf et al 2016, modified with distance from tip here to avoid not computed root age
@@ -1023,16 +1026,20 @@ class RootNitrogenModel(Model):
         return mycorrhiza_infected_length
 
     @rate
-    def _mycorrhizal_mediated_import_Nm(self, mycorrhiza_infected_length, Nm_fungus, soil_temperature):
+    def _mycorrhizal_mediated_import_Nm(self, vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length, Nm_fungus, soil_temperature):
         """
         Mainly Ammonium active export by AMF to roots as reported from 
         """
+
+        self.mycorrhiza_infected_length[vertex_index] = self._mycorrhiza_infected_length(vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length)
+
+
         vmax_Nm_to_roots_fungus = self.vmax_Nm_to_roots_fungus * self.temperature_modification(soil_temperature=soil_temperature,
                                                                                             T_ref=self.active_processes_T_ref,
                                                                                             A=self.active_processes_A,
                                                                                             B=self.active_processes_B,
                                                                                             C=self.active_processes_C)
-        return vmax_Nm_to_roots_fungus * mycorrhiza_infected_length * Nm_fungus / (Nm_fungus + self.Km_Nm_to_roots_fungus)
+        return vmax_Nm_to_roots_fungus * self.mycorrhiza_infected_length[vertex_index] * Nm_fungus / (Nm_fungus + self.Km_Nm_to_roots_fungus)
 
     @totalrate
     def _cytokinin_synthesis(self, total_living_struct_mass, C_hexose_average, C_Nm_average, soil_temperature):
@@ -1128,6 +1135,9 @@ class RootNitrogenModel(Model):
 
     @totalstate
     def _total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem):
+        test_array = np.array([total_phloem_AA[1]] + list(diffusion_AA_phloem.values()) + [ AA_root_shoot_phloem[1]])
+        if np.any(np.isnan(test_array)) or np.any(np.isinf(test_array)):
+            raise ValueError
         return total_phloem_AA[1] + (- self.time_step * sum(diffusion_AA_phloem.values()) + AA_root_shoot_phloem[1])
     
     @totalstate

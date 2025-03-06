@@ -72,32 +72,32 @@ class RootWaterModel(Model):
     # Pools initial values
     xylem_water: float = declare(default=0, unit="mol", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                                variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     xylem_pressure_in: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     xylem_pressure_out: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     
     # Conductance values
     K: float = declare(default=0, unit="mol.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     Keq: float = declare(default=0, unit="mol.Pa-1.s-1", unit_comment="", description="Equivalent conductance of the current root segment considering its position in the root system", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Water transport processes
     radial_import_water: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
-                                         variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                         variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     axial_export_water_up: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
-                                           variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     axial_import_water_down: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
                                              min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variable", by="model_water", state_variable_type="self_rate_state", edit_by="user")
+                                             variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     # --- INITIALIZES MODEL PARAMETERS ---
 
