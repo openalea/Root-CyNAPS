@@ -182,14 +182,14 @@ class RootWaterModel(Model):
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
 
-        # Equivalent conductance computation
+        # Equivalent conductance computation from tip to base
         for v in post_order2(g, root):
             if self.struct_mass[v] > 0.:
                 if v == root:
                     children = self.collar_children
                 else:
-                    children = g.children(v)
-
+                    children = [child for child in g.children(v) if self.struct_mass[child] > 0.]
+                
                 r = 1./(self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v] + sum(self.Keq[cid] for cid in children))
                 R = 1./self.K[v]
                 self.Keq[v] = 1. / (r + R)
@@ -203,12 +203,12 @@ class RootWaterModel(Model):
                     brothers = self.collar_children
                 else:
                     parent = g.parent(v)
-                    brothers = g.children_iter(parent)
+                    brothers = [sibling for sibling in g.children_iter(parent) if self.struct_mass[sibling] > 0.]
 
                 if v == root:
                     children = self.collar_children
                 else:
-                    children = g.children_iter(v)
+                    children = [child for child in g.children_iter(v) if self.struct_mass[child] > 0.]
 
                 Keq_brothers = sum( self.Keq[cid] for cid in brothers)
                 Keq_children = sum( self.Keq[cid] for cid in children)
