@@ -106,13 +106,10 @@ class RootWaterModel(Model):
                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
-    # exchange surface properties
-    cortex_water_conductivity: float = declare(default=104 * 1e-9 / 18 / 10, unit="mol.s-1.Pa-1.m-2", unit_comment="", description="",
-                                               min_value="", max_value="", value_comment="", references="", DOI="",
-                                               variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    apoplasmic_water_conductivity: float = declare(default=104 * 1e-9 / 18, unit="mol.s-1.Pa-1.m-2", unit_comment="", description="",
-                                                   min_value="", max_value="", value_comment="", references="", DOI="",
-                                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    collar_flux_provided: bool = declare(default=False, unit="adim", unit_comment="", description="Option if collar flux is provided by input data", 
+                                   min_value="", max_value="", value_comment="", references="", DOI="",
+                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+
 
     def __init__(self, g, time_step, **scenario):
         """
@@ -182,7 +179,7 @@ class RootWaterModel(Model):
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
 
-        # Equivalent conductance computation from tip to base
+        # Equivalent conductance computation from tip to collar
         for v in post_order2(g, root):
             if self.struct_mass[v] > 0.:
                 if v == root:
@@ -194,7 +191,7 @@ class RootWaterModel(Model):
                 R = 1./self.K[v]
                 self.Keq[v] = 1. / (r + R)
 
-        # Water flux and water potential computation
+        # Water flux and water potential computation from collar to tips
         for v in pre_order2(g, root):
             # Compute psi according to Millman theorem, then compute radial flux
             if self.struct_mass[v] > 0:
@@ -215,7 +212,15 @@ class RootWaterModel(Model):
 
                 if parent is None:
                     self.xylem_pressure_out[v] = self.xylem_pressure_collar[1]
-                    self.axial_export_water_up[v] = self.water_root_shoot_xylem[1]
+
+                    # If collar flux is provided by the shoot model
+                    if self.collar_flux_provided:
+                        self.axial_export_water_up[v] = self.water_root_shoot_xylem[1]
+                    # Else we compute the flux according to the Haggen-Poiseuille conductance of
+                    else:
+                        self.axial_export_water_up[v] = self.K[v] * (self.xylem_pressure_in[v] - self.xylem_pressure_out[v])
+                        print(self.axial_export_water_up[v])
+
                 else:
                     self.xylem_pressure_out[v] = self.xylem_pressure_in[parent]
                     self.axial_export_water_up[v] = (self.axial_export_water_up[parent] - self.radial_import_water[parent]) * ( self.Keq[v] / Keq_brothers )
