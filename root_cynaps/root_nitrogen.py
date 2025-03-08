@@ -269,7 +269,7 @@ class RootNitrogenModel(Model):
     C_xylem_AA_average: float =             declare(default=0., unit="mol", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_phloem_AA: float =            declare(default=1e-3, unit="mol", unit_comment="of amino acids", description="",
+    total_phloem_AA: float =            declare(default=1e-9, unit="mol", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="",
@@ -333,10 +333,10 @@ class RootNitrogenModel(Model):
     diffusion_soil: float =             declare(default=2.5e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=1e-7, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_xylem: float =            declare(default=1e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_phloem: float =           declare(default=1.2e-8, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_phloem: float =           declare(default=1.2e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="1.2e-8 * Important value to avoid harsh growth limitations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
@@ -678,6 +678,7 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
+
         return diffusion_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
 
     @axial
