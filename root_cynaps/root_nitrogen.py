@@ -116,6 +116,9 @@ class RootNitrogenModel(Model):
     root_hairs_struct_mass_produced: float = declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    hexose_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="Hexose consumption rate by growth is coupled to a root growth model", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     thermal_time_since_emergence: float = declare(default=0, unit="°C", unit_comment="", description="", 
                                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                                   variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
@@ -127,7 +130,7 @@ class RootNitrogenModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_shoot_phloem: float =       declare(default=1e-9, unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     cytokinins_root_shoot_xylem: float = declare(default=0, unit="mol.h-1", unit_comment="of cytokinins", description="",
@@ -186,6 +189,9 @@ class RootNitrogenModel(Model):
     diffusion_AA_phloem: float =            declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    unloading_AA_phloem: float =            declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
+                                                    min_value="", max_value="", description="Active import of amino acids from phloem, in line with dual flow from rhizodep", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_AA_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -194,7 +200,7 @@ class RootNitrogenModel(Model):
     AA_synthesis: float =                   declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    struct_synthesis: float =               declare(default=0., unit="mol.s-1", unit_comment="of functional structure", description="", 
+    amino_acids_consumption_by_growth: float =               declare(default=0., unit="mol.s-1", unit_comment="of functional structure", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     storage_synthesis: float =              declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
@@ -248,6 +254,9 @@ class RootNitrogenModel(Model):
     deficit_AA: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
                                             variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+    deficit_AA_phloem: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root phloem", 
+                                           min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
+                                            variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
 
     # SUMMED STATE VARIABLES
 
@@ -269,7 +278,7 @@ class RootNitrogenModel(Model):
     C_xylem_AA_average: float =             declare(default=0., unit="mol", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_phloem_AA: float =            declare(default=1e-9, unit="mol", unit_comment="of amino acids", description="",
+    total_phloem_AA: float =            declare(default=1e-9 * 10, unit="mol", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="",
@@ -300,7 +309,7 @@ class RootNitrogenModel(Model):
     vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="*2 to slightly increase the impact of amino acid production", references="Liu et Tsay", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_Nm_xylem: float =              declare(default=2*1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
+    vmax_Nm_xylem: float =              declare(default=1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="*10e2 from outside root as a lower surface has to compete with external surface and presents LATS", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_root_LATS: float =            declare(default=1e1, unit="mol.m-3", unit_comment="of nitrates", description="",
@@ -315,8 +324,8 @@ class RootNitrogenModel(Model):
     span_N_regulation: float =          declare(default=6e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_xylem: float =                declare(default=1e-1, unit="mol.g-1", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    Km_Nm_xylem: float =                declare(default=1e-3, unit="mol.g-1", unit_comment="of nitrates", description="",
+                                                min_value="", max_value="", value_comment="adjusted to avoid accumulation in symplasm", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_AA_root: float =               declare(default=1e-8, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -336,9 +345,18 @@ class RootNitrogenModel(Model):
     diffusion_xylem: float =            declare(default=1e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_phloem: float =           declare(default=1.2e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_phloem: float =           declare(default=1.2e-10 / 10000, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="1.2e-8 * Important value to avoid harsh growth limitations", references="", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")  # Artif *1e-1 g.m-2.s-1 more realistic ranges
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="I", edit_by="user")
+    vmax_unloading_AA_phloem: float = declare(default=1e-7 * 10, unit="mol.m-2.s-1", unit_comment="", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    km_unloading_AA_phloem: float = declare(default=100, unit="mol.m-3", unit_comment="", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-11, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+                                                min_value="", max_value="", value_comment="", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
+                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
@@ -411,7 +429,7 @@ class RootNitrogenModel(Model):
     Km_stor_catab: float =              declare(default=250e-6, unit="mol.g-1", unit_comment="of storage", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    cmax_AA: float =                    declare(default=5e-9, unit="mol.s-1.g-1", unit_comment="of amino acids", description="",
+    cmax_AA: float =                    declare(default=5e-9 / 10, unit="mol.s-1.g-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="5e-9 for now not relevant as it doesn't contribute to C_hexose_root balance.", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_catab: float =                declare(default=2.5e-6, unit="mol.g-1", unit_comment="of amino acids", description="", 
@@ -472,8 +490,8 @@ class RootNitrogenModel(Model):
     r_AA_stor: float =                  declare(default=65, unit="adim", unit_comment="concentration ratio", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    struct_mass_N_content: float = declare(default=0.44 / 20 / 14, unit="mol.g-1", unit_comment="of carbon", description="C content of structural mass", 
-                                                    min_value="", max_value="", value_comment="", references="We assume that the structural mass contains 44% of C. (??)", DOI="",
+    struct_mass_N_content: float = declare(default=0.015 / 14, unit="mol.g-1", unit_comment="of nitrogen", description="C content of structural mass", 
+                                                    min_value="", max_value="", value_comment="", references="We assume that the structural mass contains 1.5% of N. (Barillot et al. 2016)", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
     
 
@@ -669,17 +687,30 @@ class RootNitrogenModel(Model):
             return (diffusion_apoplasm * (xylem_AA * living_struct_mass / xylem_volume - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
 
     @rate
-    def _diffusion_AA_phloem(self, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume):
-        # Passive radial diffusion between phloem and cortex through plasmodesmata
-        # TODO : Change diffusive flow to enable realistic ranges, now, unloading is limited by a ping pong bug related to diffusion
-        # TODO : resolve exception when mapping has to deal with plant scale properties AND local ones
-        diffusion_phloem = self.diffusion_phloem * self.temperature_modification(soil_temperature=soil_temperature,
+    def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume):
+        """ Passive radial diffusion between phloem and cortex through plasmodesmata """
+        AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+        diffusion_phloem = self.diffusion_phloem * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.passive_processes_T_ref,
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
 
         return diffusion_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
+
+    @rate
+    def _unloading_AA_phloem(self, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature):
+        AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+        vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                            T_ref=self.active_processes_T_ref,
+                                                            A=self.active_processes_A,
+                                                            B=self.active_processes_B,
+                                                            C=self.active_processes_C)
+        
+        return max(vmax_unloading_AA_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1]) * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + (self.total_phloem_AA[1] / self.total_phloem_volume[1])), 0)
 
     @axial
     @rate
@@ -934,9 +965,9 @@ class RootNitrogenModel(Model):
             return 0
 
     @rate
-    def _struct_synthesis(self, struct_mass_produced, root_hairs_struct_mass_produced):
+    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
         # Organic structure synthesis
-        return (struct_mass_produced + root_hairs_struct_mass_produced) * self.struct_mass_N_content / self.r_Nm_AA
+        return (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
         
     @rate
     def _storage_synthesis(self, living_struct_mass, AA, soil_temperature):
@@ -1080,17 +1111,18 @@ class RootNitrogenModel(Model):
 
 
     @state
-    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  struct_synthesis, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
+    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
         
         if living_struct_mass > 0:
             balance =  AA + (self.time_step / living_struct_mass) * (
                     diffusion_AA_phloem
+                    + unloading_AA_phloem
                     + import_AA
                     - diffusion_AA_soil
                     - export_AA
                     + AA_synthesis
-                    - struct_synthesis
+                    - amino_acids_consumption_by_growth
                     - storage_synthesis * self.r_AA_stor
                     + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
@@ -1135,11 +1167,23 @@ class RootNitrogenModel(Model):
     # PLANT SCALE PROPERTIES UPDATE
 
     @totalstate
-    def _total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, AA_root_shoot_phloem):
-        test_array = np.array([total_phloem_AA[1]] + list(diffusion_AA_phloem.values()) + [ AA_root_shoot_phloem[1]])
-        if np.any(np.isnan(test_array)) or np.any(np.isinf(test_array)):
-            raise ValueError
-        return total_phloem_AA[1] + (- self.time_step * sum(diffusion_AA_phloem.values()) + AA_root_shoot_phloem[1])
+    def _total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, unloading_AA_phloem, AA_root_shoot_phloem, deficit_AA_phloem):
+        balance = total_phloem_AA[1] + (- self.time_step * (sum(diffusion_AA_phloem.values())
+                                                        + sum(unloading_AA_phloem.values())) 
+                                    + AA_root_shoot_phloem[1]
+                                    - deficit_AA_phloem[1])
+        
+        if balance < 0.:
+            self.deficit_AA_phloem[1] = -balance if balance < -1e-20 else 0.
+            print(self.deficit_AA_phloem[1], "phloem AA deficit")
+            return 0.
+        else:
+            self.deficit_AA_phloem[1] = 0
+            return balance
+        
+        return total_phloem_AA[1] + (- self.time_step * (sum(diffusion_AA_phloem.values())
+                                                        + sum(unloading_AA_phloem.values())) 
+                                    + AA_root_shoot_phloem[1])
     
     @totalstate
     def _AA_root_shoot_phloem_record(self, AA_root_shoot_phloem):

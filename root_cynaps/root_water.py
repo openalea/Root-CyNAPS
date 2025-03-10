@@ -64,8 +64,8 @@ class RootWaterModel(Model):
     water_root_shoot_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    xylem_pressure_collar: float = declare(default=-1e6, unit="Pa", unit_comment="", description="Water potential at collar", 
-                                            min_value="", max_value="", value_comment="", references="", DOI="",
+    xylem_pressure_collar: float = declare(default=-0.5e6, unit="Pa", unit_comment="", description="Water potential at collar", 
+                                            min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
     # --- INITIALIZE MODEL STATE VARIABLES ---
@@ -76,10 +76,10 @@ class RootWaterModel(Model):
     xylem_water: float = declare(default=0, unit="mol", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    xylem_pressure_in: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
+    xylem_pressure_in: float = declare(default=-0.01e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    xylem_pressure_out: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
+    xylem_pressure_out: float = declare(default=-0.01e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     
@@ -150,7 +150,6 @@ class RootWaterModel(Model):
     @rate
     def _K(self, soil_temperature, length, xylem_vessel_radii):
         sap_viscosity = (2.414 * 1e-5) * 10 ** (247.8 / (273.15 + soil_temperature - 140))
-        print(sap_viscosity)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii)
 
     @actual
