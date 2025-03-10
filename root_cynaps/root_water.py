@@ -25,6 +25,9 @@ class RootWaterModel(Model):
     soil_water_pressure: float = declare(default=0., unit="Pa", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
+    soil_temperature: float = declare(default=7.8, unit="°C", unit_comment="", description="soil temperature in contact with roots",
+                                        min_value="", max_value="", value_comment="Derived from Swinnen et al. 1994 C inputs, estimated from a labelling experiment starting 3rd of March, with average temperature at 7.8 °C", references="Swinnen et al. 1994", DOI="",
+                                        variable_type="input", by="model_temperature", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
     cortex_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="", 
@@ -88,6 +91,11 @@ class RootWaterModel(Model):
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
 
+    # Water properties
+    # sap_viscosity: float = declare(default=1.003e-3, unit="Pa.s", unit_comment="", description="Viscosity at 20°C", 
+    #                                min_value="0.535e-3", max_value="1.753e-3", value_comment="", references="", DOI="",
+    #                                variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
+
     # Water transport processes
     radial_import_water: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
@@ -100,11 +108,6 @@ class RootWaterModel(Model):
                                              variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     # --- INITIALIZES MODEL PARAMETERS ---
-
-    # Water properties
-    sap_viscosity: float = declare(default=1.3e6, unit="Pa", unit_comment="", description="", 
-                                   min_value="", max_value="", value_comment="", references="", DOI="",
-                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
     collar_flux_provided: bool = declare(default=False, unit="adim", unit_comment="", description="Option if collar flux is provided by input data", 
                                    min_value="", max_value="", value_comment="", references="", DOI="",
@@ -142,12 +145,13 @@ class RootWaterModel(Model):
             if self.type[vid] in ('Support_for_seminal_root', 'Support_for_adventitious_root') and children:
                 self.collar_skip += [vid]
                 self.collar_children += [k for k in children if self.type[k] not in ('Support_for_seminal_root', 'Support_for_adventitious_root')]
-        
 
     @potential
     @rate
-    def _K(self, length, xylem_vessel_radii):
-        return sum((np.pi * (vessel_radius ** 4) / (8 * self.sap_viscosity * length)) for vessel_radius in xylem_vessel_radii)
+    def _K(self, soil_temperature, length, xylem_vessel_radii):
+        sap_viscosity = (2.414 * 1e-5) * 10 ** (247.8 / (273.15 + soil_temperature - 140))
+        print(sap_viscosity)
+        return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii)
 
     @actual
     @rate
@@ -219,7 +223,6 @@ class RootWaterModel(Model):
                     # Else we compute the flux according to the Haggen-Poiseuille conductance of
                     else:
                         self.axial_export_water_up[v] = self.K[v] * (self.xylem_pressure_in[v] - self.xylem_pressure_out[v])
-                        print(self.axial_export_water_up[v])
 
                 else:
                     self.xylem_pressure_out[v] = self.xylem_pressure_in[parent]
