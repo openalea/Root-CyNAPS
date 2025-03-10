@@ -97,13 +97,13 @@ class RootWaterModel(Model):
     #                                variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     # Water transport processes
-    radial_import_water: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="", 
+    radial_import_water: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    axial_export_water_up: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
+    axial_export_water_up: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    axial_import_water_down: float = declare(default=0., unit="mol.time_step-1", unit_comment="of water", description="",
+    axial_import_water_down: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="",
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 

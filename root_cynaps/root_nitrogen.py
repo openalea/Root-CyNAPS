@@ -15,6 +15,7 @@ Methods' names are systematic through all class for ease of use :
 # Imports
 import numpy as np
 from dataclasses import dataclass
+from openalea.mtg.traversal import post_order2, pre_order2
 
 from metafspm.component import Model, declare
 from metafspm.component_factory import *
@@ -87,6 +88,9 @@ class RootNitrogenModel(Model):
     xylem_water: float =                declare(default=0, unit="mol", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    radial_import_water: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
     axial_export_water_up: float =      declare(default=0, unit="mol.s-1", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
@@ -212,27 +216,57 @@ class RootNitrogenModel(Model):
     storage_catabolism: float =             declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_Nm_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_Nm_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    Nm_differential_by_water_transport: float =    declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
-                                                    min_value=-1e9, max_value=1e9, value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_AA_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_AA_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    cumulated_radial_exchanges_Nm: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    cumulated_radial_exchanges_AA: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+
+    # Axial transport processes
+    # Nm rates
+    Nm_up_transmitted_flux_retention: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    Nm_down_transmitted_flux_retention: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    Nm_up_transmitted_flux: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    Nm_down_transmitted_flux: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    
+    # AA rates
+    AA_up_transmitted_flux_retention: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    AA_down_transmitted_flux_retention: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    AA_up_transmitted_flux: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    AA_down_transmitted_flux: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+            min_value="", max_value="", value_comment="", references="", DOI="",
+            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+
+    # displaced_Nm_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    #                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # displaced_Nm_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    #                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # Nm_differential_by_water_transport: float =    declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    #                                                 min_value=-1e9, max_value=1e9, value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # displaced_AA_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+    #                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # displaced_AA_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+    #                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # cumulated_radial_exchanges_Nm: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    #                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # cumulated_radial_exchanges_AA: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+    #                                                 min_value="", max_value="", value_comment="", references="", DOI="",
+    #                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Symbiotic-specific nitrogen exchanges
     nitrogenase_fixation: float =                  declare(default=0., unit="mol.s-1", unit_comment="of amonium", description="", 
@@ -257,6 +291,9 @@ class RootNitrogenModel(Model):
     deficit_AA_phloem: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root phloem", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
                                             variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    deficit_xylem_Nm: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
+                                           min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
     # SUMMED STATE VARIABLES
 
@@ -515,7 +552,7 @@ class RootNitrogenModel(Model):
         self.link_self_to_mtg()
 
     
-    @stepinit
+    #@stepinit
     def initialize_cumulative(self):
         # Reinitialize for the sum of the next loop
         self.Nm_root_shoot_xylem[1] = 0
@@ -714,8 +751,124 @@ class RootNitrogenModel(Model):
 
     @axial
     @rate
-    # AXIAL TRANSPORT PROCESSES
     def _axial_transport_N(self):
+
+        g = self.g # To prevent repeated MTG lookups
+
+        # Select the base of the root
+        root = next(g.component_roots_at_scale_iter(g.root, scale=1))
+
+        # Upward upward flux computation from tip to collar
+        for v in post_order2(g, root):
+            if self.living_struct_mass[v] > 0:
+                radial_Nm_exchanges = self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]
+                radial_AA_exchanges = self.export_AA[v] - self.diffusion_AA_soil_xylem[v]
+
+                if self.axial_export_water_up[v] > 0:
+                    # Indicator of solute flux dillution in newly imported water
+                    segment_retention_proportion = self.radial_import_water[v] / self.axial_export_water_up[v]
+
+                    # As for transmitted flux bellow, radial flux is supposed to be exported along the flux instead of being accumulated during the time step
+                    Nm_radial_flux_transmitted_up = radial_Nm_exchanges * (1 - segment_retention_proportion)
+                    AA_radial_flux_transmitted_up = radial_AA_exchanges * (1 - segment_retention_proportion)
+
+                    # A proportion of the solute content respective to segment water content is exported
+                    Nm_axial_advection_transmitted_up = self.xylem_Nm[v] * self.living_struct_mass[v] * self.axial_export_water_up[v] / self.xylem_water[v]
+                    AA_axial_advection_transmitted_up = self.xylem_AA[v] * self.living_struct_mass[v] * self.axial_export_water_up[v] / self.xylem_water[v]
+
+                    self.Nm_up_transmitted_flux[v] = Nm_radial_flux_transmitted_up + Nm_axial_advection_transmitted_up
+                    self.AA_up_transmitted_flux[v] = AA_radial_flux_transmitted_up + AA_axial_advection_transmitted_up
+
+                else:
+                    # All usually passed flux to parents are retained by this segment
+                    segment_retention_proportion = 1
+
+                    # Nothing is passed to parents as the flux goes down
+                    self.Nm_up_transmitted_flux[v] = 0
+                    self.AA_up_transmitted_flux[v] = 0
+                
+                # Then we compute retention and transmission of the sum of precomputed uptransmission fluxes passed to current segment
+                if v == 1:
+                    children = self.collar_children
+                else:
+                    children = [child for child in g.children(v) if self.living_struct_mass[child] > 0]
+
+                # Initializing as we sum fluxes over children
+                self.Nm_up_transmitted_flux_retention[v] = 0 
+                self.AA_up_transmitted_flux_retention[v] = 0
+
+                for child in children:
+                    self.Nm_up_transmitted_flux_retention[v] += self.Nm_up_transmitted_flux[child] * segment_retention_proportion
+                    self.Nm_up_transmitted_flux[v] += self.Nm_up_transmitted_flux[child] * (1 - segment_retention_proportion)
+                    self.AA_up_transmitted_flux_retention[v] += self.AA_up_transmitted_flux[child] * segment_retention_proportion
+                    self.AA_up_transmitted_flux[v] += self.AA_up_transmitted_flux[child] * (1 - segment_retention_proportion)
+
+                if v == 1:
+                    self.Nm_root_shoot_xylem[1] = self.Nm_up_transmitted_flux[v] * self.time_step
+                    self.AA_root_shoot_xylem[1] = self.AA_up_transmitted_flux[v] * self.time_step
+
+
+        # Downward flux computation from collar to tip
+        for v in pre_order2(g, root):
+            if self.living_struct_mass[v] > 0:
+                radial_Nm_exchanges = self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]
+                radial_AA_exchanges = self.export_AA[v] - self.diffusion_AA_soil_xylem[v]
+
+                # First we compute current segment contribution to axial exchanges with other segments 
+                if self.axial_import_water_down[v] < 0:
+                    # Indicator of solute flux dillution in newly imported water
+                    segment_retention_proportion = - self.radial_import_water[v] / self.axial_import_water_down[v]
+
+                    # As for transmitted flux bellow, radial flux is supposed to be exported along the flux instead of being accumulated during the time step
+                    Nm_radial_flux_transmitted_down = radial_Nm_exchanges * (1 - segment_retention_proportion)
+                    AA_radial_flux_transmitted_down = radial_AA_exchanges * (1 - segment_retention_proportion)
+
+                    Nm_axial_advection_transmitted_down = self.xylem_Nm[v] * self.living_struct_mass[v] * (- self.axial_import_water_down[v]) / self.xylem_water[v]
+                    AA_axial_advection_transmitted_down = self.xylem_Nm[v] * self.living_struct_mass[v] * (- self.axial_import_water_down[v]) / self.xylem_water[v]
+
+                    self.Nm_down_transmitted_flux[v] = Nm_radial_flux_transmitted_down + Nm_axial_advection_transmitted_down
+                    self.AA_down_transmitted_flux[v] = AA_radial_flux_transmitted_down + AA_axial_advection_transmitted_down
+
+                else:
+                    # All usually passed flux to parents are retained by this segment
+                    segment_retention_proportion = 1
+
+                    # Nothing is passed to parents as the flux goes down
+                    self.Nm_down_transmitted_flux[v] = 0
+                    self.AA_down_transmitted_flux[v] = 0
+
+                # Then we compute retention and transmission of parent precomputed downtransmission flux passed to current segment
+                if v == 1:
+                    self.Nm_down_transmitted_flux_retention[v] = 0
+                    self.AA_down_transmitted_flux_retention[v] = 0
+                    continue
+                
+                elif v in self.collar_children:
+                    parent = 1
+                    siblings = self.collar_children
+
+                else:
+                    parent = g.parent(v)
+                    siblings = [sibling for sibling in g.children_iter(parent) if self.living_struct_mass[sibling] > 0.]
+
+                if self.axial_export_water_up[v] < 0:
+                    # Supposing the parent downflux is indeed responsible for all downflux at segment upper edge, namely the current segment which let us enter this if condition
+                    total_siblings_downflux = sum([self.axial_export_water_up[s] for s in siblings if self.axial_export_water_up[s] < 0])
+                    Nm_down_transmission_from_parent = self.Nm_down_transmitted_flux[parent] * self.axial_export_water_up[v] / total_siblings_downflux
+                    AA_down_transmission_from_parent = self.AA_down_transmitted_flux[parent] * self.axial_export_water_up[v] / total_siblings_downflux
+                else:
+                    Nm_down_transmission_from_parent = 0
+                    AA_down_transmission_from_parent = 0
+                
+                self.Nm_down_transmitted_flux[v] += Nm_down_transmission_from_parent * (1 - segment_retention_proportion)
+                self.Nm_down_transmitted_flux_retention[v] = Nm_down_transmission_from_parent * segment_retention_proportion
+                self.AA_down_transmitted_flux[v] += AA_down_transmission_from_parent * (1 - segment_retention_proportion)
+                self.AA_down_transmitted_flux_retention[v] = AA_down_transmission_from_parent * segment_retention_proportion
+
+    # @axial
+    # @rate
+    # AXIAL TRANSPORT PROCESSES
+    def _axial_transport_N_old(self):
         """
             Description
             ___________
@@ -754,7 +907,14 @@ class RootNitrogenModel(Model):
                         self.displaced_Nm_out[v] = self.xylem_Nm[v] * self.living_struct_mass[v]
                         self.displaced_AA_out[v] = self.xylem_AA[v] * self.living_struct_mass[v]
                         # Transport affects a chain of parents
-                        water_exchange_time = self.time_step / turnover
+                        
+                        # We compute the two exchange modes in this water column
+                        # First when the segment is completely filled with water of this column
+                        full_water_exchange_time = self.time_step * (turnover - 1) / (turnover)
+                        # Then when the column starts to leave the considered segment, when you integrate only half of the flux of the segment contributes to that column
+                        half_water_exchange_time = self.time_step / turnover
+                        water_exchange_time = full_water_exchange_time + 0.5 * half_water_exchange_time
+
                         # Loading of the current vertex into the current vertex's xylem
                         self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * water_exchange_time
                         self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * water_exchange_time
@@ -1148,21 +1308,62 @@ class RootNitrogenModel(Model):
         else:
             return 0
 
-    @state
-    def _xylem_Nm(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, living_struct_mass):
+    #@state
+    def _xylem_Nm_old(self, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, living_struct_mass):
         if living_struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
             return xylem_Nm + (displaced_Nm_in - displaced_Nm_out + cumulated_radial_exchanges_Nm) / living_struct_mass
         else:
+            return 0.
+        
+    @state
+    def _xylem_Nm(self, vertex_index, xylem_Nm, export_Nm, diffusion_Nm_soil_xylem, diffusion_Nm_xylem, Nm_up_transmitted_flux_retention, Nm_down_transmitted_flux_retention, 
+                  Nm_up_transmitted_flux, Nm_down_transmitted_flux, living_struct_mass):
+        if living_struct_mass > 0:
+            # Vessel's nitrogen pool update
+            # Xylem balance accounting for exports from all neighbors accessible by water flow
+            balance =  xylem_Nm + (self.time_step / living_struct_mass) * (
+                export_Nm
+                - diffusion_Nm_soil_xylem 
+                - diffusion_Nm_xylem
+                + Nm_up_transmitted_flux_retention
+                + Nm_down_transmitted_flux_retention
+                - Nm_up_transmitted_flux
+                - Nm_down_transmitted_flux)
+            if balance < 0.:
+                deficit = - balance * (living_struct_mass) / self.time_step
+                self.deficit_xylem_Nm[vertex_index] = deficit if deficit > 1e-20 else 0.
+                return 0.
+            else:
+                self.deficit_xylem_Nm[vertex_index] = 0.
+                return balance
+        else:
             return 0
 
-    @state
-    def _xylem_AA(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, living_struct_mass):
+    #@state
+    def _xylem_AA_old(self, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, living_struct_mass):
         if living_struct_mass > 0:
             return xylem_AA + (displaced_AA_in - displaced_AA_out + cumulated_radial_exchanges_AA) / living_struct_mass
         else:
             return 0
+    
+    @state
+    def _xylem_AA(self, xylem_AA, export_AA, diffusion_AA_soil_xylem, AA_up_transmitted_flux_retention, AA_down_transmitted_flux_retention, 
+                  AA_up_transmitted_flux, AA_down_transmitted_flux, living_struct_mass):
+        if living_struct_mass > 0:
+            # Vessel's nitrogen pool update
+            # Xylem balance accounting for exports from all neighbors accessible by water flow
+            return xylem_AA + (self.time_step / living_struct_mass) * (
+                export_AA
+                - diffusion_AA_soil_xylem
+                + AA_up_transmitted_flux_retention
+                + AA_down_transmitted_flux_retention
+                - AA_up_transmitted_flux
+                - AA_down_transmitted_flux)
+        else:
+            return 0
+    
 
     # PLANT SCALE PROPERTIES UPDATE
 
