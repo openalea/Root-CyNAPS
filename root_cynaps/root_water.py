@@ -191,6 +191,11 @@ class RootWaterModel(Model):
                     children = [child for child in g.children(v) if self.struct_mass[child] > 0.]
                 
                 r = 1./(self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v] + sum(self.Keq[cid] for cid in children))
+
+                # If this is an apex, the axial flux is supposed to be limited by symplasmic xylem
+                if len(children) == 0:
+                    self.K[v] *= 1e-4
+                    
                 R = 1./self.K[v]
                 self.Keq[v] = 1. / (r + R)
 
@@ -233,7 +238,10 @@ class RootWaterModel(Model):
                 self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * k_radial
 
                 # Computed to avoid children iteration when needed by other modules
-                self.axial_import_water_down[v] = self.axial_export_water_up[v] - self.radial_import_water[v]
+                if len(children) > 0:
+                    self.axial_import_water_down[v] = self.axial_export_water_up[v] - self.radial_import_water[v]
+                else:
+                    self.axial_import_water_down[v] = 0
 
 
     @state
