@@ -45,6 +45,9 @@ class RootWaterModel(Model):
     kr_apoplastic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Apolastic water conductance including the endoderm differentiation blocking this pathway. Considering xylem volume to be equivalent to whole stele apoplasm, we only account for the cumulated resistance of cortex and epidermis cell wals.", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    xylem_differentiation_factor: float = declare(default=1., unit="adim", unit_comment="of vessel membrane", description="",
+                                            min_value="", max_value="", value_comment="", references="",  DOI="", 
+                                            variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
     length: float = declare(default=0, unit="m", unit_comment="of root segment", description="", 
@@ -148,9 +151,9 @@ class RootWaterModel(Model):
 
     @potential
     @rate
-    def _K(self, soil_temperature, length, xylem_vessel_radii):
+    def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
         sap_viscosity = (2.414 * 1e-5) * 10 ** (247.8 / (273.15 + soil_temperature - 140))
-        return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii)
+        return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
 
     @actual
     @rate
@@ -191,11 +194,6 @@ class RootWaterModel(Model):
                     children = [child for child in g.children(v) if self.struct_mass[child] > 0.]
                 
                 r = 1./(self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v] + sum(self.Keq[cid] for cid in children))
-
-                # If this is an apex, the axial flux is supposed to be limited by symplasmic xylem
-                if len(children) == 0:
-                    self.K[v] *= 1e-4
-                    
                 R = 1./self.K[v]
                 self.Keq[v] = 1. / (r + R)
 
