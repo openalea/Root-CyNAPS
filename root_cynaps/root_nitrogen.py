@@ -726,6 +726,8 @@ class RootNitrogenModel(Model):
                     self.km_unloading_AA_phloem + (self.total_phloem_AA[1] / self.total_phloem_volume[1])), 0)
 
 
+
+    
     @axial
     @rate
     # AXIAL TRANSPORT PROCESSES
@@ -741,12 +743,413 @@ class RootNitrogenModel(Model):
         # AXIAL TRANSPORT
         for v in self.vertices:
             if self.living_struct_mass[v] > 0 :
+
+                # identify the situation
+                _, sources = self.search_advection_neighboring(v)
+
+                displaced_water = self.xylem_water[v] + self.radial_import_water[v] * self.time_step
+                queue = sum(list(sources.values())) * self.time_step
+                water_column = displaced_water + queue
+
+                displaced_Nm_content = self.xylem_Nm[v] * self.living_struct_mass[v]
+                displaced_AA_content = self.xylem_AA[v] * self.living_struct_mass[v]
+
+                displaced_radial_Nm_fluxes = (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                displaced_radial_AA_fluxes = (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
+
+                # We start the computation loop for this segment until it reaches the end of the water columns
+                self.compute_flux_passing_and_retention(emitting_segment_id=v, previous_v=-1, current_v=v,
+                                                        displaced_water=displaced_water, queue=queue, water_column=water_column, 
+                                                        displaced_Nm_content=displaced_Nm_content, displaced_AA_content=displaced_AA_content,
+                                                        displaced_radial_Nm_fluxes=displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes=displaced_radial_AA_fluxes)
+                    
+
+    
+
+
+
+    def compute_flux_passing_and_retention(self, emitting_segment_id, previous_v, current_v, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+        local_destinations, local_sources = self.search_advection_neighboring(current_v, not_condidered=previous_v)
+
+        # If there are only influx, then there is no advection from this segment
+        if current_v == emitting_segment_id and len(local_destinations) == 0:
+            # print("staying in first")
+            # The current segment gathers all radial fluxes...
+            self.cumulated_radial_exchanges_Nm[current_v] += displaced_radial_Nm_fluxes
+            self.cumulated_radial_exchanges_AA[current_v] += displaced_radial_AA_fluxes
+
+            # ...and no outflux
+
+            # Then we don't call so we stop there
+
+        # Else if we reached a deadend, all fluxes are allocated here
+        elif len(local_destinations) == 0:
+            # print("deadend")
+            # The current segment gathers all radial fluxes...
+            self.cumulated_radial_exchanges_Nm[current_v] += displaced_radial_Nm_fluxes
+            self.cumulated_radial_exchanges_AA[current_v] += displaced_radial_AA_fluxes
+
+            self.displaced_Nm_in[current_v] += displaced_Nm_content
+            self.displaced_AA_in[current_v] += displaced_AA_content
+
+        else:
+            # print("propagating")
+            # Time requiered to estimate how much we dilate / concentrate the volume. If the segment has mass conservation, sum of outputs gives us this time of filling by inputs
+            segment_filling_time = self.xylem_water[current_v] / sum(list(local_destinations.values()))
+
+            # As the exported water comes through this segment towards destinations, it it dilluted (or concentrated if radial flux is negative) by radial flux + local sources
+            segment_water_acceleration = (self.radial_import_water[current_v] + sum(list(local_sources.values()))) * segment_filling_time * (water_column / self.xylem_water[current_v])
+
+            displaced_water += segment_water_acceleration * displaced_water / water_column
+            water_column += segment_water_acceleration
+            queue = water_column - displaced_water
+
+            # If translated volume from v doesn't stop here
+            if queue > self.xylem_water[current_v]:
+
+                # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
+                retained_radial_Nm_flux = displaced_radial_Nm_fluxes * self.xylem_water[current_v] / water_column
+                retained_radial_AA_flux = displaced_radial_AA_fluxes * self.xylem_water[current_v] / water_column
+
+                self.cumulated_radial_exchanges_Nm[current_v] += retained_radial_Nm_flux
+                self.cumulated_radial_exchanges_AA[current_v] += retained_radial_AA_flux
+
+                displaced_radial_Nm_fluxes -= retained_radial_Nm_flux
+                displaced_radial_AA_fluxes -= retained_radial_AA_flux
+
+                if current_v == emitting_segment_id:
+                    self.displaced_Nm_out[current_v] += displaced_Nm_content
+                    self.displaced_AA_out[current_v] += displaced_AA_content
+
+                # We update the remaining water column for this pathway
+                queue -= self.xylem_water[current_v]
+                # displaced_water is untouched in this case
+                water_column = queue + displaced_water
+
+                self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
+            
+            # Part of the displaced content ends here
+            else:
+                # If the queue and the displaced_water end here
+                if water_column <= self.xylem_water[current_v]:
+                    self.cumulated_radial_exchanges_Nm[current_v] += displaced_radial_Nm_fluxes
+                    self.cumulated_radial_exchanges_AA[current_v] += displaced_radial_AA_fluxes
+
+                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm
+                    # Note that this is just in case, normally it is impossible to reach this condition
+                    if current_v != emitting_segment_id:
+                        self.displaced_Nm_in[current_v] += displaced_Nm_content
+                        self.displaced_AA_in[current_v] += displaced_AA_content
+
+                    # Then we don't call so we stop there for this pathway
+
+                # If the displaced content is partitionned here
+                else:
+                    # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
+                    retained_radial_Nm_flux = displaced_radial_Nm_fluxes * self.xylem_water[current_v] / water_column
+                    retained_radial_AA_flux = displaced_radial_AA_fluxes * self.xylem_water[current_v] / water_column
+
+                    self.cumulated_radial_exchanges_Nm[current_v] += retained_radial_Nm_flux
+                    self.cumulated_radial_exchanges_AA[current_v] += retained_radial_AA_flux
+
+                    displaced_radial_Nm_fluxes -= retained_radial_Nm_flux
+                    displaced_radial_AA_fluxes -= retained_radial_AA_flux
+
+                    retained_advected_Nm = displaced_Nm_content * (self.xylem_water[current_v] - queue) / displaced_water
+                    retained_advected_AA = displaced_AA_content * (self.xylem_water[current_v] - queue) / displaced_water
+
+                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm
+                    if current_v != emitting_segment_id:
+                        self.displaced_Nm_in[current_v] += retained_advected_Nm
+                        self.displaced_AA_in[current_v] += retained_advected_AA
+
+                    displaced_Nm_content -= retained_advected_Nm
+                    displaced_AA_content -= retained_advected_Nm
+
+                    if current_v == emitting_segment_id:
+                        self.displaced_Nm_out[current_v] += displaced_Nm_content
+                        self.displaced_AA_out[current_v] += displaced_AA_content
+
+                    # We update the remaining water column for this pathway
+                    queue = 0
+                    displaced_water = water_column - self.xylem_water[current_v]
+                    water_column = displaced_water         
+
+                    self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
+
+
+    def search_advection_neighboring(self, v, not_condidered=-1):
+        if v == 1:
+            if self.axial_export_water_up[v] > 0:
+                destinations = {vid: - self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] < 0 and vid != not_condidered}
+                destinations.update({"collar": self.axial_export_water_up[v]})
+                sources = {vid: self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+            else:
+                destinations = {vid: - self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] < 0 and vid != not_condidered}
+                sources = {vid: self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+                sources.update({"collar": - self.axial_export_water_up[v]})
+
+        elif v in self.collar_children:
+            children = [child for child in self.g.children(v) if self.living_struct_mass[child] > 0]
+
+            if self.axial_export_water_up[v] > 0:
+                destinations = {vid: - self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] < 0}
+                destinations.update({1: self.axial_export_water_up[v]})
+                sources = {vid: self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+            
+            else:
+                destinations = {vid: - self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] < 0 and vid != not_condidered}
+                sources = {vid: self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+                sources.update({1: - self.axial_export_water_up[v]})
+
+        else:
+            p = self.g.parent(v)
+            children = [child for child in self.g.children(v) if self.living_struct_mass[child] > 0]
+
+            if self.axial_export_water_up[v] > 0:
+                destinations = {vid: - self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] < 0 and vid != not_condidered}
+                destinations.update({p: self.axial_export_water_up[v]})
+                sources = {vid: self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+            
+            else:
+                destinations = {vid: - self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] < 0. and vid != not_condidered}
+                sources = {vid: self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+                sources.update({p: - self.axial_export_water_up[v]})
+        
+        return destinations, sources
+    
+
+    def compute_flux_to_destinations(self, emitting_segment_id, previous_v, destinations, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+
+        total_destination_flux = sum(list(destinations.values()))
+
+        if "collar" in destinations:
+            proportion_to_collar = destinations["collar"] / total_destination_flux
+            
+            self.Nm_root_shoot_xylem[1] += proportion_to_collar * (displaced_Nm_content + displaced_radial_Nm_fluxes)
+            self.AA_root_shoot_xylem[1] += proportion_to_collar * (displaced_AA_content + displaced_radial_AA_fluxes)
+
+            displaced_Nm_content *= (1 - proportion_to_collar)
+            displaced_AA_content *= (1 - proportion_to_collar)
+            displaced_radial_Nm_fluxes *= (1 - proportion_to_collar)
+            displaced_radial_AA_fluxes *= (1 - proportion_to_collar)
+
+        for vid, destination_flux in destinations.items():
+            if vid != "collar":
+                dedicated_queue = queue * destination_flux / total_destination_flux
+                dedicated_displaced_water = displaced_water * destination_flux / total_destination_flux
+                dedicated_water_column = dedicated_queue + dedicated_displaced_water
+
+                dedicated_Nm_content = displaced_Nm_content * dedicated_displaced_water / displaced_water
+                dedicated_AA_content = displaced_AA_content * dedicated_displaced_water / displaced_water
+                dedicated_displaced_radial_Nm_= displaced_radial_Nm_fluxes * dedicated_water_column / water_column
+                dedicated_displaced_radial_AA_= displaced_radial_AA_fluxes * dedicated_water_column / water_column
+
+                self.compute_flux_passing_and_retention(emitting_segment_id, previous_v, vid, dedicated_displaced_water, dedicated_queue, dedicated_water_column, dedicated_Nm_content, dedicated_AA_content, dedicated_displaced_radial_Nm_, dedicated_displaced_radial_AA_)
+
+
+    # @axial
+    # @rate
+    # AXIAL TRANSPORT PROCESSES
+    def _axial_transport_N_old(self):
+
                 # If this is only an out flow to up parents
-                if self.axial_export_water_up[v] > 0 and self.axial_import_water_down[v] < 0:
-                    print("happens in ", v, self.axial_export_water_up[v], self.axial_import_water_down[v])
-                if self.axial_export_water_up[v] * self.time_step > 0:
+                if (self.axial_export_water_up[v] > 0 and  self.axial_import_water_down[v] >= 0):
                     # Turnover defines a dilution factor of radial transport processes over the axially transported
                     # water column
+                    displaced_volume = self.xylem_water[v] + self.radial_import_water[v] * self.time_step
+                    queue = self.axial_import_water_down[v] * self.time_step
+                    exported_water = displaced_volume + queue - self.xylem_water[v]
+
+                    displaced_Nm_content = self.xylem_Nm[v] * self.living_struct_mass[v]
+                    displaced_AA_content = self.xylem_AA[v] * self.living_struct_mass[v]
+
+                                        
+
+                    # Important to understand which fraction of the local radial fluxes a given water volume captures
+                    segment_filling_time = self.xylem_water[v] / (self.axial_import_water_down[v] + self.radial_import_water[v])
+                    
+                    if v in self.collar_children:
+                        up_parent = 1
+
+                    else:
+                        up_parent = self.g.parent(v)
+
+                    if queue > self.xylem_water[v]:
+                        
+                        # All previously present content is exported to parents
+                        self.displaced_Nm_out[v] = displaced_Nm_content
+                        self.displaced_AA_out[v] = displaced_AA_content
+
+                        # At the end of the step, only the queue is completely filling the segment
+
+                        # Here we divide by two as this volume has only entered the segment at the end of the queue, therefore, the integral of its loading is only half of the flux during that time as its equivalent to half time out segment and outside in
+                        # This doesn't apply to other volumes as they entered but also took time to leave the segment, thus catching the other half of the flux
+                        self.cumulated_radial_exchanges_Nm[v] += radial_Nm_influx_current_segment * 0.5 * segment_filling_time # no normalization by volume / xylem_water_volume is necessary here has the whole segment is filled
+                        self.cumulated_radial_exchanges_AA[v] += radial_AA_influx_current_segment * 0.5 * segment_filling_time# no normalization by volume / xylem_water_volume is necessary here has the whole segment is filled
+
+
+                        if up_parent == None:
+                            # First we add the advected amount
+                            self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
+                            self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v]
+
+                            # Then we add the radially loaded amount
+                            # First segment volume is only half loaded (equivalent integration as previously mentionned) + remaining water content which received full loading time, so we normalize that amout by xylem water content, 
+                            # and has this enters and quits the segment, this is a loading equivalent as if that volume was not moving while loading during the time-step
+                            self.Nm_root_shoot_xylem[1] += radial_Nm_influx_current_segment * 0.5 * segment_filling_time + radial_Nm_influx_current_segment * segment_filling_time * (exported_water - self.xylem_water[v]) / self.xylem_water[v]
+                            self.AA_root_shoot_xylem[1] += radial_AA_influx_current_segment * 0.5 * segment_filling_time + radial_AA_influx_current_segment * segment_filling_time * (exported_water - self.xylem_water[v]) / self.xylem_water[v]
+
+                        else:
+                            reached_up_parent = up_parent
+                            child = v
+
+                            # We go to next parent
+                            while reached_up_parent:
+                                
+                                # First handle extreme case : If flux reverses, a priori this means we have a concentrating output radial water flux that makes all content stay in place
+                                if self.axial_export_water_up[v] <= 0.:
+
+                                    self.displaced_Nm_in[reached_up_parent] += 0
+                                    self.displaced_AA_in[reached_up_parent] += 0
+
+                                    # Advected radial flux
+                                    self.cumulated_radial_exchanges_Nm[reached_up_parent] += 0
+                                    self.cumulated_radial_exchanges_AA[reached_up_parent] += 0
+
+                                    reached_up_parent = None
+                                    continue
+                                
+                                # If this is collar we also stop after allocating to shoot
+                                elif reached_up_parent == 1:
+                                    reached_up_parent = None
+                                    continue
+
+                                else:
+                                    # Time requiered to estimate how much we dilate / concentrate the volume
+                                    parent_segment_filling_time = self.xylem_water[reached_up_parent] / (self.axial_import_water_down[reached_up_parent] + self.radial_import_water[reached_up_parent])
+                                    
+                                    # If the perceived flux only enters
+                                    if exported_water <= self.xylem_water[reached_up_parent]:
+                                        parent_water_acceleration = 0.5 * self.radial_import_water[reached_up_parent] * parent_segment_filling_time * (exported_water / self.xylem_water[up_parent])
+                                    
+                                    else:
+                                        parent_water_acceleration = (0.5 * self.radial_import_water[reached_up_parent] * parent_segment_filling_time # Half filling when the last part filling the segment enters
+                                                                    + self.radial_import_water[reached_up_parent] * parent_segment_filling_time * (exported_water - self.xylem_water[reached_up_parent]) / self.xylem_water[reached_up_parent]) # full filling of the complementary
+                                        
+                                    # We increase update the reach of the displaced water column
+                                    displaced_volume += parent_water_acceleration * displaced_volume / exported_water
+                                    exported_water += parent_water_acceleration
+
+                                    def utility(self, parent, origin_segment, exported_water, displaced_volume, displaced_Nm_content, displaced_AA_content, 
+                                                segment_filling_time, radial_Nm_influx_current_segment, radial_AA_influx_current_segment):
+
+                                        if exported_water > self.xylem_water[parent]:
+                                            # We need to partition the displaced_volume
+                                            if exported_water - self.xylem_water[parent] < displaced_volume:
+                                                received_Nm_amount = displaced_Nm_content * (displaced_volume + self.xylem_water[parent] - exported_water) / displaced_volume
+                                                received_AA_amount = displaced_AA_content * (displaced_volume + self.xylem_water[parent] - exported_water) / displaced_volume
+                                                displaced_Nm_content -= received_Nm_amount
+                                                displaced_AA_content -= received_AA_amount
+
+                                                # parent receives half loading only for the displaced region and then the queue is fully loaded
+                                                self.cumulated_radial_exchanges_Nm[parent] += (0.5 * radial_Nm_influx_current_segment * segment_filling_time * (displaced_volume + self.xylem_water[parent] - exported_water) / self.xylem_water[origin_segment]
+                                                                                               + radial_Nm_influx_current_segment * segment_filling_time * (exported_water - displaced_volume) / self.xylem_water[origin_segment])
+                                                self.cumulated_radial_exchanges_AA[parent] += (0.5 * radial_AA_influx_current_segment * segment_filling_time * (displaced_volume + self.xylem_water[parent] - exported_water) / self.xylem_water[origin_segment]
+                                                                                               + radial_AA_influx_current_segment * segment_filling_time * (exported_water - displaced_volume) / self.xylem_water[origin_segment])
+
+                                                self.displaced_Nm_in[parent] += received_Nm_amount
+                                                self.displaced_AA_in[parent] += received_AA_amount
+
+                                                displaced_volume = exported_water - self.xylem_water[parent]
+                                                exported_water = displaced_volume
+
+                                                return exported_water, displaced_volume, displaced_Nm_content, displaced_AA_content
+                                                
+                                            # Otherwise we export all content upward
+                                            else:
+                                                # parent receives full loading of radial flux from the current segment relative to their volume that 100% went in and out of the current considered segment
+                                                self.cumulated_radial_exchanges_Nm[parent] += radial_Nm_influx_current_segment * segment_filling_time * self.xylem_water[parent] / self.xylem_water[origin_segment]
+                                                self.cumulated_radial_exchanges_AA[parent] += radial_AA_influx_current_segment * segment_filling_time * self.xylem_water[parent] / self.xylem_water[origin_segment]
+
+                                                # In and out are left untouched, it only went through
+                                                
+                                                exported_water -= self.xylem_water[parent]
+
+                                                return exported_water, displaced_volume, displaced_Nm_content, displaced_AA_content
+                                        
+                                        # else we check if the whole displaced volume is captured by the segment and then we attribute what's remaining to the current
+                                        else:
+                                            # Remaining advected content is kept here
+                                            self.displaced_Nm_in[parent] += displaced_Nm_content
+                                            self.displaced_AA_in[parent] += displaced_AA_content
+
+                                            half_loaded_proportion = displaced_volume / exported_water # Probably 1 in most cases here
+                                            # parent receives half loading only for the displaced region and then the queue is fully loaded
+                                            self.cumulated_radial_exchanges_Nm[parent] += (0.5 * radial_Nm_influx_current_segment * segment_filling_time * (half_loaded_proportion * exported_water) / self.xylem_water[origin_segment]
+                                                                                            + radial_Nm_influx_current_segment * segment_filling_time * (1 - half_loaded_proportion) * exported_water  / self.xylem_water[origin_segment])
+                                            self.cumulated_radial_exchanges_AA[parent] += (0.5 * radial_AA_influx_current_segment * segment_filling_time * (half_loaded_proportion * exported_water) / self.xylem_water[origin_segment]
+                                                                                            + radial_AA_influx_current_segment * segment_filling_time * (1 - half_loaded_proportion) * exported_water / self.xylem_water[origin_segment])
+                                            
+                                            return 0, 0, 0, 0
+
+
+
+                                child = reached_up_parent
+                                if reached_up_parent in self.collar_children:
+                                    reached_up_parent = 1
+                                else:
+                                    reached_up_parent = self.g.parent(reached_up_parent)
+                                    
+                    
+                    # At the end of the step, the segment is filled with a mix of the original water and the queue and only a part of the advected volume goes to parent
+                    else:
+                        # If the queue is less than segment's volume, this means a proportion of the original content ends in parent and another in current segment
+                        self.displaced_Nm_out[v] = displaced_Nm_content * exported_water / displaced_volume
+                        self.displaced_AA_out[v] = displaced_AA_content * exported_water / displaced_volume
+                        # The remaining will not be substracted from the segment
+
+                        self.cumulated_radial_exchanges_Nm[v] += (radial_Nm_influx_current_segment * self.time_step # Full loading by symplasm during the step
+                                                                - radial_Nm_influx_current_segment * 0.5 * segment_filling_time * (queue + exported_water) / self.xylem_water[v]) # minus not perceived flux when half time of queu entering and half time of advected export leaving
+                        self.cumulated_radial_exchanges_AA[v] += (radial_AA_influx_current_segment * self.time_step 
+                                                                - radial_AA_influx_current_segment * 0.5 * segment_filling_time * (queue + exported_water) / self.xylem_water[v])
+                        
+                        # If this is collar
+                        if up_parent == None:
+                            # First we add the advected amount
+                            self.Nm_root_shoot_xylem[1] += self.displaced_Nm_out[v]
+                            self.AA_root_shoot_xylem[1] += self.displaced_AA_out[v]
+
+                            # Then we add the radially loaded amount
+                            # First segment volume is only half loaded (equivalent integration as previously mentionned) + remaining water content which received full loading time, so we normalize that amout by xylem water content, 
+                            # and has this enters and quits the segment, this is a loading equivalent as if that volume was not moving while loading during the time-step
+                            self.Nm_root_shoot_xylem[1] += radial_Nm_influx_current_segment * 0.5 * segment_filling_time * exported_water / self.xylem_water[v]
+                            self.AA_root_shoot_xylem[1] += radial_AA_influx_current_segment * 0.5 * segment_filling_time * exported_water / self.xylem_water[v]
+
+                        # if parent exists
+                        else:
+                            parent_segment_filling_time = self.xylem_water[up_parent] / (self.axial_import_water_down[up_parent] + self.radial_import_water[up_parent])
+                            exported_water_after_parent_acceleration = exported_water + self.radial_import_water[up_parent] * parent_segment_filling_time * (exported_water / self.xylem_water[up_parent])
+
+                            if exported_water_after_parent_acceleration > self.xylem_water[up_parent] and self.axial_export_water_up[up_parent] > 0.: # If flux reverses, a priori this means we have a concentrating output radial water flux that makes all content stay in place
+                                print("displaced up volume dillatation between 3 segments can happen! handle this exception")
+                            
+                            # All content allocated is perceived in this segment
+                            else:
+                                # Same as what is lost by child
+                                # By advection
+                                self.displaced_Nm_in[up_parent] += self.displaced_Nm_out[v]
+                                self.displaced_AA_in[up_parent] += self.displaced_AA_out[v]
+
+                                # Advected radial flux
+                                self.cumulated_radial_exchanges_Nm[up_parent] += radial_Nm_influx_current_segment * 0.5 * segment_filling_time * exported_water / self.xylem_water[v]
+                                self.cumulated_radial_exchanges_AA[up_parent] += radial_AA_influx_current_segment * 0.5 * segment_filling_time * exported_water / self.xylem_water[v]
+
+
+                            
+
+
+
                     turnover = self.axial_export_water_up[v] * self.time_step / self.xylem_water[v]
                     if turnover <= 1:
                         # Transport only affects considered segment
@@ -833,7 +1236,7 @@ class RootNitrogenModel(Model):
                                 child = up_parent
 
                 # If this is only a out flow to down children
-                if self.axial_import_water_down[v] * self.time_step < 0:
+                elif self.axial_import_water_down[v] < 0 and self.axial_export_water_up[v] < 0:
                     # Turnover defines a dilution factor of radial transport processes over the axially transported
                     # water column
                     turnover = - self.axial_import_water_down[v] * self.time_step / self.xylem_water[v]
@@ -964,7 +1367,7 @@ class RootNitrogenModel(Model):
                             exported_water = children_exported_water
 
                 # If this is an inflow from both up an down segments
-                if self.axial_import_water_down[v] * self.time_step >= 0 >= self.axial_export_water_up[v] * self.time_step:
+                elif self.axial_import_water_down[v] >= 0 >= self.axial_export_water_up[v]:
                     # There is no exported matter, thus no receiver
                     self.displaced_Nm_out[v] = 0
                     self.displaced_AA_out[v] = 0
@@ -972,6 +1375,11 @@ class RootNitrogenModel(Model):
                     self.cumulated_radial_exchanges_Nm[v] += (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
                     self.cumulated_radial_exchanges_AA[v] += (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
 
+                # If this is a 2 way dillution flow to parents and children, existing + imported nitrogen is dilluted in an expending volume
+                elif self.axial_export_water_up[v] > 0 > self.axial_import_water_down[v]:
+                    
+                    print()
+                
                 self.Nm_differential_by_water_transport[v] = self.displaced_Nm_in[v] - self.displaced_Nm_out[v]
 
     # METABOLIC PROCESSES
