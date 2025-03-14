@@ -822,7 +822,9 @@ class RootNitrogenModel(Model):
                 # displaced_water is untouched in this case
                 water_column = queue + displaced_water
 
-                self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
+                self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, 
+                                                  displaced_Nm_content, displaced_AA_content, 
+                                                  displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
             
             # Part of the displaced content ends here
             else:
@@ -860,7 +862,7 @@ class RootNitrogenModel(Model):
                         self.displaced_AA_in[current_v] += retained_advected_AA
 
                     displaced_Nm_content -= retained_advected_Nm
-                    displaced_AA_content -= retained_advected_Nm
+                    displaced_AA_content -= retained_advected_AA
 
                     if current_v == emitting_segment_id:
                         self.displaced_Nm_out[current_v] += displaced_Nm_content
@@ -871,7 +873,9 @@ class RootNitrogenModel(Model):
                     displaced_water = water_column - self.xylem_water[current_v]
                     water_column = displaced_water         
 
-                    self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
+                    self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, 
+                                                      displaced_Nm_content, displaced_AA_content, 
+                                                      displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
 
 
     def search_advection_neighboring(self, v, not_condidered=-1):
@@ -915,7 +919,9 @@ class RootNitrogenModel(Model):
         return destinations, sources
     
 
-    def compute_flux_to_destinations(self, emitting_segment_id, previous_v, destinations, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+    def compute_flux_to_destinations(self, emitting_segment_id, previous_v, destinations, displaced_water, queue, water_column, 
+                                     displaced_Nm_content, displaced_AA_content, 
+                                     displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
 
         total_destination_flux = sum(list(destinations.values()))
 
@@ -941,7 +947,9 @@ class RootNitrogenModel(Model):
                 dedicated_displaced_radial_Nm_= displaced_radial_Nm_fluxes * dedicated_water_column / water_column
                 dedicated_displaced_radial_AA_= displaced_radial_AA_fluxes * dedicated_water_column / water_column
 
-                self.compute_flux_passing_and_retention(emitting_segment_id, previous_v, vid, dedicated_displaced_water, dedicated_queue, dedicated_water_column, dedicated_Nm_content, dedicated_AA_content, dedicated_displaced_radial_Nm_, dedicated_displaced_radial_AA_)
+                self.compute_flux_passing_and_retention(emitting_segment_id, previous_v, vid, dedicated_displaced_water, dedicated_queue, dedicated_water_column, 
+                                                        dedicated_Nm_content, dedicated_AA_content, 
+                                                        dedicated_displaced_radial_Nm_, dedicated_displaced_radial_AA_)
 
 
     # METABOLIC PROCESSES
