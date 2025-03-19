@@ -309,7 +309,10 @@ class RootNitrogenModel(Model):
     cytokinin_synthesis: float =        declare(default=0., unit="UA.s-1", unit_comment="of cytokinin", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-
+    simple_import_Nm: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrate", description="Total MM over the root system relative to cylinder surface to compare the current model with a simpler one", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
     # --- INITIALIZES MODEL PARAMETERS ---
 
     # time resolution
@@ -1076,6 +1079,7 @@ class RootNitrogenModel(Model):
                                                                                             C=self.active_processes_C)
         return vmax_Nm_to_roots_fungus * self.mycorrhiza_infected_length[vertex_index] * Nm_fungus / (Nm_fungus + self.Km_Nm_to_roots_fungus)
 
+
     @totalrate
     def _cytokinin_synthesis(self, total_living_struct_mass, C_hexose_average, C_Nm_average, soil_temperature):
         smax_cytok = self.smax_cytok * self.temperature_modification(soil_temperature=np.mean(list(soil_temperature.values())),
@@ -1088,6 +1092,13 @@ class RootNitrogenModel(Model):
                 C_Nm_average[1] / (C_Nm_average[1] + self.Km_N_cytok))
 
     
+    @totalrate
+    def _simple_import_Nm(self, radius, length, soil_Nm):
+        mean_soil_Nm = np.mean(list(soil_Nm.values()))
+        total_root_exchange_surface = sum([2 * np.pi * r * l for r, l in zip(radius.values(), length.values())])
+        return (self.vmax_Nm_root * mean_soil_Nm / (self.Km_Nm_root_HATS + mean_soil_Nm)) * total_root_exchange_surface
+    
+
     @state
     # UPDATE NITROGEN POOLS
     def _Nm(self, vertex_index, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
