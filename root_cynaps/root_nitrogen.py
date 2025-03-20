@@ -294,7 +294,10 @@ class RootNitrogenModel(Model):
     C_xylem_AA_average: float =             declare(default=0., unit="mol", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_phloem_AA: float =            declare(default=1e-9 * 10, unit="mol", unit_comment="of amino acids", description="",
+    total_phloem_AA: float =            declare(default=-1, unit="mol", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    C_phloem_AA: float =            declare(default=10, unit="mol.m-3", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="",
@@ -713,7 +716,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
 
-        return diffusion_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
+        return diffusion_phloem * (self.C_phloem_AA[1] - AA * living_struct_mass / symplasmic_volume) * phloem_exchange_surface
 
     @rate
     def _unloading_AA_phloem(self, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature):
@@ -725,8 +728,8 @@ class RootNitrogenModel(Model):
                                                             B=self.active_processes_B,
                                                             C=self.active_processes_C)
         
-        return max(vmax_unloading_AA_phloem * (self.total_phloem_AA[1] / self.total_phloem_volume[1]) * phloem_exchange_surface / (
-                    self.km_unloading_AA_phloem + (self.total_phloem_AA[1] / self.total_phloem_volume[1])), 0)
+        return max(vmax_unloading_AA_phloem * self.C_phloem_AA[1] * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + self.C_phloem_AA[1]), 0)
 
 
 
@@ -1205,17 +1208,23 @@ class RootNitrogenModel(Model):
     # PLANT SCALE PROPERTIES UPDATE
 
     @totalstate
-    def _total_phloem_AA(self, total_phloem_AA, diffusion_AA_phloem, unloading_AA_phloem, sucrose_input_rate, deficit_AA_phloem):
+    def _C_phloem_AA(self, total_phloem_AA, total_phloem_volume, diffusion_AA_phloem, unloading_AA_phloem, sucrose_input_rate, deficit_AA_phloem):
+        # Initialization step
+        if total_phloem_AA[1] < 0:
+            self.total_phloem_AA[1] = self.C_phloem_AA[1] * total_phloem_volume[1]
+
         balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 2 * 0.7 # Caputo and Barneix 1999
                                                         - sum(diffusion_AA_phloem.values())
                                                         - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
         
         if balance < 0.:
             self.deficit_AA_phloem[1] = -balance if balance < -1e-20 else 0.
+            self.total_phloem_AA[1] = 0
             return 0.
         else:
             self.deficit_AA_phloem[1] = 0
-            return balance
+            self.total_phloem_AA[1] = balance
+            return balance / total_phloem_volume[1]
 
     @totalstate
     def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem):
