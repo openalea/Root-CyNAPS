@@ -11,13 +11,9 @@ from metafspm.component_factory import *
 from scipy.integrate import solve_ivp
 
 
-family = "hydraulic"
-
-
 @dataclass
 class RootWaterModel(Model):
 
-    family = "hydraulic"
 
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
