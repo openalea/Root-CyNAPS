@@ -63,7 +63,7 @@ class RootWaterModel(Model):
     water_root_shoot_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    xylem_pressure_collar: float = declare(default=-0.5e6, unit="Pa", unit_comment="", description="Water potential at collar", 
+    xylem_pressure_collar: float = declare(default=-0.5e6 * 6, unit="Pa", unit_comment="", description="Water potential at collar", 
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
@@ -148,7 +148,11 @@ class RootWaterModel(Model):
     @potential
     @rate
     def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
-        sap_viscosity = (2.414 * 1e-5) * 10 ** (247.8 / (273.15 + soil_temperature - 140))
+        A = 1.856e-11 # mPa.s
+        B = 4209 # K
+        C = 0.04527 # K-1
+        D = -3.376e-5 # K-2
+        sap_viscosity = A * np.exp( (B / soil_temperature) + (C * soil_temperature) + D * (soil_temperature ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
 
     @actual

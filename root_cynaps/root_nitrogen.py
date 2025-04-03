@@ -296,16 +296,16 @@ class RootNitrogenModel(Model):
     C_phloem_AA: float =            declare(default=10, unit="mol.m-3", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="",
+    Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    AA_root_shoot_xylem: float =        declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_AA_rhizodeposition: float =   declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    total_AA_rhizodeposition: float =   declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    cytokinin_synthesis: float =        declare(default=0., unit="UA.s-1", unit_comment="of cytokinin", description="", 
+    cytokinin_synthesis: float =        declare(default=0., unit=".s-1", unit_comment="of cytokinin", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     simple_import_Nm: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrate", description="Total MM over the root system relative to cylinder surface to compare the current model with a simpler one", 
@@ -369,7 +369,7 @@ class RootNitrogenModel(Model):
     km_unloading_AA_phloem: float = declare(default=100, unit="mol.m-3", unit_comment="", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-11, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-12 / 2, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
                                                 min_value="", max_value="", value_comment="", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
