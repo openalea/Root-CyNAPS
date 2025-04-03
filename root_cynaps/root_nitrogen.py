@@ -737,36 +737,50 @@ class RootNitrogenModel(Model):
         """
             Description
             ___________
+            Axial mineral N and amino acids axial transport from axial water flow.
         """
-        # TODO : probably collar children have to be reintroduced for good neighbor management. (from model_water)
-        #  But if null water content proprely passes information between collar and it's children,
-        #  it may be already working well
 
         # AXIAL TRANSPORT
         for v in self.vertices:
+
             if self.living_struct_mass[v] > 0 :
 
-                # identify the situation
+                # identify the boundary situation of the current segment
                 _, sources = self.search_advection_neighboring(v)
 
+                # Knowing mass conservation of fluxes between old side, young side and radial flow,
+                # Displaced water from previous time-step content is the segment volume + or - the radial flow, not saying where this volume is translated yet
                 displaced_water = self.xylem_water[v] + self.radial_import_water[v] * self.time_step
+                # Whatever direction water from which water is entering the segment, this is new water, not previously there, that can be loaded by radial N flows 
                 queue = sum(list(sources.values())) * self.time_step
+                # Explicit, whole volume which at some point moved through, exited only, or entered only (3 cases) the considered segment during the time-step
                 water_column = displaced_water + queue
 
+                # Previous content in the segment, precomputed in case partitionning is requiered
                 displaced_Nm_content = self.xylem_Nm[v] * self.living_struct_mass[v]
                 displaced_AA_content = self.xylem_AA[v] * self.living_struct_mass[v]
 
+                # Radial N flows entering current segment during whole time step, precomputed for partitionning because all do not end up in the current segment, 
+                # except in case of sources only situtation concentrating everything
                 displaced_radial_Nm_fluxes = (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
                 displaced_radial_AA_fluxes = (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
 
                 # We start the computation loop for this segment until it reaches the end of the water columns
+                # Note that "emitting_segment_id" will be passed at any depth of this recursive loop, 
+                # so that we always now if the content moved or we are in the origin segment
                 self.compute_flux_passing_and_retention(emitting_segment_id=v, previous_v=-1, current_v=v,
                                                         displaced_water=displaced_water, queue=queue, water_column=water_column, 
                                                         displaced_Nm_content=displaced_Nm_content, displaced_AA_content=displaced_AA_content,
                                                         displaced_radial_Nm_fluxes=displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes=displaced_radial_AA_fluxes)
                     
 
-    def compute_flux_passing_and_retention(self, emitting_segment_id, previous_v, current_v, displaced_water, queue, water_column, displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+    def compute_flux_passing_and_retention(self, emitting_segment_id, previous_v, current_v, displaced_water, queue, water_column, 
+                                           displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+        """
+        Recursive function that explores all segments reached by the "water column" of origin segment to partition its nitrogen
+        """
+
+        # Identify the neighboring situation of the current segment
         local_destinations, local_sources = self.search_advection_neighboring(current_v, not_condidered=previous_v)
 
         # If there are only influx, then there is no advection from this segment
@@ -776,33 +790,37 @@ class RootNitrogenModel(Model):
             self.cumulated_radial_exchanges_Nm[current_v] += displaced_radial_Nm_fluxes
             self.cumulated_radial_exchanges_AA[current_v] += displaced_radial_AA_fluxes
 
-            # ...and no outflux
+            # ...and no outflux so N content originally there is left untouched
 
-            # Then we don't call so we stop there
+            # Then we don't call recursively, so we stop the loop there
 
-        # Else if we reached a deadend, all fluxes are allocated here
+        # Else if water column is not originated from this segment, but we reached a deadend, all fluxes are allocated here
+        # So knowing it has already been reduced by partionning with previously crossed segments...
         elif len(local_destinations) == 0:
-            # print("deadend")
-            # The current segment gathers all radial fluxes...
+            # ... The current segment gathers all radial fluxes...
             self.cumulated_radial_exchanges_Nm[current_v] += displaced_radial_Nm_fluxes
             self.cumulated_radial_exchanges_AA[current_v] += displaced_radial_AA_fluxes
 
+            # ... And all displaced content,  
             self.displaced_Nm_in[current_v] += displaced_Nm_content
             self.displaced_AA_in[current_v] += displaced_AA_content
 
+        # Else we are effectively propagating towards identified destinations
         else:
-            # print("propagating")
             # Time requiered to estimate how much we dilate / concentrate the volume. If the segment has mass conservation, sum of outputs gives us this time of filling by inputs
             segment_filling_time = self.xylem_water[current_v] / sum(list(local_destinations.values()))
 
             # As the exported water comes through this segment towards destinations, it it dilluted (or concentrated if radial flux is negative) by radial flux + local sources
+            # Why also local source as they are not like radial water flow, i.e. they bring their own N through advection?
+            # Because this will be handled in other iterations, here we just consider N movements from the segment which originated the water column
             segment_water_acceleration = (self.radial_import_water[current_v] + sum(list(local_sources.values()))) * segment_filling_time * (water_column / self.xylem_water[current_v])
 
-            displaced_water += segment_water_acceleration * displaced_water / water_column
+            # Update the size of the water column (increase / decrease) and its components accordingly
+            displaced_water += segment_water_acceleration * displaced_water / water_column # Just dilated by its original proportion in the water column
             water_column += segment_water_acceleration
             queue = water_column - displaced_water
 
-            # If translated volume from v doesn't stop here
+            # If translated volume from v doesn't stop here, only radial exchanges are perceived here
             if queue > self.xylem_water[current_v]:
 
                 # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
@@ -815,6 +833,7 @@ class RootNitrogenModel(Model):
                 displaced_radial_Nm_fluxes -= retained_radial_Nm_flux
                 displaced_radial_AA_fluxes -= retained_radial_AA_flux
 
+                # Exception if this is the original segment, all its original N content leaves it, so need to be recorded for balance
                 if current_v == emitting_segment_id:
                     self.displaced_Nm_out[current_v] += displaced_Nm_content
                     self.displaced_AA_out[current_v] += displaced_AA_content
@@ -828,22 +847,22 @@ class RootNitrogenModel(Model):
                                                   displaced_Nm_content, displaced_AA_content, 
                                                   displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
             
-            # Part of the displaced content ends here
+            # If the queue is smaller that current segments' volume, part of the displaced content ends here
             else:
-                # If the queue and the displaced_water end here
+                # If the queue AND the displaced_water end here, then we assign remaining radial loaded and translated N
                 if water_column <= self.xylem_water[current_v]:
                     self.cumulated_radial_exchanges_Nm[current_v] += displaced_radial_Nm_fluxes
                     self.cumulated_radial_exchanges_AA[current_v] += displaced_radial_AA_fluxes
 
-                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm
+                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm / xylem_AA
                     # Note that this is just in case, normally it is impossible to reach this condition
                     if current_v != emitting_segment_id:
                         self.displaced_Nm_in[current_v] += displaced_Nm_content
                         self.displaced_AA_in[current_v] += displaced_AA_content
 
-                    # Then we don't call so we stop there for this pathway
+                    # Then we don't call so we stop loop there for water column
 
-                # If the displaced content is partitionned here
+                # If the translated N content is partitionned here between current segment and its destinations
                 else:
                     # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
                     retained_radial_Nm_flux = displaced_radial_Nm_fluxes * self.xylem_water[current_v] / water_column
@@ -855,17 +874,19 @@ class RootNitrogenModel(Model):
                     displaced_radial_Nm_fluxes -= retained_radial_Nm_flux
                     displaced_radial_AA_fluxes -= retained_radial_AA_flux
 
+                    # Only the water proportion of advected water actually stopping in the current segment is perceived
                     retained_advected_Nm = displaced_Nm_content * (self.xylem_water[current_v] - queue) / displaced_water
                     retained_advected_AA = displaced_AA_content * (self.xylem_water[current_v] - queue) / displaced_water
 
-                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm
+                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm / xylem_AA
                     if current_v != emitting_segment_id:
                         self.displaced_Nm_in[current_v] += retained_advected_Nm
                         self.displaced_AA_in[current_v] += retained_advected_AA
 
                     displaced_Nm_content -= retained_advected_Nm
                     displaced_AA_content -= retained_advected_AA
-
+                    
+                    # If this is the origin segment, only part of its original segment content left
                     if current_v == emitting_segment_id:
                         self.displaced_Nm_out[current_v] += displaced_Nm_content
                         self.displaced_AA_out[current_v] += displaced_AA_content
@@ -881,19 +902,29 @@ class RootNitrogenModel(Model):
 
 
     def search_advection_neighboring(self, v, not_condidered=-1):
+
+        # If this is collar, 
         if v == 1:
+            # If this is an export flux towards shoot
             if self.axial_export_water_up[v] > 0:
+                # All collar children of the special collar element which receive flux from their old side are destinations.
                 destinations = {vid: - self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] < 0 and vid != not_condidered}
+                # And shoot itself is a destination (most frequent case)
                 destinations.update({"collar": self.axial_export_water_up[v]})
+                # Otherwise these children are sources of water flux into the segment
                 sources = {vid: self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
+            # Identical situation as above, except for collar which receives from shoot
             else:
                 destinations = {vid: - self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] < 0 and vid != not_condidered}
                 sources = {vid: self.axial_export_water_up[vid] for vid in self.collar_children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
                 sources.update({"collar": - self.axial_export_water_up[v]})
 
+        # If we are in a special situation where collar is parent that cannot be retreived from MTG
         elif v in self.collar_children:
+            # Children of elements can be computed by MTG
             children = [child for child in self.g.children(v) if self.living_struct_mass[child] > 0]
-
+            
+            # Same conditions as above, except for collar which is a source or destination depending on water flow direction on the old side of the current element
             if self.axial_export_water_up[v] > 0:
                 destinations = {vid: - self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] < 0}
                 destinations.update({1: self.axial_export_water_up[v]})
@@ -904,6 +935,7 @@ class RootNitrogenModel(Model):
                 sources = {vid: self.axial_export_water_up[vid] for vid in children if self.axial_export_water_up[vid] > 0 and vid != not_condidered}
                 sources.update({1: - self.axial_export_water_up[v]})
 
+        # Same situation as previous, except here we are in the general case where parent and children are retreived from MTG
         else:
             p = self.g.parent(v)
             children = [child for child in self.g.children(v) if self.living_struct_mass[child] > 0]
@@ -924,21 +956,31 @@ class RootNitrogenModel(Model):
     def compute_flux_to_destinations(self, emitting_segment_id, previous_v, destinations, displaced_water, queue, water_column, 
                                      displaced_Nm_content, displaced_AA_content, 
                                      displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+        """
+        DESCRIPTION
+        __________
+        Intermediate function before calling back compute_flux_passing_and_retention to avoid code redundancy
+        Its primary function is to handle partitionning between destinations proportionnally to the output flux intensity they represent
+        """
 
         total_destination_flux = sum(list(destinations.values()))
 
+        # Special collar case handled here separatly to assess export to shoot through collar
         if "collar" in destinations:
             proportion_to_collar = destinations["collar"] / total_destination_flux
             
             self.Nm_root_shoot_xylem[1] += proportion_to_collar * (displaced_Nm_content + displaced_radial_Nm_fluxes)
             self.AA_root_shoot_xylem[1] += proportion_to_collar * (displaced_AA_content + displaced_radial_AA_fluxes)
 
+            # Reducing flux by exported, in most cases if this is collar, this will be the only destination and the following loop will not run
             displaced_Nm_content *= (1 - proportion_to_collar)
             displaced_AA_content *= (1 - proportion_to_collar)
             displaced_radial_Nm_fluxes *= (1 - proportion_to_collar)
             displaced_radial_AA_fluxes *= (1 - proportion_to_collar)
 
+        # For all destination between which the flux is partition
         for vid, destination_flux in destinations.items():
+            # Ignoring already handled case
             if vid != "collar":
                 dedicated_queue = queue * destination_flux / total_destination_flux
                 dedicated_displaced_water = displaced_water * destination_flux / total_destination_flux
@@ -949,6 +991,8 @@ class RootNitrogenModel(Model):
                 dedicated_displaced_radial_Nm_= displaced_radial_Nm_fluxes * dedicated_water_column / water_column
                 dedicated_displaced_radial_AA_= displaced_radial_AA_fluxes * dedicated_water_column / water_column
 
+                # Once the proportion of N axial flow going to this destination element is computed, 
+                # we initiate a loop towards it until this "sub water column" stops
                 self.compute_flux_passing_and_retention(emitting_segment_id, previous_v, vid, dedicated_displaced_water, dedicated_queue, dedicated_water_column, 
                                                         dedicated_Nm_content, dedicated_AA_content, 
                                                         dedicated_displaced_radial_Nm_, dedicated_displaced_radial_AA_)
