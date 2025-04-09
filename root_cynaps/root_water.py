@@ -83,6 +83,10 @@ class RootWaterModel(Model):
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     
     # Conductance values
+    kr: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="radial root segment conductance", 
+                                          min_value="", max_value="", value_comment="", references="", DOI="",
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
+    
     K: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -148,11 +152,12 @@ class RootWaterModel(Model):
     @potential
     @rate
     def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
-        A = 1.856e-11 # mPa.s
+        A = 1.856e-11 * 1e-3 # Pa.s
         B = 4209 # K
         C = 0.04527 # K-1
         D = -3.376e-5 # K-2
-        sap_viscosity = A * np.exp( (B / soil_temperature) + (C * soil_temperature) + D * (soil_temperature ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
+        soil_temperature_Kelvin = soil_temperature + 273.15
+        sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
 
     @actual
@@ -231,6 +236,7 @@ class RootWaterModel(Model):
                     self.axial_export_water_up[v] = (self.axial_export_water_up[parent] - self.radial_import_water[parent]) * ( self.Keq[v] / Keq_brothers )
                 
                 k_radial = self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v]
+                self.kr[v] = k_radial # TODO remove, only for visualization
 
                 self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (k_radial + Keq_children)) / (k_radial + self.K[v] + Keq_children)
                 self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * k_radial
