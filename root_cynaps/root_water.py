@@ -35,10 +35,10 @@ class RootWaterModel(Model):
     xylem_volume: float = declare(default=0, unit="m3", unit_comment="", description="xylem volume for water transport between elements", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    kr_symplasmic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Symplasmic water conductance of all cell layer contribution, including transmembrane and plasmodesmata resistance", 
+    kr_symplasmic_water: float = declare(default=1., unit="m3.s-1.Pa-1", unit_comment="", description="Effective Symplasmic water conductance of all cell layer contribution, including transmembrane and plasmodesmata resistance", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    kr_apoplastic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Apolastic water conductance including the endoderm differentiation blocking this pathway. Considering xylem volume to be equivalent to whole stele apoplasm, we only account for the cumulated resistance of cortex and epidermis cell wals.", 
+    kr_apoplastic_water: float = declare(default=1., unit="m3.s-1.Pa-1", unit_comment="", description="Effective Apolastic water conductance including the endoderm differentiation blocking this pathway. Considering xylem volume to be equivalent to whole stele apoplasm, we only account for the cumulated resistance of cortex and epidermis cell wals.", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     xylem_differentiation_factor: float = declare(default=1., unit="adim", unit_comment="of vessel membrane", description="",
@@ -60,10 +60,10 @@ class RootWaterModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
 
     # FROM SHOOT MODEL
-    water_root_shoot_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
+    water_root_shoot_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    xylem_pressure_collar: float = declare(default=-0.5e6 * 6, unit="Pa", unit_comment="", description="Water potential at collar", 
+    xylem_pressure_collar: float = declare(default=-0.5e6, unit="Pa", unit_comment="", description="Water potential at collar", 
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
@@ -72,7 +72,7 @@ class RootWaterModel(Model):
     # LOCAL VARIABLES
 
     # Pools initial values
-    xylem_water: float = declare(default=0, unit="mol", unit_comment="of water", description="", 
+    xylem_water: float = declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     xylem_pressure_in: float = declare(default=-0.01e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
@@ -83,10 +83,10 @@ class RootWaterModel(Model):
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     
     # Conductance values
-    K: float = declare(default=0, unit="mol.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
+    K: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    Keq: float = declare(default=0, unit="mol.Pa-1.s-1", unit_comment="", description="Equivalent conductance of the current root segment considering its position in the root system", 
+    Keq: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="Equivalent conductance of the current root segment considering its position in the root system", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
 
@@ -96,13 +96,13 @@ class RootWaterModel(Model):
     #                                variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     # Water transport processes
-    radial_import_water: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
+    radial_import_water: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    axial_export_water_up: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="",
+    axial_export_water_up: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    axial_import_water_down: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="",
+    axial_import_water_down: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
@@ -244,4 +244,5 @@ class RootWaterModel(Model):
 
     @state
     def _xylem_water(self, xylem_volume):
-        return xylem_volume * 1e6 / 18
+        # return xylem_volume * 1e6 / 18
+        return xylem_volume

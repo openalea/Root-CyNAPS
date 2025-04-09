@@ -81,7 +81,7 @@ class RootNitrogenModel(Model):
                                             
 
     # FROM WATER BALANCE MODEL
-    xylem_water: float =                declare(default=0, unit="mol", unit_comment="of water", description="", 
+    xylem_water: float =                declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
     radial_import_water: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
@@ -415,7 +415,6 @@ class RootNitrogenModel(Model):
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
     # N METABOLISM PROCESSES
-    # TODO : introduce nitrogen fixation
     # kinetic parameters
     smax_AA: float =                    declare(default=1e-5, unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="*100 from ref to come closer to the 30% prop in whole synthesis expected", references="(Barillot 2016)", DOI="",

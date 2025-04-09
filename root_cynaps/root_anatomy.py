@@ -1,12 +1,9 @@
 import numpy as np
 from math import pi
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from metafspm.component import Model, declare
 from metafspm.component_factory import *
-
-
-family = "anatomical"
 
 
 @dataclass
@@ -20,8 +17,6 @@ class RootAnatomy(Model):
         92a6f7ad927ffa0acf01aef645f9297a4531878c
     """
 
-    family = "anatomical"
-
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
     # FROM GROWTH MODEL
@@ -32,9 +27,6 @@ class RootAnatomy(Model):
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     distance_from_tip: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root segment distance from tip", 
-                            min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
-    struct_mass: float = declare(default=1.35e-4, unit="g", unit_comment="", description="Example root segment structural mass", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     root_hair_length: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root hair length", 
@@ -53,43 +45,54 @@ class RootAnatomy(Model):
     # Surfaces
     root_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="Exchange surface between soil and symplasmic parenchyma.", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
     cortex_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="Exchange surface between soil and symplasmic cortex. It excludes stele parenchyma surface. This is computed as the exchange surface for water absorption from soil to stele apoplasm, which is supposed at equilibrium with xylem vessels (so we neglect stele surface between symplasm and apoplasm, supposing quick equilibrium inside the root.", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
-    apoplasmic_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="Exchange surface to account for exchanges between xylem + stele apoplasm and soil. We account for it through cylindrical surface, a pathway closing as soon as endodermis differentiates", 
-                            min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
     xylem_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="Exchange surface between root parenchyma and apoplasmic xylem vessels.", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
     phloem_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="Exchange surface between root parenchyma and apoplasmic xylem vessels.", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Volumes
     symplasmic_volume: float = declare(default=1e-9, unit="m3", unit_comment="", description="symplasmic volume for water content of root elements", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
-    xylem_volume: float = declare(default=1e-10, unit="m3", unit_comment="", description="xylem volume for water transport between elements", 
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
+    xylem_volume: float = declare(default=0, unit="m3", unit_comment="", description="xylem volume for water transport between elements", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="extensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
+    total_phloem_volume: float = declare(default=0, unit="m3", unit_comment="", description="total phloem volume throughout the root system", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="plant_scale_state", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
+    xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
+                                             min_value="", max_value="", value_comment="", references="", DOI="",
+                                             variable_type="state_variables", by="model_anatomy", state_variable_type="descriptor", edit_by="user")
 
     # Differentiation factors
     endodermis_conductance_factor: float = declare(default=1., unit="adim", unit_comment="", description="The endodermis barrier differentiation factor", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="intensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialIntensive", edit_by="user")
     exodermis_conductance_factor: float = declare(default=0.5, unit="adim", unit_comment="", description="The exodermis barrier differentiation factor", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="intensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialIntensive", edit_by="user")
     xylem_differentiation_factor: float = declare(default=1., unit="adim", unit_comment="", description="Xylem differentiation, i.e. apoplasmic opening, from 0 to 1", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="intensive", edit_by="user")
-
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialIntensive", edit_by="user")
+    
+    # Whole segment conductance
+    kr_symplasmic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Symplasmic water conductance of all cell layer contribution, including transmembrane and plasmodesmata resistance", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
+    kr_apoplastic_water: float = declare(default=1., unit="mol.s-1.Pa-1", unit_comment="", description="Apolastic water conductance including the endoderm differentiation blocking this pathway. Considering xylem volume to be equivalent to whole stele apoplasm, we only account for the cumulated resistance of cortex and epidermis cell wals.", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
+    
     # Tissue density
     root_tissue_density: float = declare(default=0.10 * 1e6, unit="g.m3", unit_comment="of structural mass", description="root_tissue_density", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
-                            variable_type="state_variable", by="model_anatomy", state_variable_type="intensive", edit_by="user")
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialIntensive", edit_by="user")
     
     # --- INITIALIZES MODEL PARAMETERS ---
 
@@ -145,24 +148,90 @@ class RootAnatomy(Model):
                             variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
 
     # Surfacic fractions
-    cortical_surfacic_fraction: float = declare(default=29., unit="adim", unit_comment="", description="Cortex (+exodermis) parenchyma surface ratio over root segment's cylinder surface", 
-                            min_value="", max_value="", value_comment="", references="report", DOI="",
-                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
-    stellar_surfacic_fraction: float = declare(default=11., unit="adim", unit_comment="", description="Stele (+endodermis) surface ratio over root segment's cylinder surface", 
-                            min_value="", max_value="", value_comment="", references="report", DOI="",
-                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    # cortical_surfacic_fraction: float = declare(default=29., unit="adim", unit_comment="", description="Cortex (+exodermis) parenchyma surface ratio over root segment's cylinder surface", 
+    #                         min_value="", max_value="", value_comment="", references="report", DOI="",
+    #                         variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    # stellar_surfacic_fraction: float = declare(default=11., unit="adim", unit_comment="", description="Stele (+endodermis) surface ratio over root segment's cylinder surface", 
+    #                         min_value="", max_value="", value_comment="", references="report", DOI="",
+    #                         variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
     phloem_surfacic_fraction: float = declare(default=2.5, unit="adim", unit_comment="", description="phloem surface ratio over root's cylinder surface", 
                             min_value="", max_value="", value_comment="", references="report", DOI="",
                             variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
-    apoplasm_cross_area_surfacic_fraction: float = declare(default=0.5, unit="adim", unit_comment="", description="symplasmic cross-section ratio over root segment's sectional surface", 
-                            min_value="", max_value="", value_comment="", references="report", DOI="",
-                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
-    xylem_cross_area_surfacic_fraction: float = declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="apoplasmic cross-section area ratio * stele radius ratio^2", description="apoplasmic cross-section ratio of xylem over root segment's sectional surface", 
-                            min_value="", max_value="", value_comment="", references="report", DOI="",
-                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    # apoplasm_cross_area_surfacic_fraction: float = declare(default=0.5, unit="adim", unit_comment="", description="symplasmic cross-section ratio over root segment's sectional surface", 
+    #                         min_value="", max_value="", value_comment="", references="report", DOI="",
+    #                         variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    # xylem_cross_area_surfacic_fraction: float = declare(default=0.84 * (0.36 ** 2), unit="adim", unit_comment="apoplasmic cross-section area ratio * stele radius ratio^2", description="apoplasmic cross-section ratio of xylem over root segment's sectional surface", 
+    #                         min_value="", max_value="", value_comment="", references="report", DOI="",
+    #                         variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
     root_hair_radius: float = declare(default=12 * 1e-6 / 2., unit="m", unit_comment="", description="Average radius of root hair", 
                             min_value="", max_value="", value_comment="", references="According to the work of Gahoonia et al. (1997), the root hair diameter is relatively constant for different genotypes of wheat and barley, i.e. 12 microns.", DOI="",
                             variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    # Concentric layering parameters. WARNING : Performed only from one cross sectionnal and one longitudinal replicate of winter wheat.
+    tissue_name: tuple = declare(default=("epidermis", "cortex", "stele", "phloem"), unit="m", unit_comment="", description="", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    num_layers: tuple = declare(default= (1, 5, 5, 1), unit="adim", unit_comment="", description="", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    layer_cell_perimeter_toR: tuple = declare(default= ((17.4,),
+                                                        (16.2, 15.0, 14.3, 9.7, 6.3), 
+                                                        (5.2, 5.2, 2.3, 2.1, 2.0), 
+                                                        (3.0,)),
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    layer_cross_sectional_surface_toRR: tuple = declare(default= ((2.47e-1,), 
+                                                                (4.22e-1, 4.49e-1, 5.34e-1, 2.90e-1, 1.23e-1), 
+                                                                (6.86e-2, 6.63e-2, 1.79e-2, 1.96e-2, 2.0e-2), 
+                                                                (2.6e-2,)), 
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    mean_cell_length_toR: tuple = declare(default= ((7.45e-2,), 
+                                                    (1.33e-2, 1.67e-1, 1.81e-1, 1.59e-1, 1.08e-1), 
+                                                    (7.33e-2, 6.46e-2, 4.10e-2, 4.67e-2, 5.65e-2), 
+                                                    (3.81e-2,)), 
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    mean_cell_width_toR: tuple = declare(default= ((5.14e-2,), 
+                                                    (9.41e-2, 1.17e-1, 1.44e-1, 1.16e-1, 7.14e-2), 
+                                                    (4.56e-2, 4.53e-2, 2.76e-2, 3.55e-2, 3.32e-2), 
+                                                    (3.01e-2,)), 
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+
+    cell_wall_thickness: tuple = declare(default= ((3e-6,), 
+                                                        tuple(3e-6 for _ in range(5)), 
+                                                        tuple(3e-6 for _ in range(5)), 
+                                                        (3e-6,)), 
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    wall_connectivity_with_inner_neighbor: tuple = declare(default= ((0.334,), 
+                                                        (0.203, 0.228, 0.176, 0.214, 0.261), 
+                                                        (0.238, 0.124, 0.211, 0.315, 0.), 
+                                                        (0.5,)), # Not used so arbitrary
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+
+    wall_connectivity_in_layer: tuple = declare(default= ((0.222,), 
+                                                        (0.201, 0.141, 0.156, 0.102, 0.176), 
+                                                        (0.235, 0.331, 0.206, 0.190, 0.284), 
+                                                        (0.5,)), # Not used so arbitrary
+                                                unit="adim", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    cell_line_frequency: tuple = declare(default= ((5780,), 
+                                                    (4010, 2590, 3200, 4350, 4910), 
+                                                    (4940, 4370, 4490, 4840, 4840), 
+                                                    (1370,)), # Not seen on the images, so set to equal frequency of metaxylem as it is also a vessel of similar radius 
+                                                unit=".m-1", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+
 
     def __init__(self, g, time_step_in_seconds: int, **scenario: dict):
         """
@@ -186,22 +255,25 @@ class RootAnatomy(Model):
         self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
-    def post_growth_updating(self):
-        """
-        Description :
-            Extend property dictionary upon new element partitioning
-        """
-        self.vertices = self.g.vertices(scale=self.g.max_scale())
-        for vid in self.vertices:
-            if vid not in list(self.root_exchange_surface.keys()):
-                parent = self.g.parent(vid)
-                mass_fraction = self.struct_mass[vid] / (self.struct_mass[vid] + self.struct_mass[parent])
-                # All surfaces are extensive, so we need structural mass wise partitioning to initialize
-                for prop in self.extensive_variables:
-                    getattr(self, prop).update({vid: getattr(self, prop)[parent] * mass_fraction,
-                                                    parent: getattr(self, prop)[parent] * (1-mass_fraction)})
-                for prop in self.intensive_variables:
-                    getattr(self, prop).update({vid: getattr(self, prop)[parent]})
+        self.init_cell_layers()
+
+
+    def init_cell_layers(self):
+        self.cell_layers = []
+
+        layer_number = 0
+        current_bounding_radius = 1
+        for tissue in range(len(self.tissue_name)):
+            for l in range(self.num_layers[tissue]):
+
+                self.cell_layers.append(RootCellLayer(tissue_name=self.tissue_name[tissue], layer_cell_perimeter_toR=self.layer_cell_perimeter_toR[tissue][l], layer_cross_sectional_surface_toRR=self.layer_cross_sectional_surface_toRR[tissue][l],
+                                                 layer_numbering=layer_number, mean_cell_length_toR=self.mean_cell_length_toR[tissue][l], mean_cell_width_toR=self.mean_cell_width_toR[tissue][l],
+                                                 cell_wall_thickness=self.cell_wall_thickness[tissue][l], wall_connectivity_in_layer=self.wall_connectivity_in_layer[tissue][l],
+                                                 wall_connectivity_with_inner_neighbor=self.wall_connectivity_with_inner_neighbor[tissue][l], cell_line_frequency=self.cell_line_frequency[tissue][l]))
+                
+                self.cell_layers[-1].layer_max_radius_toR = current_bounding_radius
+                current_bounding_radius -= self.mean_cell_width_toR[tissue][l] + self.cell_wall_thickness[tissue][l]
+                layer_number += 1
                     
 
 
@@ -378,9 +450,10 @@ class RootAnatomy(Model):
         :return: the surface (m2)
         """
 
-        return (2 * pi * radius * length * max(self.cortical_surfacic_fraction * exodermis_conductance_factor +
-                                               self.stellar_surfacic_fraction * endodermis_conductance_factor, 1.) +
-                self.root_hairs_external_surface(root_hair_length, total_root_hairs_number))
+        return (exodermis_conductance_factor * sum([layer.cell_surface(radius, length) for layer in self.cell_layers if layer.tissue_name == "cortex"])
+                + endodermis_conductance_factor * sum([layer.cell_surface(radius, length) for layer in self.cell_layers if layer.tissue_name == "stele"])
+                + sum([layer.cell_surface(radius, length) for layer in self.cell_layers if layer.tissue_name == "epidermis"])
+                + self.root_hairs_external_surface(root_hair_length, total_root_hairs_number))
 
     @actual
     @state
@@ -399,22 +472,9 @@ class RootAnatomy(Model):
         :param total_root_hairs_number: number of root hairs on considered segment (adim)
         :return: the surface (m2)
         """
-        return (2 * pi * radius * length * self.cortical_surfacic_fraction * exodermis_conductance_factor +
-                self.root_hairs_external_surface(root_hair_length, total_root_hairs_number))
-
-    @actual
-    @state
-    def _apoplasmic_exchange_surface(self, radius, length, endodermis_conductance_factor):
-        """
-        Exchange surface to account for exchanges between xylem + stele apoplasm and soil.
-        We account for it through cylindrical surface, a pathway closing as soon as endodermis differentiates
-
-        :param radius: the root segment radius (m)
-        :param length: the root segment length (m)
-        :param endodermis_conductance_factor: the endodermis barrier differentiation factor (adim)
-        :return: the surface (m2)
-        """
-        return 2 * pi * radius * length * endodermis_conductance_factor
+        return (exodermis_conductance_factor * sum([l.cell_surface(radius, length) for l in self.cell_layers if l.tissue_name in ("epidermis", "cortex")]) 
+                + self.root_hairs_external_surface(root_hair_length, total_root_hairs_number))
+    
 
     @actual
     @state
@@ -427,7 +487,8 @@ class RootAnatomy(Model):
         :param xylem_differentiation_factor: xylem differentiation, i.e. apoplasmic opening, from 0 to 1 (adim)
         :return: the surface (m2)
         """
-        return 2 * pi * radius * length * self.stellar_surfacic_fraction * xylem_differentiation_factor
+        return sum([layer.cell_surface(radius, length) for layer in self.cell_layers if layer.tissue_name == "stele"]) * xylem_differentiation_factor
+
 
     @actual
     @state
@@ -439,7 +500,7 @@ class RootAnatomy(Model):
         :param length: the root segment length (m)
         :return: the surface (m2)
         """
-        return 2 * pi * radius * length * self.phloem_surfacic_fraction
+        return self.cell_layers[-1].cell_surface(radius, length)
 
 
     @actual
@@ -452,7 +513,8 @@ class RootAnatomy(Model):
         :param length: the root segment length (m)
         :return: the volume (m3)
         """
-        return pi * (radius ** 2) * self.apoplasm_cross_area_surfacic_fraction * length
+        return sum([layer.cell_volume(radius, length) for layer in self.cell_layers])
+
 
     @actual
     @state
@@ -464,4 +526,111 @@ class RootAnatomy(Model):
         :param length: the root segment length (m)
         :return: the volume (m3)
         """
-        return pi * (radius ** 2) * self.xylem_cross_area_surfacic_fraction * length
+        stele_symplasm_volume = sum([layer.cell_volume(radius, length) for layer in self.cell_layers if layer.tissue_name == "stele"])
+        stele_radius = radius - sum([layer.mean_cell_width_toR * radius + layer.cell_wall_thickness for layer in self.cell_layers 
+                                     if layer.tissue_name in ("epidermis", "cortex")])
+
+        return 2 * pi * (stele_radius ** 2) * length - stele_symplasm_volume
+    
+
+    @actual
+    @state
+    def _xylem_vessel_radii(self, radius):
+        vessels_radii = []
+        num_central_metaxylem = 1
+        num_peripheric_metaxylem = 5
+        num_protoxylem_per_metaxylem = 3
+
+        for k in range(num_central_metaxylem):
+            vessels_radii.append(0.092*radius)
+
+        for k in range(num_peripheric_metaxylem):
+            vessels_radii.append(0.035*radius)
+
+            for i in range(num_protoxylem_per_metaxylem):
+                vessels_radii.append(0.012*radius)
+
+        return vessels_radii
+    
+
+    @actual
+    @state
+    def _kr_symplasmic_water(self, radius, length):
+        kr_eq = 0
+
+        for layer in self.cell_layers:
+            kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length)
+
+        return kr_eq
+    
+
+    @actual
+    @state
+    def _kr_apoplastic_water(self, radius, length, endodermis_conductance_factor):
+        return endodermis_conductance_factor * 1 / sum([layer.R_apoplasmic_water(radius, length) for layer in self.cell_layers if layer.tissue_name != "phloem"])
+    
+
+    @totalstate
+    def _total_phloem_volume(self, radius, length):
+        return sum([self.cell_layers[-1].cell_volume(r, l) for r, l in zip(radius.values(), length.values())])
+
+
+class RootCellLayer:
+    
+    # Water related parameters
+    transmembrane_conductance: float = 5.3e-7 * 1e-6 # m.s-1.Pa-1 (m3.s-1.Pa-1.m-2) See estimation from Couvreur et al. 2018 , p. 11, from Ehlert et al. 2009 after removal of the bellow plasmodesmata conductance
+    plasmodesmata_conductance: float = 2.4e-7 * 1e-6 # m.s-1.Pa-1 (effective with an estimation of 0.4 plasmodesmate /µm2) See estimation from Couvreur et al. 2018 , p. 11
+    cell_wall_conductivity: float = 6.1e-9 * 1e-6 # m2.s-1.Pa-1 See estimation from Couvreur et al. 2018 , p. 11, in the case of Maize, maximum boundary measured by Zhu et Steudle (1991)
+
+    def __init__(self, tissue_name, layer_cell_perimeter_toR, layer_cross_sectional_surface_toRR, layer_numbering, 
+                 mean_cell_length_toR, mean_cell_width_toR, cell_wall_thickness, wall_connectivity_in_layer, wall_connectivity_with_inner_neighbor,
+                 # Axial aspects
+                 cell_line_frequency, 
+                 # Optionnal
+                 number_of_cell_lines=None):
+        
+        vars(self).update({k: v for k, v in locals().items() if k != "self"})
+
+
+    def cell_surface(self, radius, length):
+        return self.layer_cell_perimeter_toR * radius * length + 2 * self.layer_cross_sectional_surface_toRR * (radius ** 2) * self.cell_line_frequency * length
+
+
+    def cell_volume(self, radius, length):
+        return self.layer_cross_sectional_surface_toRR * (radius ** 2) * length * (1 - self.cell_line_frequency * self.cell_wall_thickness)
+    
+
+    def kr_symplasmic_water(self, k_symplasmic_eq, radius, length):
+        layer_surface = self.cell_surface(radius, length)
+        r_transmembrane = 1 / (self.transmembrane_conductance * layer_surface + k_symplasmic_eq)
+        if self.wall_connectivity_with_inner_neighbor == 0:
+            R_plasmodesmata = 0
+
+        else:
+            R_plasmodesmata = 1 / (self.plasmodesmata_conductance * layer_surface * self.wall_connectivity_with_inner_neighbor)
+
+        return 1 / (r_transmembrane + R_plasmodesmata)
+    
+
+    def R_apoplasmic_water(self, radius, length):
+        number_of_cell_lines_in_layer = 2 * np.pi * self.layer_max_radius_toR * radius / (self.mean_cell_length_toR + self.cell_wall_thickness)
+        # First term removes the common walls between cells and between layers that should be accounted for twice
+        # Times a second term accounting for cell perimeter length that will be crossed
+        crossed_wall_length_between_cell_lines = (1 - self.wall_connectivity_in_layer - self.wall_connectivity_with_inner_neighbor) * self.layer_cell_perimeter_toR * radius
+
+        crossed_wall_area_between_cell_lines = self.cell_wall_thickness * length
+        
+        # Here we multiply instead of summing per cell wall conductance because every term is average for all cells therefore constant
+        # The denominator is the average length to cross per cell, not simplified to number_of_cell_lines_in_layer**2 for readability
+        kr_between_cell_lines = number_of_cell_lines_in_layer * (self.cell_wall_conductivity * crossed_wall_area_between_cell_lines / (crossed_wall_length_between_cell_lines / number_of_cell_lines_in_layer)) 
+
+        # Area to cross between cells of each cell line
+        crossed_wall_area_within_cell_line = 2 * np.pi * self.layer_max_radius_toR * radius * self.cell_wall_thickness
+        # Then length to be crossed for this pathway
+        crossed_wall_length_within_cell_line = self.mean_cell_width_toR * radius
+        #  Then number of times we replicate this pathway in the considered segment
+        number_of_parallel_pathways_within_cell_line = self.cell_line_frequency * length
+
+        kr_walls_within_cell_line = self.cell_wall_conductivity * number_of_parallel_pathways_within_cell_line * crossed_wall_area_within_cell_line / crossed_wall_length_within_cell_line
+
+        return 1 / (kr_between_cell_lines + kr_walls_within_cell_line)
