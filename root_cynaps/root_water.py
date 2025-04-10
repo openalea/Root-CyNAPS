@@ -26,9 +26,6 @@ class RootWaterModel(Model):
                                         variable_type="input", by="model_temperature", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
-    cortex_exchange_surface: float = declare(default=0., unit="m2", unit_comment="", description="", 
-                                             min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
@@ -103,6 +100,9 @@ class RootWaterModel(Model):
     radial_import_water: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
+    radial_import_water_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="Water flow through the apoplastic pathway, computed for radial advection", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     axial_export_water_up: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
@@ -152,10 +152,10 @@ class RootWaterModel(Model):
     @potential
     @rate
     def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
-        A = 1.856e-11 * 1e-3 # Pa.s
-        B = 4209 # K
-        C = 0.04527 # K-1
-        D = -3.376e-5 # K-2
+        A = 1.856e-11 * 1e-3 # Pa.s Viswanath & Natarajan (1989)
+        B = 4209 # K Viswanath & Natarajan (1989)
+        C = 0.04527 # K-1 Viswanath & Natarajan (1989)
+        D = -3.376e-5 # K-2 Viswanath & Natarajan (1989)
         soil_temperature_Kelvin = soil_temperature + 273.15
         sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
@@ -240,6 +240,7 @@ class RootWaterModel(Model):
 
                 self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (k_radial + Keq_children)) / (k_radial + self.K[v] + Keq_children)
                 self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * k_radial
+                self.radial_import_water_apoplastic[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * self.kr_apoplastic_water[v]
 
                 # Computed to avoid children iteration when needed by other modules
                 if len(children) > 0:

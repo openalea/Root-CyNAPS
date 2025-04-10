@@ -57,7 +57,7 @@ class RootNitrogenModel(Model):
     root_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="",
                                            min_value="", max_value="", value_comment="", references="",  DOI="", 
                                            variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    cortex_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="Surface of cortex, taken as input to compute stele exchange surface by root_exchange_surface - cortex_exchange_surface", 
+    xylem_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of cell membrane", description="Surface of xylem aproximated as the one of the stele", 
                                             min_value="", max_value="", value_comment="", references="",  DOI="", 
                                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     phloem_exchange_surface: float = declare(default=0, unit="m2", unit_comment="of vessel membrane", description="",
@@ -85,6 +85,9 @@ class RootNitrogenModel(Model):
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
     radial_import_water: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    radial_import_water_apoplastic: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_water", state_variable_type="", edit_by="user")
     axial_export_water_up: float =      declare(default=0, unit="mol.s-1", unit_comment="of water", description="", 
@@ -183,7 +186,7 @@ class RootNitrogenModel(Model):
     diffusion_Nm_xylem: float =             declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="",
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    diffusion_Nm_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", 
+    apoplastic_Nm_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     diffusion_AA_soil: float =              declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
@@ -195,7 +198,7 @@ class RootNitrogenModel(Model):
     unloading_AA_phloem: float =            declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="Active import of amino acids from phloem, in line with dual flow from rhizodep", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    diffusion_AA_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
+    apoplastic_AA_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     
@@ -613,7 +616,7 @@ class RootNitrogenModel(Model):
             return (diffusion_soil * ((Nm * living_struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
 
     @rate
-    def _export_Nm(self, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, C_hexose_root=1e-4):
+    def _export_Nm(self, Nm, xylem_exchange_surface, soil_temperature, C_hexose_root=1e-4):
         # We define active export to xylem from root segment
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
         vmax_Nm_xylem = self.vmax_Nm_xylem * self.temperature_modification(soil_temperature=soil_temperature,
@@ -621,32 +624,46 @@ class RootNitrogenModel(Model):
                                                                      A=self.active_processes_A,
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
-        return ((Nm * vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * (root_exchange_surface - cortex_exchange_surface) * (
+        return ((Nm * vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * xylem_exchange_surface * (
                 C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
     @rate
-    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, root_exchange_surface, cortex_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, xylem_volume):
+    def _diffusion_Nm_xylem(self, xylem_Nm, Nm, xylem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, xylem_volume):
         # Passive radial diffusion between xylem and cortex through plasmalema
         diffusion_xylem = self.diffusion_xylem * self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.passive_processes_T_ref,
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
-        return diffusion_xylem * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * (root_exchange_surface - cortex_exchange_surface)
+        return diffusion_xylem * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * xylem_exchange_surface
 
     @rate
-    def _diffusion_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
+    def _apoplastic_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, radial_import_water_apoplastic, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0.:
             return 0.
         else:
-            # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-            # Here, surface is not really representative of a structure as everything is apoplasmic
-            diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.passive_processes_T_ref,
-                                                                     A=self.passive_processes_A,
-                                                                     B=self.passive_processes_B,
-                                                                     C=self.passive_processes_C)
-            return diffusion_apoplasm * (xylem_Nm * living_struct_mass / xylem_volume - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+            if endodermis_conductance_factor != 0:
+                # If water is imported from the soil
+                if radial_import_water_apoplastic > 0:
+                    advection_process = soil_Nm * radial_import_water_apoplastic
+                # this is an outflow
+                else:
+                    advection_process = (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_apoplastic
+
+                # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+                # Here, surface is not really representative of a structure as everything is apoplasmic
+                diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                        T_ref=self.passive_processes_T_ref,
+                                                                        A=self.passive_processes_A,
+                                                                        B=self.passive_processes_B,
+                                                                        C=self.passive_processes_C)
+                diffusion_process = diffusion_apoplasm * (xylem_Nm * living_struct_mass / xylem_volume - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+
+                return advection_process + diffusion_process
+
+            else:
+                return 0.
+
 
     # AMINO ACID TRANSPORT
     @rate
@@ -674,7 +691,7 @@ class RootNitrogenModel(Model):
             return (diffusion_soil * ((AA * living_struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
 
     @rate
-    def _export_AA(self, AA, root_exchange_surface, cortex_exchange_surface, soil_temperature, C_hexose_root=1e-4):
+    def _export_AA(self, AA, xylem_exchange_surface, soil_temperature, C_hexose_root=1e-4):
         # We define active export to xylem from root segment
         # Km is defined as a constant here
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
@@ -684,22 +701,35 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         return ((AA * vmax_AA_xylem / (AA + self.Km_AA_xylem))
-                * (root_exchange_surface - cortex_exchange_surface) * (C_hexose_root / (
-                        C_hexose_root + self.transport_C_regulation)))
+                * xylem_exchange_surface * (C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _diffusion_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
+    def _apoplastic_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, radial_import_water_apoplastic, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0:
             return 0.
         else:
-            # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-            diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.passive_processes_T_ref,
-                                                                     A=self.passive_processes_A,
-                                                                     B=self.passive_processes_B,
-                                                                     C=self.passive_processes_C)
-            return (diffusion_apoplasm * (xylem_AA * living_struct_mass / xylem_volume - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor)
+            if endodermis_conductance_factor != 0:
+                # If water is imported from the soil
+                if radial_import_water_apoplastic > 0:
+                    advection_process = soil_AA * radial_import_water_apoplastic
+                # this is an outflow
+                else:
+                    advection_process = (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_apoplastic
 
+                # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+                diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                        T_ref=self.passive_processes_T_ref,
+                                                                        A=self.passive_processes_A,
+                                                                        B=self.passive_processes_B,
+                                                                        C=self.passive_processes_C)
+                diffusion_process = diffusion_apoplasm * (xylem_AA * living_struct_mass / xylem_volume - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+
+                return advection_process + diffusion_process
+
+            else:
+                return 0.
+            
+            
     @rate
     def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
@@ -761,8 +791,8 @@ class RootNitrogenModel(Model):
 
                 # Radial N flows entering current segment during whole time step, precomputed for partitionning because all do not end up in the current segment, 
                 # except in case of sources only situtation concentrating everything
-                displaced_radial_Nm_fluxes = (self.export_Nm[v] - self.diffusion_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
-                displaced_radial_AA_fluxes = (self.export_AA[v] - self.diffusion_AA_soil_xylem[v]) * self.time_step
+                displaced_radial_Nm_fluxes = (self.export_Nm[v] - self.apoplastic_Nm_soil_xylem[v] - self.diffusion_Nm_xylem[v]) * self.time_step
+                displaced_radial_AA_fluxes = (self.export_AA[v] - self.apoplastic_AA_soil_xylem[v]) * self.time_step
 
                 # We start the computation loop for this segment until it reaches the end of the water columns
                 # Note that "emitting_segment_id" will be passed at any depth of this recursive loop, 
