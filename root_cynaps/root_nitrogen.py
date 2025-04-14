@@ -84,16 +84,16 @@ class RootNitrogenModel(Model):
     xylem_water: float =                declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    radial_import_water: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
+    radial_import_water: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    radial_import_water_apoplastic: float = declare(default=0., unit="mol.s-1", unit_comment="of water", description="", 
+    radial_import_water_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    axial_export_water_up: float =      declare(default=0, unit="mol.s-1", unit_comment="of water", description="", 
+    axial_export_water_up: float =      declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    axial_import_water_down: float =    declare(default=0, unit="mol.s-1", unit_comment="of water", description="", 
+    axial_import_water_down: float =    declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
 
@@ -168,9 +168,6 @@ class RootNitrogenModel(Model):
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    nitrate_transporters_affinity_factor: float = declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="nitrate_transporters_affinity_factor, introduced to account for NRT1 signalling function when going through LATS regime", 
-                                                    min_value="", max_value="", value_comment="", references="Remans et al 2006", DOI="", 
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialIntensive", edit_by="user")
     import_AA: float =                      declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -324,23 +321,33 @@ class RootNitrogenModel(Model):
 
     # N TRANSPORT PROCESSES
     # kinetic parameters
-    vmax_Nm_root: float =               declare(default=1e-6, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="*2 to slightly increase the impact of amino acid production", references="Liu et Tsay", DOI="",
+    
+    vmax_HATS_Nm_amplitude: float =     declare(default=3.3863e-11, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
+                                                min_value="", max_value="", value_comment="", references="Amplitude for Vmax parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    vmax_HATS_Nm_centering: float =     declare(default=-8.1648, unit="dimensionless", unit_comment="", description="",
+                                                min_value="", max_value="", value_comment="", references="Mean for Vmax parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    vmax_HATS_Nm_spread: float =        declare(default=0.9917, unit="dimensionless", unit_comment="", description="",
+                                                min_value="", max_value="", value_comment="", references="Variance for Vmax parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_HATS_Nm_amplitude: float =     declare(default=1.3137e-4, unit="mol.m-3", unit_comment="of nitrates", description="",
+                                                min_value="", max_value="", value_comment="", references="Amplitude for Km parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_HATS_Nm_centering: float =     declare(default=-6.2277, unit="dimensionless", unit_comment="", description="",
+                                                min_value="", max_value="", value_comment="", references="Mean for Km parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_HATS_Nm_spread: float =        declare(default=1.7539, unit="dimensionless", unit_comment="", description="",
+                                                min_value="", max_value="", value_comment="", references="Variance for Km parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_LATS_Nm_decrease_slope =            declare(default=-1.98E-12 * 1, unit="m.g.mol-1.s-1", unit_comment="m3.g.mol-1.m-2.s-1", description="Slope of linear decrease of LATS Km according to root symplasmic Nm concentration",
+                                                min_value="", max_value="", value_comment="", references="Siddiqui 1990 showing best fit for linear model; Barillot et al. 2016, but diverging from publication as linear", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_LATS_Nm_origin =            declare(default=6.502e-4, unit="m.s-1", unit_comment="m3.m-2.s-1 of nitrates", description="Origin value of linear decrease of LATS Km according to root symplasmic Nm concentration",
+                                                min_value="", max_value="", value_comment="", references="Siddiqui 1990 showing best fit for linear model; Barillot et al. 2016, but diverging from publication as linear", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_Nm_xylem: float =              declare(default=1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="*10e2 from outside root as a lower surface has to compete with external surface and presents LATS", references="", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_root_LATS: float =            declare(default=1e1, unit="mol.m-3", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="", references="Liu et Tsay 2003", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_root_HATS: float =            declare(default=1e-3, unit="mol.m-3", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    begin_N_regulation: float =         declare(default=1., unit="mol.g-1", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
-                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    span_N_regulation: float =          declare(default=6e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
-                                                min_value="", max_value="", value_comment="changed so that import_Nm variation may occur in observed Nm variation range, solve boundary and middle centering equations", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_Nm_xylem: float =                declare(default=1e-3, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="adjusted to avoid accumulation in symplasm", references="", DOI="",
@@ -577,28 +584,43 @@ class RootNitrogenModel(Model):
 
                 H3: We declare similar kinetic parameters for soil-root and root-xylem active transport (exept for concentration conflict)
                 """
-        # We define mineral nitrogen active uptake from soil
-        precision = 0.99
-        Km_Nm_root = (self.Km_Nm_root_LATS - self.Km_Nm_root_HATS) / (
-                1 + (precision / ((1 - precision) * np.exp(-self.begin_N_regulation))
-                     * np.exp(-Nm / self.span_N_regulation))
-        ) + self.Km_Nm_root_HATS
+        
+        # Log normal dependancy is used to account for observation of inducted HATS (iHATS) in addition to consititutive HATS (cHATS) already present
+        # With a shift for HATS in the low concentration domain from high affinity-low vmax to low affinity-high vmax
+        vmax_HATS_Nm_root = self.root_nitrate_lognorm_regulation(Nm, self.vmax_HATS_Nm_amplitude,
+                                                                      self.vmax_HATS_Nm_centering,
+                                                                      self.vmax_HATS_Nm_spread)
+        
+        Km_HATS_Nm_root = self.root_nitrate_lognorm_regulation(Nm, self.Km_HATS_Nm_amplitude,
+                                                                      self.Km_HATS_Nm_centering,
+                                                                      self.Km_HATS_Nm_spread)
+        
+        import_Nm_HATS = soil_Nm * vmax_HATS_Nm_root / (soil_Nm + Km_HATS_Nm_root)
+
+        # Then we account for low affinity transporters which account for a large part of the uptake in high concentration domains
+        # Km_LATS_Nm_root = self.Km_Nm_root_LATS * self.Km_LATS_Nm_slope_modifier * np.exp( - self.Km_LATS_Nm_regulation_speed * Nm) # TODO : Ask Romain if also chosen out of Siddiqi et al. 1990
+        Km_LATS_Nm_root = max(0, self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
+
+        import_Nm_LATS = Km_LATS_Nm_root * soil_Nm
+
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
-        vmax_Nm_root = self.vmax_Nm_root * self.temperature_modification(soil_temperature=soil_temperature,
+        temperature_modification = self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.active_processes_T_ref,
                                                                      A=self.active_processes_A,
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
+        
+        carbon_regulation = (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
-        return ((soil_Nm * vmax_Nm_root / (soil_Nm + Km_Nm_root)) * root_exchange_surface * (
-            C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
+        return (import_Nm_HATS + import_Nm_LATS) * temperature_modification * root_exchange_surface * carbon_regulation
     
-    @rate
-    def _nitrate_transporters_affinity_factor(self, Nm):
-        precision = 0.99
-        # accounted for in soil heterogeneity scenario
-        return 1 / (1 + (precision / ((1 - precision) * np.exp(-self.begin_N_regulation))
-                     * np.exp(-Nm / self.span_N_regulation)))
+    def root_nitrate_lognorm_regulation(self, x, A, mu, sigma):
+        result = A / (x * sigma * np.sqrt(2 * np.pi)) * np.exp(-(np.log(x) - mu)**2 / (2 * sigma**2))
+        if np.isnan(result) or np.isinf(result):
+            return 0
+        else:
+            return max(result, 0.)
+        
 
     @rate
     def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, living_struct_mass, symplasmic_volume, soil_temperature):
@@ -645,10 +667,10 @@ class RootNitrogenModel(Model):
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
                 if radial_import_water_apoplastic > 0:
-                    advection_process = soil_Nm * radial_import_water_apoplastic
+                    advection_process = - soil_Nm * radial_import_water_apoplastic # Here we compure a flux leaving the segment, but here it enters
                 # this is an outflow
                 else:
-                    advection_process = (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_apoplastic
+                    advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_apoplastic # accounts for xylem opening and endodermis conductance already
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 # Here, surface is not really representative of a structure as everything is apoplasmic
@@ -711,10 +733,10 @@ class RootNitrogenModel(Model):
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
                 if radial_import_water_apoplastic > 0:
-                    advection_process = soil_AA * radial_import_water_apoplastic
+                    advection_process = - soil_AA * radial_import_water_apoplastic # Here we compure a flux leaving the segment, but here it enters
                 # this is an outflow
                 else:
-                    advection_process = (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_apoplastic
+                    advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_apoplastic # accounts for xylem opening and endodermis conductance already
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
@@ -1241,7 +1263,7 @@ class RootNitrogenModel(Model):
             # Xylem balance accounting for exports from all neighbors accessible by water flow
             balance = xylem_Nm + (displaced_Nm_in 
                                   - displaced_Nm_out 
-                                  + cumulated_radial_exchanges_Nm 
+                                  + cumulated_radial_exchanges_Nm
                                   - deficit_xylem_Nm
                                   ) / living_struct_mass
 
