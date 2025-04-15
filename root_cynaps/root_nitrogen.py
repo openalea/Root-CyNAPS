@@ -340,10 +340,10 @@ class RootNitrogenModel(Model):
     Km_HATS_Nm_spread: float =        declare(default=1.7539, unit="dimensionless", unit_comment="", description="",
                                                 min_value="", max_value="", value_comment="", references="Variance for Km parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_LATS_Nm_decrease_slope =            declare(default=-1.98E-12 * 1, unit="m.g.mol-1.s-1", unit_comment="m3.g.mol-1.m-2.s-1", description="Slope of linear decrease of LATS Km according to root symplasmic Nm concentration",
+    Km_LATS_Nm_decrease_slope: float =            declare(default=-5.615e-1, unit="m.g.mol-1.s-1", unit_comment="m3.g.mol-1.m-2.s-1", description="Slope of linear decrease of LATS Km according to root symplasmic Nm concentration",
                                                 min_value="", max_value="", value_comment="", references="Siddiqui 1990 showing best fit for linear model; Barillot et al. 2016, but diverging from publication as linear", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_LATS_Nm_origin =            declare(default=6.502e-4, unit="m.s-1", unit_comment="m3.m-2.s-1 of nitrates", description="Origin value of linear decrease of LATS Km according to root symplasmic Nm concentration",
+    Km_LATS_Nm_origin: float =            declare(default=6.502e-4, unit="m.s-1", unit_comment="m3.m-2.s-1 of nitrates", description="Origin value of linear decrease of LATS Km according to root symplasmic Nm concentration",
                                                 min_value="", max_value="", value_comment="", references="Siddiqui 1990 showing best fit for linear model; Barillot et al. 2016, but diverging from publication as linear", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_Nm_xylem: float =              declare(default=1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
@@ -600,7 +600,7 @@ class RootNitrogenModel(Model):
         # Then we account for low affinity transporters which account for a large part of the uptake in high concentration domains
         # Km_LATS_Nm_root = self.Km_Nm_root_LATS * self.Km_LATS_Nm_slope_modifier * np.exp( - self.Km_LATS_Nm_regulation_speed * Nm) # TODO : Ask Romain if also chosen out of Siddiqi et al. 1990
         Km_LATS_Nm_root = max(0, self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
-
+        
         import_Nm_LATS = Km_LATS_Nm_root * soil_Nm
 
         # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
@@ -1190,7 +1190,9 @@ class RootNitrogenModel(Model):
     def _simple_import_Nm(self, radius, length, soil_Nm):
         mean_soil_Nm = np.mean(list(soil_Nm.values()))
         total_root_exchange_surface = sum([2 * np.pi * r * l for r, l in zip(radius.values(), length.values())])
-        return (self.vmax_Nm_root * mean_soil_Nm / (self.Km_Nm_root_HATS + mean_soil_Nm)) * total_root_exchange_surface
+        vmax_Nm_root = 1e-6
+        Km_Nm_root_HATS = 1e-3
+        return (vmax_Nm_root * mean_soil_Nm / (Km_Nm_root_HATS + mean_soil_Nm)) * total_root_exchange_surface
     
 
     @state
