@@ -148,7 +148,7 @@ class RootNitrogenModel(Model):
     # LOCAL VARIABLES
 
     # Pools initial size
-    Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="",
+    Nm: float =                 declare(default=1e-4 / 10, unit="mol.g-1", unit_comment="of nitrates", description="",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     AA: float =                 declare(default=9e-4, unit="mol.g-1", unit_comment="of amino acids", description="",
@@ -157,7 +157,7 @@ class RootNitrogenModel(Model):
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    xylem_Nm: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
+    xylem_Nm: float =           declare(default=1e-4 / 10, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     xylem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
@@ -340,10 +340,10 @@ class RootNitrogenModel(Model):
     Km_HATS_Nm_spread: float =        declare(default=1.7539, unit="dimensionless", unit_comment="", description="",
                                                 min_value="", max_value="", value_comment="", references="Variance for Km parameter of Log-normal density fitting with Siddiqi et al. 1990", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_LATS_Nm_decrease_slope: float =            declare(default=-5.615e-1, unit="m.g.mol-1.s-1", unit_comment="m3.g.mol-1.m-2.s-1", description="Slope of linear decrease of LATS Km according to root symplasmic Nm concentration",
+    Km_LATS_Nm_decrease_slope: float =            declare(default= - 5.615e-7, unit="m.g.mol-1.s-1", unit_comment="m3.g.mol-1.m-2.s-1", description="Slope of linear decrease of LATS Km according to root symplasmic Nm concentration",
                                                 min_value="", max_value="", value_comment="", references="Siddiqui 1990 showing best fit for linear model; Barillot et al. 2016, but diverging from publication as linear", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_LATS_Nm_origin: float =            declare(default=6.502e-4, unit="m.s-1", unit_comment="m3.m-2.s-1 of nitrates", description="Origin value of linear decrease of LATS Km according to root symplasmic Nm concentration",
+    Km_LATS_Nm_origin: float =            declare(default=6.5026e-10, unit="m.s-1", unit_comment="m3.m-2.s-1 of nitrates", description="Origin value of linear decrease of LATS Km according to root symplasmic Nm concentration",
                                                 min_value="", max_value="", value_comment="", references="Siddiqui 1990 showing best fit for linear model; Barillot et al. 2016, but diverging from publication as linear", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     vmax_Nm_xylem: float =              declare(default=1e-5, unit="mol.s-1.m-2", unit_comment="of nitrates", description="",
@@ -614,6 +614,7 @@ class RootNitrogenModel(Model):
 
         return (import_Nm_HATS + import_Nm_LATS) * temperature_modification * root_exchange_surface * carbon_regulation
     
+
     def root_nitrate_lognorm_regulation(self, x, A, mu, sigma):
         result = A / (x * sigma * np.sqrt(2 * np.pi)) * np.exp(-(np.log(x) - mu)**2 / (2 * sigma**2))
         if np.isnan(result) or np.isinf(result):
