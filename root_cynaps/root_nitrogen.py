@@ -133,10 +133,10 @@ class RootNitrogenModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       declare(default=1e-9, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    sucrose_input_rate: float = declare(default=1e-10, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+    sucrose_input_rate: float = declare(default=0, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     cytokinins_root_shoot_xylem: float = declare(default=0, unit="mol.h-1", unit_comment="of cytokinins", description="",
@@ -166,6 +166,9 @@ class RootNitrogenModel(Model):
     
     # Transport processes
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+                                                    min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    import_Nm_LATS: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     import_AA: float =                      declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
@@ -308,9 +311,16 @@ class RootNitrogenModel(Model):
     cytokinin_synthesis: float =        declare(default=0., unit=".s-1", unit_comment="of cytokinin", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    # Plotting utilities only
     simple_import_Nm: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrate", description="Total MM over the root system relative to cylinder surface to compare the current model with a simpler one", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    net_Nm_uptake: float =           declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+                                                min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
+                                                variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    
+
     
     # --- INITIALIZES MODEL PARAMETERS ---
 
@@ -379,8 +389,8 @@ class RootNitrogenModel(Model):
     km_unloading_AA_phloem: float = declare(default=100, unit="mol.m-3", unit_comment="", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-12 / 2, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
-                                                min_value="", max_value="", value_comment="", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
+    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-12 / 4, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+                                                min_value="", max_value="", value_comment="25/05/26 Edit / 4 to lower and avoid local deficits", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
@@ -614,6 +624,52 @@ class RootNitrogenModel(Model):
 
         return (import_Nm_HATS + import_Nm_LATS) * temperature_modification * root_exchange_surface * carbon_regulation
     
+
+    @rate
+    def _import_Nm_LATS(self, Nm, soil_Nm, root_exchange_surface, soil_temperature, C_hexose_root=1e-4):
+        """
+                Description
+                ___________
+                Nitrogen transport between local soil, local root segment and global vessels (xylem and phloem).
+
+                Parameters
+                __________
+                :param Km_Nm_root: Active transport from soil Km parameter (mol.m-3)
+                :param vmax_Nm_emergence: Surfacic maximal active transport rate in roots (mol.m-2.s-1)
+                :param Km_Nm_xylem: Active transport from root Km parameter (mol.m-3)
+                :param diffusion_phloem: Mineral nitrogen diffusion parameter (m.s-1)
+                :param transport_C_regulation: Km coefficient for the nitrogen active transport regulation function
+                by root C (mol.g-1) (?)
+                by root mineral nitrogen (mol.m-3)
+
+                Hypothesis
+                __________
+                H1: We summarize radial active transport controls (transporter density, affinity regulated with genetics
+                or environmental control, etc) as one mean transporter following Michaelis Menten's model.
+
+                H2: We can summarize apoplastic and symplastic radial transport through one radial transport.
+                Differentiation with epidermis conductance loss, root hair density, aerenchyma, etc, is supposed to impact Vmax.
+
+                H3: We declare similar kinetic parameters for soil-root and root-xylem active transport (exept for concentration conflict)
+                """
+        
+        # Then we account for low affinity transporters which account for a large part of the uptake in high concentration domains
+        # Km_LATS_Nm_root = self.Km_Nm_root_LATS * self.Km_LATS_Nm_slope_modifier * np.exp( - self.Km_LATS_Nm_regulation_speed * Nm) # TODO : Ask Romain if also chosen out of Siddiqi et al. 1990
+        Km_LATS_Nm_root = max(0, self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
+        
+        import_Nm_LATS = Km_LATS_Nm_root * soil_Nm
+
+        # (Michaelis-Menten kinetic, surface dependency, active transport C requirements)
+        temperature_modification = self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.active_processes_T_ref,
+                                                                     A=self.active_processes_A,
+                                                                     B=self.active_processes_B,
+                                                                     C=self.active_processes_C)
+        
+        carbon_regulation = (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
+
+        return import_Nm_LATS * temperature_modification * root_exchange_surface * carbon_regulation
+
 
     def root_nitrate_lognorm_regulation(self, x, A, mu, sigma):
         result = A / (x * sigma * np.sqrt(2 * np.pi)) * np.exp(-(np.log(x) - mu)**2 / (2 * sigma**2))
@@ -1298,18 +1354,33 @@ class RootNitrogenModel(Model):
         else:
             return 0
     
+    # For plotting only
+    @state
+    def _net_Nm_uptake(self, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, apoplastic_Nm_soil_xylem):
+        return import_Nm + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - apoplastic_Nm_soil_xylem
+
 
     # PLANT SCALE PROPERTIES UPDATE
 
     @totalstate
-    def _C_phloem_AA(self, total_phloem_AA, total_phloem_volume, diffusion_AA_phloem, unloading_AA_phloem, sucrose_input_rate, deficit_AA_phloem):
+    def _C_phloem_AA(self, total_phloem_AA, total_phloem_volume, diffusion_AA_phloem, unloading_AA_phloem, AA_root_shoot_phloem, sucrose_input_rate, deficit_AA_phloem):
         # Initialization step
         if total_phloem_AA[1] < 0:
             self.total_phloem_AA[1] = self.C_phloem_AA[1] * total_phloem_volume[1]
 
-        balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 2 * 0.7 # Caputo and Barneix 1999
-                                                        - sum(diffusion_AA_phloem.values())
-                                                        - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
+        # TODO reimplement when better data is found!
+        # if AA_root_shoot_phloem[1] != 0:
+        #     balance = total_phloem_AA[1] + self.time_step * (AA_root_shoot_phloem[1]
+        #                                                     - sum(diffusion_AA_phloem.values())
+        #                                                     - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
+        # else:
+        #     balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 0.7 # Caputo and Barneix 1999
+        #                                                     - sum(diffusion_AA_phloem.values())
+        #                                                     - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
+
+        balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 1.07 # Hayashi et Chino 1986
+                                                            - sum(diffusion_AA_phloem.values())
+                                                            - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
         
         if balance < 0.:
             self.deficit_AA_phloem[1] = -balance if balance < -1e-20 else 0.
