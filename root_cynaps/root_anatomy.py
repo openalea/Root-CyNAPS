@@ -414,12 +414,12 @@ class RootAnatomy(Model):
 
             # We record the new conductances of cell walls, endodermis and exodermis:
 
-            self.endodermis_conductance_factor[vid] = endodermis_conductance_factor
-            self.exodermis_conductance_factor[vid] = exodermis_conductance_factor
+            n.endodermis_conductance_factor = endodermis_conductance_factor
+            n.exodermis_conductance_factor = exodermis_conductance_factor
         
             # Logistic xylem differentiation
             logistic_precision = 0.99
-            self.xylem_differentiation_factor[vid] = 1 / (1 + (logistic_precision / ((1 - logistic_precision) * np.exp(
+            n.xylem_differentiation_factor = 1 / (1 + (logistic_precision / ((1 - logistic_precision) * np.exp(
                                                             -self.begin_xylem_differentiation)) * np.exp(-barycenter_distance / self.span_xylem_differentiation)))
 
     # Utility, no decorator needed

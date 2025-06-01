@@ -186,67 +186,71 @@ class RootWaterModel(Model):
         """
         
         g = self.g # To prevent repeated MTG lookups
+        props = self.props
 
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
 
         # Equivalent conductance computation from tip to collar
         for v in post_order2(g, root):
-            if self.struct_mass[v] > 0.:
+            n = g.node(v)
+            if n.struct_mass > 0.:
                 if v == root:
                     children = self.collar_children
                 else:
-                    children = [child for child in g.children(v) if self.struct_mass[child] > 0.]
+                    children = [child for child in g.children(v) if props["struct_mass"][child] > 0.]
                 
-                r = 1./(self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v] + sum(self.Keq[cid] for cid in children))
-                R = 1./self.K[v]
-                self.Keq[v] = 1. / (r + R)
+                r = 1. / (n.kr_symplasmic_water + n.kr_apoplastic_water + sum(props["Keq"][cid] for cid in children))
+                R = 1. / n.K
+                n.Keq = 1. / (r + R)
 
         # Water flux and water potential computation from collar to tips
         for v in pre_order2(g, root):
+            n = g.node(v)
             # Compute psi according to Millman theorem, then compute radial flux
-            if self.struct_mass[v] > 0:
+            if n.struct_mass > 0:
                 if v in self.collar_children:
                     parent = 1
                     brothers = self.collar_children
                 else:
                     parent = g.parent(v)
-                    brothers = [sibling for sibling in g.children_iter(parent) if self.struct_mass[sibling] > 0.]
+                    brothers = [sibling for sibling in g.children_iter(parent) if props["struct_mass"][sibling] > 0.]
+                p = g.node(parent)
 
                 if v == root:
                     children = self.collar_children
                 else:
-                    children = [child for child in g.children_iter(v) if self.struct_mass[child] > 0.]
+                    children = [child for child in g.children_iter(v) if props["struct_mass"][child] > 0.]
 
-                Keq_brothers = sum( self.Keq[cid] for cid in brothers)
-                Keq_children = sum( self.Keq[cid] for cid in children)
+                Keq_brothers = sum( props["Keq"][cid] for cid in brothers)
+                Keq_children = sum( props["Keq"][cid] for cid in children)
 
                 if parent is None:
-                    self.xylem_pressure_out[v] = self.xylem_pressure_collar[1]
+                    n.xylem_pressure_out = props['xylem_pressure_collar'][1]
 
                     # If collar flux is provided by the shoot model
                     if self.collar_flux_provided:
-                        self.axial_export_water_up[v] = self.water_root_shoot_xylem[1]
+                        n.axial_export_water_up = props['water_root_shoot_xylem'][1]
                     # Else we compute the flux according to the Haggen-Poiseuille conductance of
                     else:
-                        self.axial_export_water_up[v] = self.K[v] * (self.xylem_pressure_in[v] - self.xylem_pressure_out[v])
+                        n.axial_export_water_up = n.K * (n.xylem_pressure_in - n.xylem_pressure_out)
 
                 else:
-                    self.xylem_pressure_out[v] = self.xylem_pressure_in[parent]
-                    self.axial_export_water_up[v] = (self.axial_export_water_up[parent] - self.radial_import_water[parent]) * ( self.Keq[v] / Keq_brothers )
+                    n.xylem_pressure_out = p.xylem_pressure_in
+                    n.axial_export_water_up = (p.axial_export_water_up - p.radial_import_water) * ( n.Keq / Keq_brothers )
                 
-                k_radial = self.kr_symplasmic_water[v] + self.kr_apoplastic_water[v]
-                self.kr[v] = k_radial # TODO remove, only for visualization
+                k_radial = n.kr_symplasmic_water + n.kr_apoplastic_water
+                n.kr = k_radial # TODO remove, only for visualization
 
-                self.xylem_pressure_in[v] = (self.K[v] * self.xylem_pressure_out[v] + self.soil_water_pressure[v] * (k_radial + Keq_children)) / (k_radial + self.K[v] + Keq_children)
-                self.radial_import_water[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * k_radial
-                self.radial_import_water_apoplastic[v] = (self.soil_water_pressure[v] - self.xylem_pressure_in[v]) * self.kr_apoplastic_water[v]
+                n.xylem_pressure_in = (n.K * n.xylem_pressure_out + n.soil_water_pressure * (k_radial + Keq_children)) / (k_radial + n.K + Keq_children)
+                n.radial_import_water = (n.soil_water_pressure - n.xylem_pressure_in) * k_radial
+                n.radial_import_water_apoplastic = (n.soil_water_pressure - n.xylem_pressure_in) * n.kr_apoplastic_water
 
                 # Computed to avoid children iteration when needed by other modules
                 if len(children) > 0:
-                    self.axial_import_water_down[v] = self.axial_export_water_up[v] - self.radial_import_water[v]
+                    n.axial_import_water_down = n.axial_export_water_up - n.radial_import_water
                 else:
-                    self.axial_import_water_down[v] = 0
+                    n.axial_import_water_down = 0
 
 
     @state
