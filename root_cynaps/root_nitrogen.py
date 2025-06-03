@@ -133,7 +133,7 @@ class RootNitrogenModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_shoot_phloem: float =       declare(default=None, unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     sucrose_input_rate: float = declare(default=0, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
@@ -1373,22 +1373,18 @@ class RootNitrogenModel(Model):
         if total_phloem_AA[1] < 0:
             self.props["total_phloem_AA"][1] = C_phloem_AA[1] * total_phloem_volume[1]
 
-        # TODO reimplement when better data is found!
-        # if AA_root_shoot_phloem[1] != 0:
-        #     balance = total_phloem_AA[1] + self.time_step * (AA_root_shoot_phloem[1]
-        #                                                     - sum(diffusion_AA_phloem.values())
-        #                                                     - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
-        # else:
-        #     balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 0.7 # Caputo and Barneix 1999
-        #                                                     - sum(diffusion_AA_phloem.values())
-        #                                                     - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
-
-        balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 1.07 # Hayashi et Chino 1986
+        # print("OPTION", AA_root_shoot_phloem[1])
+        if AA_root_shoot_phloem[1] is not None:
+            balance = total_phloem_AA[1] + self.time_step * (AA_root_shoot_phloem[1]
+                                                            - sum(diffusion_AA_phloem.values())
+                                                            - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
+        else:
+            balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 0.74 # Hayashi et Chino 1986 measured 1.07 * stoechiometry
                                                             - sum(diffusion_AA_phloem.values())
                                                             - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
         
         if balance < 0.:
-            self.props["deficit_AA_phloem"][1] = -balance if balance < -1e-20 else 0.
+            self.props["deficit_AA_phloem"][1] = - balance if balance < -1e-20 else 0.
             self.props["total_phloem_AA"][1] = 0
             return 0.
         else:
