@@ -896,7 +896,6 @@ class RootNitrogenModel(Model):
 
         # If there are only influx, then there is no advection from this segment
         if current_v == emitting_segment_id and len(local_destinations) == 0:
-            # print("staying in first")
             # The current segment gathers all radial fluxes...
             props["cumulated_radial_exchanges_Nm"][current_v] += displaced_radial_Nm_fluxes
             props["cumulated_radial_exchanges_AA"][current_v] += displaced_radial_AA_fluxes
@@ -1210,6 +1209,8 @@ class RootNitrogenModel(Model):
                         infection_to_children = infection_to_parent / len(children)
                         for child_id in children:
                             child = self.g.node(child_id)
+                            if child.mycorrhiza_infected_length is None:
+                                child.mycorrhiza_infected_length = 0.
                             if child.length - child.mycorrhiza_infected_length > infection_to_children:
                                 child.mycorrhiza_infected_length += infection_to_children
                             else:
