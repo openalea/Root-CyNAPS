@@ -113,12 +113,6 @@ class RootNitrogenModel(Model):
     total_living_struct_mass: float =          declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
-    struct_mass_produced: float =       declare(default=0, unit="g", unit_comment="of dry weight", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
-    root_hairs_struct_mass_produced: float = declare(default=0, unit="g", unit_comment="of dry weight", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     hexose_consumption_by_growth: float = declare(default=0., unit="mol.s-1", unit_comment="", description="Hexose consumption rate by growth is coupled to a root growth model", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
@@ -204,9 +198,6 @@ class RootNitrogenModel(Model):
     
     # Metabolic processes
     AA_synthesis: float =                   declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
-                                                    min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    amino_acids_consumption_by_growth: float =               declare(default=0., unit="mol.s-1", unit_comment="of functional structure", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     storage_synthesis: float =              declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
@@ -1124,11 +1115,6 @@ class RootNitrogenModel(Model):
                     ((1 + self.Km_Nm_AA) / Nm) + ((1 + self.Km_C_AA) / C_hexose_root))
         else:
             return 0
-
-    @rate
-    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
-        # Organic structure synthesis
-        return (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
         
     @rate
     def _storage_synthesis(self, living_struct_mass, AA, soil_temperature):
@@ -1285,7 +1271,7 @@ class RootNitrogenModel(Model):
 
     @state
     def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  amino_acids_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
+                  hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
         
         if living_struct_mass > 0:
             balance =  AA + (self.time_step / living_struct_mass) * (
@@ -1295,7 +1281,7 @@ class RootNitrogenModel(Model):
                     - diffusion_AA_soil
                     - export_AA
                     + AA_synthesis
-                    - amino_acids_consumption_by_growth
+                    - (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA # replaces amino_acids_consumption_by_growth
                     - storage_synthesis * self.r_AA_stor
                     + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
@@ -1374,7 +1360,7 @@ class RootNitrogenModel(Model):
         if total_phloem_AA[1] < 0:
             self.props["total_phloem_AA"][1] = C_phloem_AA[1] * total_phloem_volume[1]
 
-        # print("OPTION", AA_root_shoot_phloem[1])
+        # print("OPTION", AA_root_shoot_phloem[1], sucrose_input_rate[1])
         if AA_root_shoot_phloem[1] is not None:
             balance = total_phloem_AA[1] + self.time_step * (AA_root_shoot_phloem[1]
                                                             - sum(diffusion_AA_phloem.values())
