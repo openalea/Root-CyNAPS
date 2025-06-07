@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import inspect
 from openalea.mtg.traversal import post_order2, pre_order2
 
-from metafspm.component import Model, declare
-from metafspm.component_factory import *
+from openalea.metafspm.component import Model, declare
+from openalea.metafspm.component_factory import *
 
 from scipy.integrate import solve_ivp
 

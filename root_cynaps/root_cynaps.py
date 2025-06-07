@@ -6,8 +6,8 @@ from root_bridges.soil_model import SoilModel
 from root_cynaps.root_anatomy import RootAnatomy
 from rhizodep.root_growth import RootGrowthModel
 
-from metafspm.composite_wrapper import CompositeModel
-from metafspm.component_factory import Choregrapher
+from openalea.metafspm.composite_wrapper import CompositeModel
+from openalea.metafspm.component_factory import Choregrapher
 
 from analyze.analyze import add_root_order_when_branching_is_wrong
 

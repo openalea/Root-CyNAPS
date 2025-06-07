@@ -17,8 +17,8 @@ import numpy as np
 from dataclasses import dataclass
 from openalea.mtg.traversal import post_order2, pre_order2
 
-from metafspm.component import Model, declare
-from metafspm.component_factory import *
+from openalea.metafspm.component import Model, declare
+from openalea.metafspm.component_factory import *
 
 
 @dataclass
@@ -1369,6 +1369,7 @@ class RootNitrogenModel(Model):
             balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 0.74 # Hayashi et Chino 1986 measured 1.07 * stoechiometry
                                                             - sum(diffusion_AA_phloem.values())
                                                             - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
+            print(balance, sucrose_input_rate[1] * 0.74, sum(diffusion_AA_phloem.values()), sum(unloading_AA_phloem.values()), deficit_AA_phloem[1])
         
         if balance < 0.:
             self.props["deficit_AA_phloem"][1] = - balance if balance < -1e-20 else 0.
