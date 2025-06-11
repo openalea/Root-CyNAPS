@@ -21,6 +21,8 @@ from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *
 
 
+debug = True
+
 @dataclass
 class RootNitrogenModel(Model):
     """
