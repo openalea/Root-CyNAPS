@@ -1,6 +1,8 @@
 # Root-CyNAPS : Root Cycling Nitrogen Across Plant Scales
 #### An architectured FSPM root model to simulate nitrogen acquisition and rhizodeposition
 
+# Not up to date with Openalea Guidelines!
+
 ## Overview
 
 This module aims at simulating explicit processes of root nitrogen uptake and rhizodeposition by aggregating a segment-scale nutrient balance model over the root system architecture.
