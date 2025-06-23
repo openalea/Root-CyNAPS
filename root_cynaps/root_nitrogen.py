@@ -309,10 +309,12 @@ class RootNitrogenModel(Model):
     simple_import_Nm: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrate", description="Total MM over the root system relative to cylinder surface to compare the current model with a simpler one", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    net_Nm_uptake: float =           declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+    net_N_uptake: float =           declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                 min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    
+    net_mineral_N_uptake: float =           declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+                                                min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
+                                                variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     
     # --- INITIALIZES MODEL PARAMETERS ---
@@ -1353,8 +1355,13 @@ class RootNitrogenModel(Model):
     
     # For plotting only
     @state
-    def _net_Nm_uptake(self, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, apoplastic_Nm_soil_xylem):
+    def _net_mineral_N_uptake(self, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, apoplastic_Nm_soil_xylem):
         return import_Nm + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - apoplastic_Nm_soil_xylem
+
+    # For plotting only
+    @state
+    def _net_N_uptake(self, import_Nm, import_AA, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_AA_soil, apoplastic_Nm_soil_xylem, apoplastic_AA_soil_xylem):
+        return import_Nm + import_AA + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - diffusion_AA_soil - apoplastic_Nm_soil_xylem - apoplastic_AA_soil_xylem
 
 
     # PLANT SCALE PROPERTIES UPDATE
