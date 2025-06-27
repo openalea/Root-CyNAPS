@@ -8,7 +8,7 @@ from openalea.mtg.traversal import post_order2, pre_order2
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *
 
-from scipy.integrate import solve_ivp
+from scipy.sparse import csc_matrix, linalg
 
 
 @dataclass
@@ -80,11 +80,11 @@ class RootWaterModel(Model):
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     
     # Conductance values
-    kr: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="radial root segment conductance", 
+    kr_xylem: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="radial root segment conductance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     
-    K: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
+    K_xylem: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="axial root segment conductance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     Keq: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="Equivalent conductance of the current root segment considering its position in the root system", 
@@ -97,16 +97,16 @@ class RootWaterModel(Model):
     #                                variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     # Water transport processes
-    radial_import_water: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
+    radial_import_water_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    radial_import_water_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="Water flow through the apoplastic pathway, computed for radial advection", 
+    radial_import_water_xylem_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="Water flow through the apoplastic pathway, computed for radial advection", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    axial_export_water_up: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
+    axial_export_water_up_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    axial_import_water_down: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
+    axial_import_water_down_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
@@ -151,7 +151,7 @@ class RootWaterModel(Model):
 
     @potential
     @rate
-    def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
+    def _K_xylem(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
         A = 1.856e-11 * 1e-3 # Pa.s Viswanath & Natarajan (1989)
         B = 4209 # K Viswanath & Natarajan (1989)
         C = 0.04527 # K-1 Viswanath & Natarajan (1989)
@@ -159,6 +159,17 @@ class RootWaterModel(Model):
         soil_temperature_Kelvin = soil_temperature + 273.15
         sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
+    
+    @potential
+    @rate
+    def _K_phloem(self, soil_temperature, length, phloem_vessel_radii):
+        A = 1.856e-11 * 1e-3 # Pa.s Viswanath & Natarajan (1989)
+        B = 4209 # K Viswanath & Natarajan (1989)
+        C = 0.04527 # K-1 Viswanath & Natarajan (1989)
+        D = -3.376e-5 # K-2 Viswanath & Natarajan (1989)
+        soil_temperature_Kelvin = soil_temperature + 273.15
+        sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
+        return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
 
     @actual
     @rate
@@ -230,27 +241,193 @@ class RootWaterModel(Model):
 
                     # If collar flux is provided by the shoot model
                     if self.collar_flux_provided:
-                        n.axial_export_water_up = props['water_root_shoot_xylem'][1]
+                        n.axial_export_water_up_xylem = props['water_root_shoot_xylem'][1]
                     # Else we compute the flux according to the Haggen-Poiseuille conductance of
                     else:
-                        n.axial_export_water_up = n.K * (n.xylem_pressure_in - n.xylem_pressure_out)
+                        n.axial_export_water_up_xylem = n.K * (n.xylem_pressure_in - n.xylem_pressure_out)
 
                 else:
                     n.xylem_pressure_out = p.xylem_pressure_in
-                    n.axial_export_water_up = (p.axial_export_water_up - p.radial_import_water) * ( n.Keq / Keq_brothers )
+                    n.axial_export_water_up_xylem = (p.axial_export_water_up_xylem - p.radial_import_water_xylem) * ( n.Keq / Keq_brothers )
                 
                 k_radial = n.kr_symplasmic_water + n.kr_apoplastic_water
                 n.kr = k_radial # TODO remove, only for visualization
 
                 n.xylem_pressure_in = (n.K * n.xylem_pressure_out + n.soil_water_pressure * (k_radial + Keq_children)) / (k_radial + n.K + Keq_children)
-                n.radial_import_water = (n.soil_water_pressure - n.xylem_pressure_in) * k_radial
-                n.radial_import_water_apoplastic = (n.soil_water_pressure - n.xylem_pressure_in) * n.kr_apoplastic_water
+                n.radial_import_water_xylem = (n.soil_water_pressure - n.xylem_pressure_in) * k_radial
+                n.radial_import_water_xylem_apoplastic = (n.soil_water_pressure - n.xylem_pressure_in) * n.kr_apoplastic_water
 
                 # Computed to avoid children iteration when needed by other modules
                 if len(children) > 0:
-                    n.axial_import_water_down = n.axial_export_water_up - n.radial_import_water
+                    n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem
                 else:
-                    n.axial_import_water_down = 0
+                    n.axial_import_water_down_xylem = 0
+
+
+    @actual
+    @rate
+    def water_transport_munch(self):
+        """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
+        is solved by LU decomposition.
+        """
+        g = self.g # To prevent repeated MTG lookups
+        props = self.props
+
+        n = len(g) - 1
+        minusG = np.zeros(3 * n)
+
+        # Select the base of the root
+        root = next(g.component_roots_at_scale_iter(g.root, scale=1))
+        nid = 0
+        # NOTE : WHY?
+        m = 20 * n - 12  # -12 because of the coefficients outside the matrix at the boundaries
+
+        ############
+        # row and col indexes and non-zero Jacobian terms
+        ############
+        nid = 0
+        row = np.empty(m)
+        col = np.empty(m)
+        data = np.empty(m)
+
+        for v in g.vertices_iter(scale = 1):
+            n = g.node(v)
+            children = g.children(v)
+            children_n = [g.node(cid) for cid in children]
+            parent = g.parent(v)
+            p = g.node(parent)
+
+            if v == root:
+                p_parent_xylem = props['xylem_pressure_collar'][root]
+                p_parent_phloem = props['phloem_pressure_collar'][root]
+
+            else:
+                p_parent_xylem = p.xylem_pressure_in
+                p_parent_phloem = p.phloem_pressure_in
+
+                # First block column
+                # dGp_xy_i/dP_xy_p
+                row[nid] = int(2 * v - 2)
+                col[nid] = int(2 * parent - 2)
+                data[nid] = - n.K_xylem
+                nid += 1
+
+                # dGp_ph_i/dP_xy_p
+                row[nid] = int(2 * v - 1)
+                col[nid] = int(2 * parent - 2)
+                data[nid] = - n.K_xylem
+                nid += 1
+
+                # Second block column
+                # dGp_xy_i/dP_ph_p
+                row[nid] = int(2 * v - 2)
+                col[nid] = int(2 * parent - 1)
+                data[nid] = - n.K_xylem
+                nid += 1
+
+                # dGp_ph_i/dP_ph_p
+                row[nid] = int(2 * v - 1)
+                col[nid] = int(2 * parent - 1)
+                data[nid] = - n.K_xylem
+                nid += 1
+
+
+            diag_xylem = n.K_xylem + n.kr_xylem + sum([cn.K_xylem for cn in children_n]) # POTENTIAL PB if no kids!
+            diag_phloem = n.K_phloem + n.kr_phloem + sum([cn.K_phloem for cn in children_n]) # POTENTIAL PB if no kids!
+            
+            # dGp_i/dP_i
+            data[nid] = diag_xylem
+            nid += 1
+
+            # First block column
+            # dGp_xy_i/dP_xy_i
+            row[nid] = int(2 * v - 2)
+            col[nid] = int(2 * v - 2)
+            data[nid] = diag_xylem
+            nid += 1
+
+            # dGp_ph_i/dP_xy_i
+            row[nid] = int(2 * v - 1)
+            col[nid] = int(2 * v - 2)
+            data[nid] = diag_xylem
+            nid += 1
+
+            # Second block column
+            # dGp_xy_i/dP_ph_i
+            row[nid] = int(2 * v - 2)
+            col[nid] = int(2 * v - 1)
+            data[nid] = diag_xylem
+            nid += 1
+
+            # dGp_ph_i/dP_ph_i
+            row[nid] = int(2 * v - 1)
+            col[nid] = int(2 * v - 1)
+            data[nid] = diag_xylem
+            nid += 1
+
+            for cid, cn in zip(children, children_n):
+                # First block column
+                # dGp_xy_i/dP_xy_j
+                row[nid] = int(2 * v - 2)
+                col[nid] = int(2 * cid - 2)
+                data[nid] = - cn.K_xylem
+                nid += 1
+
+                # dGp_ph_i/dP_xy_j
+                row[nid] = int(2 * v - 1)
+                col[nid] = int(2 * cid - 2)
+                data[nid] = - cn.K_xylem
+                nid += 1
+
+                # Second block column
+                # dGp_xy_i/dP_ph_j
+                row[nid] = int(2 * v - 2)
+                col[nid] = int(2 * cid - 1)
+                data[nid] = - cn.K_xylem
+                nid += 1
+
+                # dGp_ph_i/dP_ph_j
+                row[nid] = int(2 * v - 1)
+                col[nid] = int(2 * cid - 1)
+                data[nid] = - cn.K_xylem
+                nid += 1
+
+            # -Gp_xylem
+            minusG[2 * v - 2] = -(-n.K_xylem * p_parent_xylem + diag_xylem * n.xylem_pressure_in - n.kr_xylem * (self.sigma * self.R * n.soil_temperature) * n.C_solute_xylem - n.kr_xylem * n.C_solute_soil) + sum([cn.K_xylem * cn.xylem_pressure_in for cn in children_n])
+            # -Gp_phloem
+            minusG[2 * v - 1] = -(-n.K_phloem * p_parent_phloem + diag_phloem * n.phloem_pressure_in - n.kr_phloem * (self.sigma * self.R * n.soil_temperature) * n.C_solute_phloem - n.kr_phloem * n.C_solute_xylem) + sum([cn.K_phloem * cn.phloem_pressure_in for cn in children_n])
+
+        # Solving the system using sparse LU
+        J = csc_matrix((data, (row, col)), shape = (2 * n, 2 * n))
+        solve = linalg.splu(J)
+        dY = solve.solve(minusG)
+
+        # We apply results from collar to tips
+        for v in pre_order2(g, root):
+            n = g.node(v)
+            n.xylem_pressure_in = n.xylem_pressure_in + dY[2 * v - 2]
+            n.phloem_pressure_in = n.phloem_pressure_in + dY[2 * v - 1]
+
+            if v == root:
+                n.xylem_pressure_out = props['xylem_pressure_collar'][root]
+                n.phloem_pressure_out = props['phloem_pressure_collar'][root]
+            else:
+                n.xylem_pressure_out = g.node(g.parent(v)).xylem_pressure_in
+                n.phloem_pressure_out = g.node(g.parent(v)).phloem_pressure_in
+
+            n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
+            n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
+
+            n.radial_import_water_xylem = n.kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in + (self.sigma * self.R * n.soil_temperature) * (n.C_solute_xylem - n.C_solute_soil))
+            n.radial_import_water_phloem = n.kr_phloem * (n.xylem_pressure_in - n.phloem_pressure_in + (self.sigma * self.R * n.soil_temperature) * (n.C_solute_phloem - n.C_solute_xylem))
+            
+            # Computed to avoid children iteration when needed by other modules
+            if len(g.children(v)) > 0:
+                n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem
+                n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
+            else:
+                n.axial_import_water_down_xylem = 0
+                n.axial_import_water_down_phloem = 0
 
 
     @state

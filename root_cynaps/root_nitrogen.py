@@ -1352,6 +1352,17 @@ class RootNitrogenModel(Model):
                 return balance
         else:
             return 0
+
+
+    @state
+    def _C_solute_xylem(self, Nm, AA):
+        return Nm + AA
+    
+
+    @state
+    def _C_solute_phloem(self, C_sucrose_root, AA):
+        return C_sucrose_root + AA
+    
     
     # For plotting only
     @state
