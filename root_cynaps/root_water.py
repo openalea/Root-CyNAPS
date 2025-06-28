@@ -152,6 +152,9 @@ class RootWaterModel(Model):
     @potential
     @rate
     def _K_xylem(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
+        """
+        We assume xylem sap viscosity to be the same as that of water and use Andrade model to predict sap viscosity
+        """
         A = 1.856e-11 * 1e-3 # Pa.s Viswanath & Natarajan (1989)
         B = 4209 # K Viswanath & Natarajan (1989)
         C = 0.04527 # K-1 Viswanath & Natarajan (1989)
@@ -162,14 +165,33 @@ class RootWaterModel(Model):
     
     @potential
     @rate
-    def _K_phloem(self, soil_temperature, length, phloem_vessel_radii):
-        A = 1.856e-11 * 1e-3 # Pa.s Viswanath & Natarajan (1989)
-        B = 4209 # K Viswanath & Natarajan (1989)
-        C = 0.04527 # K-1 Viswanath & Natarajan (1989)
-        D = -3.376e-5 # K-2 Viswanath & Natarajan (1989)
-        soil_temperature_Kelvin = soil_temperature + 273.15
-        sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
+    def _K_phloem(self, C_solute_phloem, living_struct_mass, phloem_volume, soil_temperature, length, phloem_vessel_radii):
+        """
+        Haggen-Poiseuille model
+        """
+        solute_molar_volume = 160.35 * 1e-6 # m3.mol-1
+        solute_volumetric_fraction = C_solute_phloem * living_struct_mass * solute_molar_volume / phloem_volume
+        sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
+
+
+    def phloem_sap_viscosity(self, solute_volumetric_fraction, soil_temperature_Kelvin):
+        """
+        Model from Telis et al. 2007, assuming sucrose properties for whole sap solutes
+        """
+
+        R = 8.314
+        activation_energy_ref = 15080.24
+        temperature_ref = 318.15 # 45°C
+        # Fitted dependency of the ref viscosity for the abovedefined reference temperature
+        viscosity_ref_a = 9.6538
+        viscosity_ref_b = 0.9706
+        viscosity_ref_c = - 0.3814
+        
+        activation_energy = activation_energy_ref * (1 + 0.5 * solute_volumetric_fraction) / (1 - solute_volumetric_fraction)
+        viscosity_ref = np.exp((viscosity_ref_a * solute_volumetric_fraction**2) + viscosity_ref_b * solute_volumetric_fraction + viscosity_ref_c)
+        return viscosity_ref * np.exp((activation_energy / R) * ((1/soil_temperature_Kelvin) - (1/ temperature_ref)))
+    
 
     @actual
     @rate
@@ -274,7 +296,7 @@ class RootWaterModel(Model):
         props = self.props
 
         n = len(g) - 1
-        minusG = np.zeros(3 * n)
+        minusG = np.zeros(2 * n)
 
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
@@ -297,6 +319,9 @@ class RootWaterModel(Model):
             parent = g.parent(v)
             p = g.node(parent)
 
+            # Simulated separatly for apoplastic pathway decomposition, for phloem it is only symplastic so not differentiated
+            kr_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
+
             if v == root:
                 p_parent_xylem = props['xylem_pressure_collar'][root]
                 p_parent_phloem = props['phloem_pressure_collar'][root]
@@ -315,54 +340,46 @@ class RootWaterModel(Model):
                 # dGp_ph_i/dP_xy_p
                 row[nid] = int(2 * v - 1)
                 col[nid] = int(2 * parent - 2)
-                data[nid] = - n.K_xylem
+                data[nid] = 0
                 nid += 1
 
                 # Second block column
                 # dGp_xy_i/dP_ph_p
                 row[nid] = int(2 * v - 2)
                 col[nid] = int(2 * parent - 1)
-                data[nid] = - n.K_xylem
+                data[nid] = 0
                 nid += 1
 
                 # dGp_ph_i/dP_ph_p
                 row[nid] = int(2 * v - 1)
                 col[nid] = int(2 * parent - 1)
-                data[nid] = - n.K_xylem
+                data[nid] = - n.K_phloem
                 nid += 1
-
-
-            diag_xylem = n.K_xylem + n.kr_xylem + sum([cn.K_xylem for cn in children_n]) # POTENTIAL PB if no kids!
-            diag_phloem = n.K_phloem + n.kr_phloem + sum([cn.K_phloem for cn in children_n]) # POTENTIAL PB if no kids!
-            
-            # dGp_i/dP_i
-            data[nid] = diag_xylem
-            nid += 1
 
             # First block column
             # dGp_xy_i/dP_xy_i
             row[nid] = int(2 * v - 2)
             col[nid] = int(2 * v - 2)
-            data[nid] = diag_xylem
+            data[nid] = n.K_xylem + sum([cn.K_xylem for cn in children_n]) + kr_xylem + n.kr_phloem
             nid += 1
 
             # dGp_ph_i/dP_xy_i
             row[nid] = int(2 * v - 1)
             col[nid] = int(2 * v - 2)
-            data[nid] = diag_xylem
+            data[nid] = - n.kr_phloem
             nid += 1
 
             # Second block column
             # dGp_xy_i/dP_ph_i
             row[nid] = int(2 * v - 2)
             col[nid] = int(2 * v - 1)
-            data[nid] = diag_xylem
+            data[nid] = n.kr_phloem
             nid += 1
 
             # dGp_ph_i/dP_ph_i
             row[nid] = int(2 * v - 1)
             col[nid] = int(2 * v - 1)
-            data[nid] = diag_xylem
+            data[nid] = - n.K_phloem + sum([cn.K_phloem for cn in children_n]) + n.kr_phloem
             nid += 1
 
             for cid, cn in zip(children, children_n):
@@ -376,26 +393,31 @@ class RootWaterModel(Model):
                 # dGp_ph_i/dP_xy_j
                 row[nid] = int(2 * v - 1)
                 col[nid] = int(2 * cid - 2)
-                data[nid] = - cn.K_xylem
+                data[nid] = 0
                 nid += 1
 
                 # Second block column
                 # dGp_xy_i/dP_ph_j
                 row[nid] = int(2 * v - 2)
                 col[nid] = int(2 * cid - 1)
-                data[nid] = - cn.K_xylem
+                data[nid] = 0
                 nid += 1
 
                 # dGp_ph_i/dP_ph_j
                 row[nid] = int(2 * v - 1)
                 col[nid] = int(2 * cid - 1)
-                data[nid] = - cn.K_xylem
+                data[nid] = - cn.K_phloem
                 nid += 1
 
             # -Gp_xylem
-            minusG[2 * v - 2] = -(-n.K_xylem * p_parent_xylem + diag_xylem * n.xylem_pressure_in - n.kr_xylem * (self.sigma * self.R * n.soil_temperature) * n.C_solute_xylem - n.kr_xylem * n.C_solute_soil) + sum([cn.K_xylem * cn.xylem_pressure_in for cn in children_n])
+            minusG[2 * v - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
+                                  - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n]) 
+                                  - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.C_solute_soil - n.C_solute_xylem))
+                                  - n.kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.C_solute_phloem - n.C_solute_xylem)))
             # -Gp_phloem
-            minusG[2 * v - 1] = -(-n.K_phloem * p_parent_phloem + diag_phloem * n.phloem_pressure_in - n.kr_phloem * (self.sigma * self.R * n.soil_temperature) * n.C_solute_phloem - n.kr_phloem * n.C_solute_xylem) + sum([cn.K_phloem * cn.phloem_pressure_in for cn in children_n])
+            minusG[2 * v - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
+                                  - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n]) 
+                                  + n.kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.C_solute_phloem - n.C_solute_xylem)))
 
         # Solving the system using sparse LU
         J = csc_matrix((data, (row, col)), shape = (2 * n, 2 * n))
@@ -418,8 +440,10 @@ class RootWaterModel(Model):
             n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
             n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
 
-            n.radial_import_water_xylem = n.kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in + (self.sigma * self.R * n.soil_temperature) * (n.C_solute_xylem - n.C_solute_soil))
-            n.radial_import_water_phloem = n.kr_phloem * (n.xylem_pressure_in - n.phloem_pressure_in + (self.sigma * self.R * n.soil_temperature) * (n.C_solute_phloem - n.C_solute_xylem))
+            n.radial_import_water_xylem = kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.C_solute_soil - n.C_solute_xylem))
+            n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.C_solute_soil - n.C_solute_xylem))
+            # Minus the orientation defined for G
+            n.radial_import_water_phloem = - n.kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.C_solute_phloem - n.C_solute_xylem))
             
             # Computed to avoid children iteration when needed by other modules
             if len(g.children(v)) > 0:
