@@ -77,6 +77,9 @@ class RootNitrogenModel(Model):
     xylem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                   variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    phloem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
+                                  min_value="", max_value="", value_comment="", references="", DOI="",
+                                  variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     total_phloem_volume: float = declare(default=0., unit="m3", unit_comment="", description="", 
                                   min_value="", max_value="", value_comment="", references="", DOI="",
                                   variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
@@ -159,6 +162,14 @@ class RootNitrogenModel(Model):
     xylem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
+    
+    # Agregates for the water transport model 
+    Cv_solute_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
+                                        min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
+                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    Cv_solute_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
+                                        min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
+                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     
     # Transport processes
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
@@ -1316,6 +1327,7 @@ class RootNitrogenModel(Model):
 
     @state
     def _xylem_Nm(self, vertex_index, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, deficit_xylem_Nm, living_struct_mass):
+        print("running first")
         if living_struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
@@ -1353,15 +1365,18 @@ class RootNitrogenModel(Model):
         else:
             return 0
 
-
+    @segmentation
     @state
-    def _C_solute_xylem(self, Nm, AA):
-        return Nm + AA
+    def _Cv_solute_xylem(self, living_struct_mass, xylem_Nm, xylem_AA, xylem_volume):
+        print("running sec")
+        N_molar_fraction = 0.4
+        return ( xylem_Nm + xylem_AA ) * living_struct_mass / xylem_volume / N_molar_fraction
     
 
+    @segmentation
     @state
-    def _C_solute_phloem(self, C_sucrose_root, AA):
-        return C_sucrose_root + AA
+    def _Cv_solute_phloem(self, living_struct_mass, C_sucrose_root, phloem_AA, phloem_volume):
+        return (C_sucrose_root + phloem_AA) * living_struct_mass / phloem_volume
     
     
     # For plotting only
