@@ -344,8 +344,11 @@ class RootWaterModel(Model):
         """
         g = self.g # To prevent repeated MTG lookups
         props = self.props
+        struct_mass = g.property('struct_mass')
 
-        elt_number = len(g) - 1 #TODO: check
+        # elt_number = len(g) - 1 #TODO: check
+        local_vids = {vid: k for k, (vid, value) in enumerate(struct_mass.items()) if value > 0}
+        elt_number = len(local_vids) # Tested alternative
         minusG = np.zeros(2 * elt_number)
 
         # Select the base of the root
@@ -366,115 +369,118 @@ class RootWaterModel(Model):
 
             n = g.node(v)
 
-            # Simulated separatly for apoplastic pathway decomposition, for phloem it is only symplastic so not differentiated
-            kr_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
-            n.kr_xylem = kr_xylem # TODO : Remove only for visualization
-            kr_phloem = n.kr_symplasmic_water_phloem # Only a symplastic component
+            if n.struct_mass > 0:
 
-            if v == root:
-                children = self.collar_children
-                children_n = [g.node(cid) for cid in children]
-                p_parent_xylem = props['xylem_pressure_collar'][root]
-                p_parent_phloem = props['phloem_pressure_collar'][root]
+                # Simulated separatly for apoplastic pathway decomposition, for phloem it is only symplastic so not differentiated
+                kr_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
+                n.kr_xylem = kr_xylem # TODO : Remove only for visualization
+                kr_phloem = n.kr_symplasmic_water_phloem # Only a symplastic component
 
-            else:
-                children = g.children(v)
-                if v in self.collar_children:
-                    parent = root
+                if v == root:
+                    children = self.collar_children
+                    children_n = {cid: g.node(cid) for cid in children if struct_mass[cid] > 0}
+                    p_parent_xylem = props['xylem_pressure_collar'][root]
+                    p_parent_phloem = props['phloem_pressure_collar'][root]
+
                 else:
-                    parent = g.parent(v)
-                p = g.node(parent)
-                p_parent_xylem = p.xylem_pressure_in
-                p_parent_phloem = p.phloem_pressure_in
+                    children = g.children(v)
+                    children_n = {cid: g.node(cid) for cid in children if struct_mass[cid] > 0}
+                    if v in self.collar_children:
+                        parent = root
+                    else:
+                        parent = g.parent(v)
+                    p = g.node(parent)
+                    p_parent_xylem = p.xylem_pressure_in
+                    p_parent_phloem = p.phloem_pressure_in
+
+                    # First block column
+                    # dGp_xy_i/dP_xy_p
+                    row[nid] = int(2 * local_vids[v] - 2)
+                    col[nid] = int(2 * local_vids[parent] - 2)
+                    data[nid] = - n.K_xylem
+                    nid += 1
+
+                    # dGp_ph_i/dP_xy_p
+                    row[nid] = int(2 * local_vids[v] - 1)
+                    col[nid] = int(2 * local_vids[parent] - 2)
+                    data[nid] = 0
+                    nid += 1
+
+                    # Second block column
+                    # dGp_xy_i/dP_ph_p
+                    row[nid] = int(2 * local_vids[v] - 2)
+                    col[nid] = int(2 * local_vids[parent] - 1)
+                    data[nid] = 0
+                    nid += 1
+
+                    # dGp_ph_i/dP_ph_p
+                    row[nid] = int(2 * local_vids[v] - 1)
+                    col[nid] = int(2 * local_vids[parent] - 1)
+                    data[nid] = - n.K_phloem
+                    nid += 1
 
                 # First block column
-                # dGp_xy_i/dP_xy_p
-                row[nid] = int(2 * v - 2)
-                col[nid] = int(2 * parent - 2)
-                data[nid] = - n.K_xylem
+                # dGp_xy_i/dP_xy_i
+                row[nid] = int(2 * local_vids[v] - 2)
+                col[nid] = int(2 * local_vids[v] - 2)
+                data[nid] = n.K_xylem + sum([cn.K_xylem for cn in children_n.values()]) + kr_xylem + kr_phloem
                 nid += 1
 
-                # dGp_ph_i/dP_xy_p
-                row[nid] = int(2 * v - 1)
-                col[nid] = int(2 * parent - 2)
-                data[nid] = 0
+                # dGp_ph_i/dP_xy_i
+                row[nid] = int(2 * local_vids[v] - 1)
+                col[nid] = int(2 * local_vids[v] - 2)
+                data[nid] = - kr_phloem
                 nid += 1
 
                 # Second block column
-                # dGp_xy_i/dP_ph_p
-                row[nid] = int(2 * v - 2)
-                col[nid] = int(2 * parent - 1)
-                data[nid] = 0
+                # dGp_xy_i/dP_ph_i
+                row[nid] = int(2 * local_vids[v] - 2)
+                col[nid] = int(2 * local_vids[v] - 1)
+                data[nid] = kr_phloem
                 nid += 1
 
-                # dGp_ph_i/dP_ph_p
-                row[nid] = int(2 * v - 1)
-                col[nid] = int(2 * parent - 1)
-                data[nid] = - n.K_phloem
+                # dGp_ph_i/dP_ph_i
+                row[nid] = int(2 * local_vids[v] - 1)
+                col[nid] = int(2 * local_vids[v] - 1)
+                data[nid] = - n.K_phloem + sum([cn.K_phloem for cn in children_n.values()]) + kr_phloem
                 nid += 1
 
-            # First block column
-            # dGp_xy_i/dP_xy_i
-            row[nid] = int(2 * v - 2)
-            col[nid] = int(2 * v - 2)
-            data[nid] = n.K_xylem + sum([cn.K_xylem for cn in children_n]) + kr_xylem + kr_phloem
-            nid += 1
+                for cid, cn in children_n.items():
+                    # First block column
+                    # dGp_xy_i/dP_xy_j
+                    row[nid] = int(2 * local_vids[v] - 2)
+                    col[nid] = int(2 * local_vids[cid] - 2)
+                    data[nid] = - cn.K_xylem
+                    nid += 1
 
-            # dGp_ph_i/dP_xy_i
-            row[nid] = int(2 * v - 1)
-            col[nid] = int(2 * v - 2)
-            data[nid] = - kr_phloem
-            nid += 1
+                    # dGp_ph_i/dP_xy_j
+                    row[nid] = int(2 * local_vids[v] - 1)
+                    col[nid] = int(2 * local_vids[cid] - 2)
+                    data[nid] = 0
+                    nid += 1
 
-            # Second block column
-            # dGp_xy_i/dP_ph_i
-            row[nid] = int(2 * v - 2)
-            col[nid] = int(2 * v - 1)
-            data[nid] = kr_phloem
-            nid += 1
+                    # Second block column
+                    # dGp_xy_i/dP_ph_j
+                    row[nid] = int(2 * local_vids[v] - 2)
+                    col[nid] = int(2 * local_vids[cid] - 1)
+                    data[nid] = 0
+                    nid += 1
 
-            # dGp_ph_i/dP_ph_i
-            row[nid] = int(2 * v - 1)
-            col[nid] = int(2 * v - 1)
-            data[nid] = - n.K_phloem + sum([cn.K_phloem for cn in children_n]) + kr_phloem
-            nid += 1
+                    # dGp_ph_i/dP_ph_j
+                    row[nid] = int(2 * local_vids[v] - 1)
+                    col[nid] = int(2 * local_vids[cid] - 1)
+                    data[nid] = - cn.K_phloem
+                    nid += 1
 
-            for cid, cn in zip(children, children_n):
-                # First block column
-                # dGp_xy_i/dP_xy_j
-                row[nid] = int(2 * v - 2)
-                col[nid] = int(2 * cid - 2)
-                data[nid] = - cn.K_xylem
-                nid += 1
-
-                # dGp_ph_i/dP_xy_j
-                row[nid] = int(2 * v - 1)
-                col[nid] = int(2 * cid - 2)
-                data[nid] = 0
-                nid += 1
-
-                # Second block column
-                # dGp_xy_i/dP_ph_j
-                row[nid] = int(2 * v - 2)
-                col[nid] = int(2 * cid - 1)
-                data[nid] = 0
-                nid += 1
-
-                # dGp_ph_i/dP_ph_j
-                row[nid] = int(2 * v - 1)
-                col[nid] = int(2 * cid - 1)
-                data[nid] = - cn.K_phloem
-                nid += 1
-
-            # -Gp_xylem
-            minusG[2 * v - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
-                                - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n]) 
-                                - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_soil - n.Cv_solute_xylem))
-                                - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
-            # -Gp_phloem
-            minusG[2 * v - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
-                                - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n]) 
-                                + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
+                # -Gp_xylem
+                minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
+                                    - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
+                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_soil - n.Cv_solute_xylem))
+                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
+                # -Gp_phloem
+                minusG[2 * local_vids[v] - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
+                                    - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
+                                    + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
 
         # Solving the system using sparse LU
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
@@ -484,36 +490,39 @@ class RootWaterModel(Model):
         # We apply results from collar to tips
         for v in pre_order2(g, root):
             n = g.node(v)
-            n.xylem_pressure_in = n.xylem_pressure_in + dY[2 * v - 2]
-            n.phloem_pressure_in = n.phloem_pressure_in + dY[2 * v - 1]
 
-            if v == root:
-                n.xylem_pressure_out = props['xylem_pressure_collar'][root]
-                n.phloem_pressure_out = props['phloem_pressure_collar'][root]
-            else:
-                if v in self.collar_children:
-                    p = g.node(root)
+            if n.struct_mass > 0:
+
+                n.xylem_pressure_in = n.xylem_pressure_in + dY[2 * local_vids[v] - 2]
+                n.phloem_pressure_in = n.phloem_pressure_in + dY[2 * local_vids[v] - 1]
+
+                if v == root:
+                    n.xylem_pressure_out = props['xylem_pressure_collar'][root]
+                    n.phloem_pressure_out = props['phloem_pressure_collar'][root]
                 else:
-                    p = g.node(g.parent(v))
-                n.xylem_pressure_out = p.xylem_pressure_in
-                n.phloem_pressure_out = p.phloem_pressure_in
+                    if v in self.collar_children:
+                        p = g.node(root)
+                    else:
+                        p = g.node(g.parent(v))
+                    n.xylem_pressure_out = p.xylem_pressure_in
+                    n.phloem_pressure_out = p.phloem_pressure_in
 
-            n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
-            n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
+                n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
+                n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
 
-            n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
-            n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
-            # Minus the orientation defined for G 
-            # NOTE: Very important to keep this convention for vessel flux advection
-            n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * n.soil_temperature) * (n.Cv_solute_phloem - n.Cv_solute_xylem))
-            
-            # Computed to avoid children iteration when needed by other modules
-            if len(g.children(v)) > 0:
-                n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
-                n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
-            else:
-                n.axial_import_water_down_xylem = 0
-                n.axial_import_water_down_phloem = 0
+                n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
+                n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
+                # Minus the orientation defined for G 
+                # NOTE: Very important to keep this convention for vessel flux advection
+                n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * n.soil_temperature) * (n.Cv_solute_phloem - n.Cv_solute_xylem))
+                
+                # Computed to avoid children iteration when needed by other modules
+                if len(g.children(v)) > 0:
+                    n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
+                    n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
+                else:
+                    n.axial_import_water_down_xylem = 0
+                    n.axial_import_water_down_phloem = 0
 
 
     @state
