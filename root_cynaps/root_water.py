@@ -29,10 +29,16 @@ class RootWaterModel(Model):
                                          variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
     # FROM ANATOMY MODEL
-    xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
+    xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem vessel radius, also providing their numbering", 
+                                             min_value="", max_value="", value_comment="", references="", DOI="",
+                                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    phloem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual phloem vessel radius, also providing their numbering", 
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     xylem_volume: float = declare(default=0, unit="m3", unit_comment="", description="xylem volume for water transport between elements", 
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
+    phloem_volume: float = declare(default=0, unit="m3", unit_comment="", description="phloem volume for water transport between elements", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
     kr_symplasmic_water_xylem: float = declare(default=1., unit="m3.s-1.Pa-1", unit_comment="", description="Effective Symplasmic water conductance of all cell layer contribution, including transmembrane and plasmodesmata resistance", 
@@ -152,6 +158,12 @@ class RootWaterModel(Model):
 
     collar_flux_provided: bool = declare(default=False, unit="adim", unit_comment="", description="Option if collar flux is provided by input data", 
                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    reflection_xylem: float = declare(default=0.85, unit="adim", unit_comment="", description="Reflection coefficient for soil-xylem radial water flux", 
+                                   min_value="", max_value="", value_comment="", references="Miller, 1985a; Bauget et al., 2023", DOI="",
+                                   variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    reflection_phloem: float = declare(default=0.85, unit="adim", unit_comment="", description="Reflection coefficient for phloem-xylem radial water flux", 
+                                   min_value="", max_value="", value_comment="taken same as xylem", references="Miller, 1985a; Bauget et al., 2023", DOI="",
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
 
@@ -333,14 +345,14 @@ class RootWaterModel(Model):
         g = self.g # To prevent repeated MTG lookups
         props = self.props
 
-        n = len(g) - 1
-        minusG = np.zeros(2 * n)
+        elt_number = len(g) - 1 #TODO: check
+        minusG = np.zeros(2 * elt_number)
 
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
         nid = 0
         # NOTE : WHY?
-        m = 20 * n - 12  # -12 because of the coefficients outside the matrix at the boundaries
+        m = 20 * elt_number  # -12 because of the coefficients outside the matrix at the boundaries
 
         ############
         # row and col indexes and non-zero Jacobian terms
@@ -351,11 +363,8 @@ class RootWaterModel(Model):
         data = np.empty(m)
 
         for v in g.vertices_iter(scale = 1):
+
             n = g.node(v)
-            children = g.children(v)
-            children_n = [g.node(cid) for cid in children]
-            parent = g.parent(v)
-            p = g.node(parent)
 
             # Simulated separatly for apoplastic pathway decomposition, for phloem it is only symplastic so not differentiated
             kr_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
@@ -363,10 +372,18 @@ class RootWaterModel(Model):
             kr_phloem = n.kr_symplasmic_water_phloem # Only a symplastic component
 
             if v == root:
+                children = self.collar_children
+                children_n = [g.node(cid) for cid in children]
                 p_parent_xylem = props['xylem_pressure_collar'][root]
                 p_parent_phloem = props['phloem_pressure_collar'][root]
 
             else:
+                children = g.children(v)
+                if v in self.collar_children:
+                    parent = root
+                else:
+                    parent = g.parent(v)
+                p = g.node(parent)
                 p_parent_xylem = p.xylem_pressure_in
                 p_parent_phloem = p.phloem_pressure_in
 
@@ -451,16 +468,16 @@ class RootWaterModel(Model):
 
             # -Gp_xylem
             minusG[2 * v - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
-                                  - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n]) 
-                                  - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.Cv_solute_soil - n.Cv_solute_xylem))
-                                  - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
+                                - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n]) 
+                                - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_soil - n.Cv_solute_xylem))
+                                - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
             # -Gp_phloem
             minusG[2 * v - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
-                                  - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n]) 
-                                  + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
+                                - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n]) 
+                                + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
 
         # Solving the system using sparse LU
-        J = csc_matrix((data, (row, col)), shape = (2 * n, 2 * n))
+        J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
         solve = linalg.splu(J)
         dY = solve.solve(minusG)
 
@@ -474,21 +491,25 @@ class RootWaterModel(Model):
                 n.xylem_pressure_out = props['xylem_pressure_collar'][root]
                 n.phloem_pressure_out = props['phloem_pressure_collar'][root]
             else:
-                n.xylem_pressure_out = g.node(g.parent(v)).xylem_pressure_in
-                n.phloem_pressure_out = g.node(g.parent(v)).phloem_pressure_in
+                if v in self.collar_children:
+                    p = g.node(root)
+                else:
+                    p = g.node(g.parent(v))
+                n.xylem_pressure_out = p.xylem_pressure_in
+                n.phloem_pressure_out = p.phloem_pressure_in
 
             n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
             n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
 
-            n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
-            n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
+            n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
+            n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
             # Minus the orientation defined for G 
             # NOTE: Very important to keep this convention for vessel flux advection
-            n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.Cv_solute_phloem - n.Cv_solute_xylem))
+            n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * n.soil_temperature) * (n.Cv_solute_phloem - n.Cv_solute_xylem))
             
             # Computed to avoid children iteration when needed by other modules
             if len(g.children(v)) > 0:
-                n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem
+                n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
                 n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
             else:
                 n.axial_import_water_down_xylem = 0

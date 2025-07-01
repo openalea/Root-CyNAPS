@@ -107,9 +107,6 @@ class RootNitrogenModel(Model):
     radial_import_water_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    radial_import_water_apoplastic_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
-                                         min_value="", max_value="", value_comment="", references="", DOI="",
-                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
     axial_export_water_up_phloem: float =      declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
@@ -844,7 +841,7 @@ class RootNitrogenModel(Model):
             
             
     @rate
-    def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, deficit_AA):
+    def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
         AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
 
@@ -856,11 +853,11 @@ class RootNitrogenModel(Model):
                                                                     B=self.passive_processes_B,
                                                                     C=self.passive_processes_C)
 
-        return diffusion_phloem * (max(0, self.props["C_phloem_AA"][1]) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        return diffusion_phloem * (max(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
     
 
     @rate
-    def _unloading_AA_phloem(self, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature):
+    def _unloading_AA_phloem(self, phloem_AA, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature):
         AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
         vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
         vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
@@ -869,8 +866,8 @@ class RootNitrogenModel(Model):
                                                             B=self.active_processes_B,
                                                             C=self.active_processes_C)
         
-        return max(vmax_unloading_AA_phloem * self.props["C_phloem_AA"][1] * phloem_exchange_surface / (
-                    self.km_unloading_AA_phloem + self.props["C_phloem_AA"][1]), 0)
+        return max(vmax_unloading_AA_phloem * phloem_AA * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem +phloem_AA), 0)
 
 
 
@@ -927,7 +924,10 @@ class RootNitrogenModel(Model):
 
                 # If this is collar, the input from the shoot of amino acids is treated as any other input flux dilluting in the moving water column
                 if v == 1:
-                    displaced_radial_fluxes_phloem["AA"] += self.props["AA_root_shoot_phloem"][v] * self.time_step
+                    if self.props["AA_root_shoot_phloem"][v] is not None:
+                        displaced_radial_fluxes_phloem["AA"] += self.props["AA_root_shoot_phloem"][v] * self.time_step
+                    else:
+                        displaced_radial_fluxes_phloem["AA"] += self.props["sucrose_input_rate"][v] * 0.25 * self.time_step # Winter 1992 replaced 0.74 from Hayashi et Chino 1986 measured 1.07 * stoechiometry
 
                 # We start the computation loop for this segment until it reaches the end of the water columns
                 # Note that "emitting_segment_id" will be passed at any depth of this recursive loop, 
@@ -1130,7 +1130,7 @@ class RootNitrogenModel(Model):
 
         # Special collar case handled here separatly to assess export to shoot through collar
         if "collar" in destinations:
-            print("up export for ", vessel)
+            print("up export to shoot for ", vessel)
             proportion_to_collar = destinations["collar"] / total_destination_flux
             
             for solute in solutes:
@@ -1139,6 +1139,13 @@ class RootNitrogenModel(Model):
                 # Reducing flux by exported, in most cases if this is collar, this will be the only destination and the following loop will not run
                 displaced_content[solute] *= (1 - proportion_to_collar)
                 displaced_radial_fluxes[solute] *= (1 - proportion_to_collar)
+
+        elif 'collar' in sources:
+            print('import in vessel from shoot for', vessel)
+
+        # TODO : Here we assume collar N fluxes have already been applied as fake "radial fluxes" during the launching of 'axial_transport_N'
+        # But we need to watch out! For xylem flux to shoot builds up from the export to shoot, but if the flux reverses, an input flux from shoot advection should be applied as we do for phloem (implicit 0 concentration) 
+        # For phloem, this is the reverse problem. We well apply the flux and suppose it will be computed by shoot according too root-shoot gradient, but if the flux reverses and goes up, N from roots should be advected to shoot but here this is unidirectionnal flux cannot be corrected by roots.
 
         # For all destination between which the flux is partitioned
         for vid, destination_flux in destinations.items():
