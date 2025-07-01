@@ -24,7 +24,7 @@ class RootWaterModel(Model):
     soil_temperature: float = declare(default=7.8, unit="°C", unit_comment="", description="soil temperature in contact with roots",
                                         min_value="", max_value="", value_comment="Derived from Swinnen et al. 1994 C inputs, estimated from a labelling experiment starting 3rd of March, with average temperature at 7.8 °C", references="Swinnen et al. 1994", DOI="",
                                         variable_type="input", by="model_temperature", state_variable_type="", edit_by="user")
-    C_solute_soil: float = declare(default=0., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in soil", 
+    Cv_solute_soil: float = declare(default=0., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in soil", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
@@ -87,6 +87,9 @@ class RootWaterModel(Model):
 
     # Pools initial values
     xylem_water: float = declare(default=0, unit="m3", unit_comment="of water", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
+    phloem_water: float = declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     xylem_pressure_in: float = declare(default=-0.01e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
@@ -449,7 +452,7 @@ class RootWaterModel(Model):
             # -Gp_xylem
             minusG[2 * v - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
                                   - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n]) 
-                                  - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.C_solute_soil - n.Cv_solute_xylem))
+                                  - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.Cv_solute_soil - n.Cv_solute_xylem))
                                   - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.sigma * self.R * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
             # -Gp_phloem
             minusG[2 * v - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
@@ -477,9 +480,10 @@ class RootWaterModel(Model):
             n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
             n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
 
-            n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.C_solute_soil - n.Cv_solute_xylem))
-            n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.C_solute_soil - n.Cv_solute_xylem))
-            # Minus the orientation defined for G
+            n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
+            n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.Cv_solute_soil - n.Cv_solute_xylem))
+            # Minus the orientation defined for G 
+            # NOTE: Very important to keep this convention for vessel flux advection
             n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.sigma * self.R * n.soil_temperature) * (n.Cv_solute_phloem - n.Cv_solute_xylem))
             
             # Computed to avoid children iteration when needed by other modules
@@ -495,3 +499,8 @@ class RootWaterModel(Model):
     def _xylem_water(self, xylem_volume):
         # return xylem_volume * 1e6 / 18
         return xylem_volume
+    
+    @state
+    def _phloem_water(self, phloem_volume):
+        # return xylem_volume * 1e6 / 18
+        return phloem_volume

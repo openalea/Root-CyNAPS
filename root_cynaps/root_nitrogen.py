@@ -89,16 +89,31 @@ class RootNitrogenModel(Model):
     xylem_water: float =                declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    radial_import_water: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
-                                         min_value="", max_value="", value_comment="", references="", DOI="",
-                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    radial_import_water_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
-                                         min_value="", max_value="", value_comment="", references="", DOI="",
-                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    axial_export_water_up: float =      declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
+    phloem_water: float =                declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    axial_import_water_down: float =    declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
+    radial_import_water_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    radial_import_water_apoplastic_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    axial_export_water_up_xylem: float =      declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    axial_import_water_down_xylem: float =    declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    radial_import_water_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    radial_import_water_apoplastic_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    axial_export_water_up_phloem: float =      declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="input", by="model_water", state_variable_type="", edit_by="user")
+    axial_import_water_down_phloem: float =    declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
 
@@ -225,25 +240,34 @@ class RootNitrogenModel(Model):
 
     # Axial transport processes
     
-    displaced_Nm_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    displaced_Nm_in_xylem: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_Nm_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    displaced_Nm_out_xylem: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     Nm_differential_by_water_transport: float =    declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value=-1e9, max_value=1e9, value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_AA_in: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+    displaced_AA_in_xylem: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    displaced_AA_out: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+    displaced_AA_out_xylem: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    cumulated_radial_exchanges_Nm: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
+    cumulated_radial_exchanges_Nm_xylem: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of nitrates", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    cumulated_radial_exchanges_AA: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+    cumulated_radial_exchanges_AA_xylem: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    displaced_AA_in_phloem: float =                declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    displaced_AA_out_phloem: float =               declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    cumulated_radial_exchanges_AA_phloem: float =  declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
@@ -563,12 +587,15 @@ class RootNitrogenModel(Model):
         for vid in self.vertices:
             n = self.g.node(vid)
             # Cumulative flows are reinitialized
-            n.cumulated_radial_exchanges_Nm = 0
-            n.cumulated_radial_exchanges_AA = 0
-            n.displaced_Nm_out = 0
-            n.displaced_AA_out = 0
-            n.displaced_Nm_in = 0
-            n.displaced_AA_in = 0
+            n.cumulated_radial_exchanges_Nm_xylem = 0
+            n.cumulated_radial_exchanges_AA_xylem = 0
+            n.cumulated_radial_exchanges_AA_phloem = 0
+            n.displaced_Nm_out_xylem = 0
+            n.displaced_AA_out_xylem = 0
+            n.displaced_AA_out_phloem = 0
+            n.displaced_Nm_in_xylem = 0
+            n.displaced_AA_in_xylem = 0
+            n.displaced_AA_in_phloem = 0
 
     # NITROGEN PROCESSES
 
@@ -724,17 +751,17 @@ class RootNitrogenModel(Model):
         return diffusion_xylem * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * xylem_exchange_surface
 
     @rate
-    def _apoplastic_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, radial_import_water_apoplastic, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
+    def _apoplastic_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, radial_import_water_apoplastic_xylem, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0.:
             return 0.
         else:
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
-                if radial_import_water_apoplastic > 0:
-                    advection_process = - soil_Nm * radial_import_water_apoplastic # Here we compure a flux leaving the segment, but here it enters
+                if radial_import_water_apoplastic_xylem > 0:
+                    advection_process = - soil_Nm * radial_import_water_apoplastic_xylem # Here we compure a flux leaving the segment, but here it enters
                 # this is an outflow
                 else:
-                    advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_apoplastic # accounts for xylem opening and endodermis conductance already
+                    advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_apoplastic_xylem # accounts for xylem opening and endodermis conductance already
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 # Here, surface is not really representative of a structure as everything is apoplasmic
@@ -790,17 +817,17 @@ class RootNitrogenModel(Model):
                 * xylem_exchange_surface * (C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _apoplastic_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, radial_import_water_apoplastic, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
+    def _apoplastic_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, radial_import_water_apoplastic_xylem, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0:
             return 0.
         else:
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
-                if radial_import_water_apoplastic > 0:
-                    advection_process = - soil_AA * radial_import_water_apoplastic # Here we compure a flux leaving the segment, but here it enters
+                if radial_import_water_apoplastic_xylem > 0:
+                    advection_process = - soil_AA * radial_import_water_apoplastic_xylem # Here we compure a flux leaving the segment, but here it enters
                 # this is an outflow
                 else:
-                    advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_apoplastic # accounts for xylem opening and endodermis conductance already
+                    advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_apoplastic_xylem # accounts for xylem opening and endodermis conductance already
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
@@ -863,51 +890,72 @@ class RootNitrogenModel(Model):
             n = self.g.node(v)
 
             if n.living_struct_mass > 0 :
+                solutes_xylem = ["Nm", "AA"]
+                solutes_phloem = ["AA"]
 
                 # identify the boundary situation of the current segment
-                _, sources = self.search_advection_neighboring(v)
+                _, sources_xylem = self.search_advection_neighboring(v, vessel="xylem")
+                _, sources_phloem = self.search_advection_neighboring(v, vessel="phloem")
 
                 # Knowing mass conservation of fluxes between old side, young side and radial flow,
                 # Displaced water from previous time-step content is the segment volume + or - the radial flow, not saying where this volume is translated yet
-                displaced_water = n.xylem_water + n.radial_import_water * self.time_step
+                displaced_water_xylem = n.xylem_water + (n.radial_import_water_xylem - n.radial_import_water_phloem) * self.time_step
+                displaced_water_phloem = n.phloem_water + n.radial_import_water_phloem * self.time_step
+
                 # Whatever direction water from which water is entering the segment, this is new water, not previously there, that can be loaded by radial N flows 
-                queue = sum(list(sources.values())) * self.time_step
+                queue_xylem = sum(list(sources_xylem.values())) * self.time_step
+                queue_phloem = sum(list(sources_phloem.values())) * self.time_step
+
                 # Explicit, whole volume which at some point moved through, exited only, or entered only (3 cases) the considered segment during the time-step
-                water_column = displaced_water + queue
+                water_column_xylem = displaced_water_xylem + queue_xylem
+                water_column_phloem = displaced_water_phloem + queue_phloem
 
                 # Previous content in the segment, precomputed in case partitionning is requiered
-                displaced_Nm_content = n.xylem_Nm * n.living_struct_mass
-                displaced_AA_content = n.xylem_AA * n.living_struct_mass
+                displaced_content_xylem = {}
+                displaced_content_phloem = {}
+                displaced_content_xylem["Nm"] = n.xylem_Nm * n.living_struct_mass
+                displaced_content_xylem["AA"] = n.xylem_AA * n.living_struct_mass
+                displaced_content_phloem["AA"] = n.phloem_AA * n.living_struct_mass
 
                 # Radial N flows entering current segment during whole time step, precomputed for partitionning because all do not end up in the current segment, 
                 # except in case of sources only situtation concentrating everything
-                displaced_radial_Nm_fluxes = (n.export_Nm - n.apoplastic_Nm_soil_xylem - n.diffusion_Nm_xylem) * self.time_step
-                displaced_radial_AA_fluxes = (n.export_AA - n.apoplastic_AA_soil_xylem) * self.time_step
+                displaced_radial_fluxes_xylem = {}
+                displaced_radial_fluxes_phloem = {}
+                displaced_radial_fluxes_xylem["Nm"] = (n.export_Nm - n.apoplastic_Nm_soil_xylem - n.diffusion_Nm_xylem) * self.time_step
+                displaced_radial_fluxes_xylem["AA"] = (n.export_AA - n.apoplastic_AA_soil_xylem) * self.time_step
+                displaced_radial_fluxes_phloem["AA"] = (- n.diffusion_AA_phloem - n.unloading_AA_phloem) * self.time_step
+
+                # If this is collar, the input from the shoot of amino acids is treated as any other input flux dilluting in the moving water column
+                if v == 1:
+                    displaced_radial_fluxes_phloem["AA"] += self.props["AA_root_shoot_phloem"][v] * self.time_step
 
                 # We start the computation loop for this segment until it reaches the end of the water columns
                 # Note that "emitting_segment_id" will be passed at any depth of this recursive loop, 
-                # so that we always now if the content moved or we are in the origin segment
-                self.compute_flux_passing_and_retention(emitting_segment_id=v, previous_v=-1, current_v=v,
-                                                        displaced_water=displaced_water, queue=queue, water_column=water_column, 
-                                                        displaced_Nm_content=displaced_Nm_content, displaced_AA_content=displaced_AA_content,
-                                                        displaced_radial_Nm_fluxes=displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes=displaced_radial_AA_fluxes)
+                # so that we always know if the content moved or we are in the origin segment
+                self.compute_flux_passing_and_retention(emitting_segment_id=v, previous_v=-1, current_v=v, vessel="xylem", solutes=solutes_xylem,
+                                                        displaced_water=displaced_water_xylem, queue=queue_xylem, water_column=water_column_xylem, 
+                                                        displaced_content=displaced_content_xylem, displaced_radial_fluxes=displaced_radial_fluxes_xylem)
+                self.compute_flux_passing_and_retention(emitting_segment_id=v, previous_v=-1, current_v=v, vessel="phloem", solutes=solutes_phloem,
+                                                        displaced_water=displaced_water_phloem, queue=queue_phloem, water_column=water_column_phloem, 
+                                                        displaced_content=displaced_content_phloem, displaced_radial_fluxes=displaced_radial_fluxes_phloem)
                     
 
-    def compute_flux_passing_and_retention(self, emitting_segment_id, previous_v, current_v, displaced_water, queue, water_column, 
-                                           displaced_Nm_content, displaced_AA_content, displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+    def compute_flux_passing_and_retention(self, emitting_segment_id, previous_v, current_v, vessel, solutes,
+                                           displaced_water, queue, water_column, 
+                                           displaced_content, displaced_radial_fluxes):
         """
         Recursive function that explores all segments reached by the "water column" of origin segment to partition its nitrogen
         """
         props = self.props
 
         # Identify the neighboring situation of the current segment
-        local_destinations, local_sources = self.search_advection_neighboring(current_v, not_condidered=previous_v)
+        local_destinations, local_sources = self.search_advection_neighboring(current_v, vessel=vessel, not_condidered=previous_v)
 
         # If there are only influx, then there is no advection from this segment
         if current_v == emitting_segment_id and len(local_destinations) == 0:
             # The current segment gathers all radial fluxes...
-            props["cumulated_radial_exchanges_Nm"][current_v] += displaced_radial_Nm_fluxes
-            props["cumulated_radial_exchanges_AA"][current_v] += displaced_radial_AA_fluxes
+            for solute in solutes:
+                props[f"cumulated_radial_exchanges_{solute}_{vessel}"][current_v] += displaced_radial_fluxes[solute]
 
             # ...and no outflux so N content originally there is left untouched
 
@@ -917,22 +965,28 @@ class RootNitrogenModel(Model):
         # So knowing it has already been reduced by partionning with previously crossed segments...
         elif len(local_destinations) == 0:
             # ... The current segment gathers all radial fluxes...
-            props["cumulated_radial_exchanges_Nm"][current_v] += displaced_radial_Nm_fluxes
-            props["cumulated_radial_exchanges_AA"][current_v] += displaced_radial_AA_fluxes
+            for solute in solutes:
+                props[f"cumulated_radial_exchanges_{solute}_{vessel}"][current_v] += displaced_radial_fluxes[solute]
 
-            # ... And all displaced content,  
-            props["displaced_Nm_in"][current_v] += displaced_Nm_content
-            props["displaced_AA_in"][current_v] += displaced_AA_content
+                # ... And all displaced content,  
+                props[f"displaced_{solute}_in_{vessel}"][current_v] += displaced_content[solute]
 
         # Else we are effectively propagating towards identified destinations
         else:
             # Time requiered to estimate how much we dilate / concentrate the volume. If the segment has mass conservation, sum of outputs gives us this time of filling by inputs
-            segment_filling_time = props["xylem_water"][current_v] / sum(list(local_destinations.values()))
+            segment_filling_time = props[f"{vessel}_water"][current_v] / sum(list(local_destinations.values()))
 
             # As the exported water comes through this segment towards destinations, it it dilluted (or concentrated if radial flux is negative) by radial flux + local sources
             # Why also local source as they are not like radial water flow, i.e. they bring their own N through advection?
             # Because this will be handled in other iterations, here we just consider N movements from the segment which originated the water column
-            segment_water_acceleration = (props["radial_import_water"][current_v] + sum(list(local_sources.values()))) * segment_filling_time * (water_column / props["xylem_water"][current_v])
+            # TODO: Exception to this general workflow since otherwise would require another variable to be computed across MTG vertices
+            if vessel == "xylem":
+                radial_water_input = props[f"radial_import_water_xylem"][current_v] - props[f"radial_import_water_phloem"][current_v]
+            elif vessel == "phloem":
+                radial_water_input = props[f"radial_import_water_phloem"][current_v]
+            else:
+                raise ValueError
+            segment_water_acceleration = (radial_water_input + sum(list(local_sources.values()))) * segment_filling_time * (water_column / props[f"{vessel}_water"][current_v])
 
             # Update the size of the water column (increase / decrease) and its components accordingly
             displaced_water += segment_water_acceleration * displaced_water / water_column # Just dilated by its original proportion in the water column
@@ -940,104 +994,93 @@ class RootNitrogenModel(Model):
             queue = water_column - displaced_water
 
             # If translated volume from v doesn't stop here, only radial exchanges are perceived here
-            if queue > props["xylem_water"][current_v]:
+            if queue > props[f"{vessel}_water"][current_v]:
+                retained_radial_flux = {}
+                for solute in solutes:
+                    # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
+                    retained_radial_flux = displaced_radial_fluxes[solute] * props[f"{vessel}_water"][current_v] / water_column
 
-                # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
-                retained_radial_Nm_flux = displaced_radial_Nm_fluxes * props["xylem_water"][current_v] / water_column
-                retained_radial_AA_flux = displaced_radial_AA_fluxes * props["xylem_water"][current_v] / water_column
+                    props[f"cumulated_radial_exchanges_{solute}_{vessel}"][current_v] += retained_radial_flux
 
-                props["cumulated_radial_exchanges_Nm"][current_v] += retained_radial_Nm_flux
-                props["cumulated_radial_exchanges_AA"][current_v] += retained_radial_AA_flux
+                    displaced_radial_fluxes[solute] -= retained_radial_flux
 
-                displaced_radial_Nm_fluxes -= retained_radial_Nm_flux
-                displaced_radial_AA_fluxes -= retained_radial_AA_flux
-
-                # Exception if this is the original segment, all its original N content leaves it, so need to be recorded for balance
-                if current_v == emitting_segment_id:
-                    props["displaced_Nm_out"][current_v] += displaced_Nm_content
-                    props["displaced_AA_out"][current_v] += displaced_AA_content
+                    # Exception if this is the original segment, all its original N content leaves it, so need to be recorded for balance
+                    if current_v == emitting_segment_id:
+                        props[f"displaced_{solute}_out_{vessel}"][current_v] += displaced_content[solute]
 
                 # We update the remaining water column for this pathway
-                queue -= props["xylem_water"][current_v]
+                queue -= props[f"{vessel}_water"][current_v]
                 # displaced_water is untouched in this case
                 water_column = queue + displaced_water
 
-                self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, 
-                                                  displaced_Nm_content, displaced_AA_content, 
-                                                  displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
+                self.compute_flux_to_destinations(emitting_segment_id, current_v, vessel, solutes, local_destinations, local_sources, displaced_water, queue, water_column, 
+                                                  displaced_content, displaced_radial_fluxes)
             
             # If the queue is smaller that current segments' volume, part of the displaced content ends here
             else:
                 # If the queue AND the displaced_water end here, then we assign remaining radial loaded and translated N
-                if water_column <= props["xylem_water"][current_v]:
-                    props["cumulated_radial_exchanges_Nm"][current_v] += displaced_radial_Nm_fluxes
-                    props["cumulated_radial_exchanges_AA"][current_v] += displaced_radial_AA_fluxes
+                if water_column <= props[f"{vessel}_water"][current_v]:
+                    for solute in solutes:
+                        props[f"cumulated_radial_exchanges_{solute}_{vessel}"][current_v] += displaced_radial_fluxes[solute]
 
-                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm / xylem_AA
-                    # Note that this is just in case, normally it is impossible to reach this condition
-                    if current_v != emitting_segment_id:
-                        props["displaced_Nm_in"][current_v] += displaced_Nm_content
-                        props["displaced_AA_in"][current_v] += displaced_AA_content
+                        # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm / xylem_AA
+                        # Note that this is just in case, normally it is impossible to reach this condition
+                        if current_v != emitting_segment_id:
+                            props[f"displaced_{solute}_in_{vessel}"][current_v] += displaced_content[solute]
 
                     # Then we don't call so we stop loop there for water column
 
                 # If the translated N content is partitionned here between current segment and its destinations
                 else:
-                    # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
-                    retained_radial_Nm_flux = displaced_radial_Nm_fluxes * props["xylem_water"][current_v] / water_column
-                    retained_radial_AA_flux = displaced_radial_AA_fluxes * props["xylem_water"][current_v] / water_column
+                    for solute in solutes:
+                        # Apply cumulated radial exchanges perceived locally, supposing a dillution in the whole water column knowing the current dillution state of it
+                        retained_radial_flux = displaced_radial_fluxes[solute] * props[f"{vessel}_water"][current_v] / water_column
 
-                    props["cumulated_radial_exchanges_Nm"][current_v] += retained_radial_Nm_flux
-                    props["cumulated_radial_exchanges_AA"][current_v] += retained_radial_AA_flux
+                        props[f"cumulated_radial_exchanges_{solute}_{vessel}"][current_v] += retained_radial_flux
 
-                    displaced_radial_Nm_fluxes -= retained_radial_Nm_flux
-                    displaced_radial_AA_fluxes -= retained_radial_AA_flux
+                        displaced_radial_fluxes[solute] -= retained_radial_flux
 
-                    # Only the water proportion of advected water actually stopping in the current segment is perceived
-                    retained_advected_Nm = displaced_Nm_content * (props["xylem_water"][current_v] - queue) / displaced_water
-                    retained_advected_AA = displaced_AA_content * (props["xylem_water"][current_v] - queue) / displaced_water
+                        # Only the water proportion of advected water actually stopping in the current segment is perceived
+                        retained_advected = displaced_content[solute] * (props[f"{vessel}_water"][current_v] - queue) / displaced_water
 
-                    # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm / xylem_AA
-                    if current_v != emitting_segment_id:
-                        props["displaced_Nm_in"][current_v] += retained_advected_Nm
-                        props["displaced_AA_in"][current_v] += retained_advected_AA
+                        # Only if this is a flux retained by another segment we should add it. Otherwise the quantity is already there in xylem_Nm / xylem_AA
+                        if current_v != emitting_segment_id:
+                            props[f"displaced_{solute}_in_{vessel}"][current_v] += retained_advected
 
-                    displaced_Nm_content -= retained_advected_Nm
-                    displaced_AA_content -= retained_advected_AA
-                    
-                    # If this is the origin segment, only part of its original segment content left
-                    if current_v == emitting_segment_id:
-                        props["displaced_Nm_out"][current_v] += displaced_Nm_content
-                        props["displaced_AA_out"][current_v] += displaced_AA_content
+                        displaced_content[solute] -= retained_advected
+                        
+                        # If this is the origin segment, only part of its original segment content left
+                        if current_v == emitting_segment_id:
+                            props[f"displaced_{solute}_out_{vessel}"][current_v] += displaced_content[solute]
 
                     # We update the remaining water column for this pathway
                     queue = 0
-                    displaced_water = water_column - props["xylem_water"][current_v]
+                    displaced_water = water_column - props[f"{vessel}_water"][current_v]
                     water_column = displaced_water         
 
-                    self.compute_flux_to_destinations(emitting_segment_id, current_v, local_destinations, displaced_water, queue, water_column, 
-                                                      displaced_Nm_content, displaced_AA_content, 
-                                                      displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes)
+                    self.compute_flux_to_destinations(emitting_segment_id, current_v, vessel, solutes, local_destinations, local_sources, displaced_water, queue, water_column, 
+                                                      displaced_content, displaced_radial_fluxes)
 
 
-    def search_advection_neighboring(self, v, not_condidered=-1):
+    def search_advection_neighboring(self, v, vessel, not_condidered=-1):
 
         props = self.props
+        axial_export_water_up = f"axial_export_water_up_{vessel}"
         # If this is collar, 
         if v == 1:
             # If this is an export flux towards shoot
-            if props["axial_export_water_up"][v] > 0:
+            if props[axial_export_water_up][v] > 0:
                 # All collar children of the special collar element which receive flux from their old side are destinations.
-                destinations = {vid: - props["axial_export_water_up"][vid] for vid in self.collar_children if props["axial_export_water_up"][vid] < 0 and vid != not_condidered}
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in self.collar_children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
                 # And shoot itself is a destination (most frequent case)
-                destinations.update({"collar": props["axial_export_water_up"][v]})
+                destinations.update({"collar": props[axial_export_water_up][v]})
                 # Otherwise these children are sources of water flux into the segment
-                sources = {vid: props["axial_export_water_up"][vid] for vid in self.collar_children if props["axial_export_water_up"][vid] > 0 and vid != not_condidered}
+                sources = {vid: props[axial_export_water_up][vid] for vid in self.collar_children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
             # Identical situation as above, except for collar which receives from shoot
             else:
-                destinations = {vid: - props["axial_export_water_up"][vid] for vid in self.collar_children if props["axial_export_water_up"][vid] < 0 and vid != not_condidered}
-                sources = {vid: props["axial_export_water_up"][vid] for vid in self.collar_children if props["axial_export_water_up"][vid] > 0 and vid != not_condidered}
-                sources.update({"collar": - props["axial_export_water_up"][v]})
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in self.collar_children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
+                sources = {vid: props[axial_export_water_up][vid] for vid in self.collar_children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
+                sources.update({"collar": - props[axial_export_water_up][v]})
 
         # If we are in a special situation where collar is parent that cannot be retreived from MTG
         elif v in self.collar_children:
@@ -1045,42 +1088,41 @@ class RootNitrogenModel(Model):
             children = [child for child in self.g.children(v) if props["living_struct_mass"][child] > 0]
             
             # Same conditions as above, except for collar which is a source or destination depending on water flow direction on the old side of the current element
-            if props["axial_export_water_up"][v] > 0:
-                destinations = {vid: - props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] < 0}
-                destinations.update({1: props["axial_export_water_up"][v]})
-                sources = {vid: props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] > 0 and vid != not_condidered}
+            if props[axial_export_water_up][v] > 0:
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0}
+                destinations.update({1: props[axial_export_water_up][v]})
+                sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
             
             else:
-                destinations = {vid: - props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] < 0 and vid != not_condidered}
-                sources = {vid: props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] > 0 and vid != not_condidered}
-                sources.update({1: - props["axial_export_water_up"][v]})
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
+                sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
+                sources.update({1: - props[axial_export_water_up][v]})
 
         # Same situation as previous, except here we are in the general case where parent and children are retreived from MTG
         else:
             p = self.g.parent(v)
             children = [child for child in self.g.children(v) if props["living_struct_mass"][child] > 0]
 
-            if props["axial_export_water_up"][v] > 0:
-                destinations = {vid: - props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] < 0 and vid != not_condidered}
-                destinations.update({p: props["axial_export_water_up"][v]})
-                sources = {vid: props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] > 0 and vid != not_condidered}
+            if props[axial_export_water_up][v] > 0:
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
+                destinations.update({p: props[axial_export_water_up][v]})
+                sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
             
             else:
-                destinations = {vid: - props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] < 0. and vid != not_condidered}
-                sources = {vid: props["axial_export_water_up"][vid] for vid in children if props["axial_export_water_up"][vid] > 0 and vid != not_condidered}
-                sources.update({p: - props["axial_export_water_up"][v]})
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0. and vid != not_condidered}
+                sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
+                sources.update({p: - props[axial_export_water_up][v]})
         
         return destinations, sources
     
 
-    def compute_flux_to_destinations(self, emitting_segment_id, previous_v, destinations, displaced_water, queue, water_column, 
-                                     displaced_Nm_content, displaced_AA_content, 
-                                     displaced_radial_Nm_fluxes, displaced_radial_AA_fluxes):
+    def compute_flux_to_destinations(self, emitting_segment_id, previous_v, vessel, solutes, destinations, sources, displaced_water, queue, water_column, 
+                                     displaced_content, displaced_radial_fluxes):
         """
         DESCRIPTION
         __________
         Intermediate function before calling back compute_flux_passing_and_retention to avoid code redundancy
-        Its primary function is to handle partitionning between destinations proportionnally to the output flux intensity they represent
+        Its primary role is to handle partitionning between destinations proportionnally to the output flux intensity they represent
         """
         props = self.props
 
@@ -1088,18 +1130,17 @@ class RootNitrogenModel(Model):
 
         # Special collar case handled here separatly to assess export to shoot through collar
         if "collar" in destinations:
+            print("up export for ", vessel)
             proportion_to_collar = destinations["collar"] / total_destination_flux
             
-            props["Nm_root_shoot_xylem"][1] += proportion_to_collar * (displaced_Nm_content + displaced_radial_Nm_fluxes)
-            props["AA_root_shoot_xylem"][1] += proportion_to_collar * (displaced_AA_content + displaced_radial_AA_fluxes)
+            for solute in solutes:
+                props[f"{solute}_root_shoot_{vessel}"][1] += proportion_to_collar * (displaced_content[solute] + displaced_radial_fluxes[solute])
 
-            # Reducing flux by exported, in most cases if this is collar, this will be the only destination and the following loop will not run
-            displaced_Nm_content *= (1 - proportion_to_collar)
-            displaced_AA_content *= (1 - proportion_to_collar)
-            displaced_radial_Nm_fluxes *= (1 - proportion_to_collar)
-            displaced_radial_AA_fluxes *= (1 - proportion_to_collar)
+                # Reducing flux by exported, in most cases if this is collar, this will be the only destination and the following loop will not run
+                displaced_content[solute] *= (1 - proportion_to_collar)
+                displaced_radial_fluxes[solute] *= (1 - proportion_to_collar)
 
-        # For all destination between which the flux is partition
+        # For all destination between which the flux is partitioned
         for vid, destination_flux in destinations.items():
             # Ignoring already handled case
             if vid != "collar":
@@ -1107,16 +1148,16 @@ class RootNitrogenModel(Model):
                 dedicated_displaced_water = displaced_water * destination_flux / total_destination_flux
                 dedicated_water_column = dedicated_queue + dedicated_displaced_water
 
-                dedicated_Nm_content = displaced_Nm_content * dedicated_displaced_water / displaced_water
-                dedicated_AA_content = displaced_AA_content * dedicated_displaced_water / displaced_water
-                dedicated_displaced_radial_Nm_= displaced_radial_Nm_fluxes * dedicated_water_column / water_column
-                dedicated_displaced_radial_AA_= displaced_radial_AA_fluxes * dedicated_water_column / water_column
+                dedicated_content = {}
+                dedicated_displaced_radial = {}
+                for solute in solutes:
+                    dedicated_content[solute] = displaced_content[solute] * dedicated_displaced_water / displaced_water
+                    dedicated_displaced_radial[solute] = displaced_radial_fluxes[solute] * dedicated_water_column / water_column
 
                 # Once the proportion of N axial flow going to this destination element is computed, 
                 # we initiate a loop towards it until this "sub water column" stops
-                self.compute_flux_passing_and_retention(emitting_segment_id, previous_v, vid, dedicated_displaced_water, dedicated_queue, dedicated_water_column, 
-                                                        dedicated_Nm_content, dedicated_AA_content, 
-                                                        dedicated_displaced_radial_Nm_, dedicated_displaced_radial_AA_)
+                self.compute_flux_passing_and_retention(emitting_segment_id, previous_v, vid, vessel, solutes, dedicated_displaced_water, dedicated_queue, dedicated_water_column, 
+                                                        dedicated_content, dedicated_displaced_radial)
 
 
     # METABOLIC PROCESSES
@@ -1326,14 +1367,14 @@ class RootNitrogenModel(Model):
             return 0
 
     @state
-    def _xylem_Nm(self, vertex_index, xylem_Nm, displaced_Nm_in, displaced_Nm_out, cumulated_radial_exchanges_Nm, deficit_xylem_Nm, living_struct_mass):
+    def _xylem_Nm(self, vertex_index, xylem_Nm, displaced_Nm_in_xylem, displaced_Nm_out_xylem, cumulated_radial_exchanges_Nm_xylem, deficit_xylem_Nm, living_struct_mass):
         print("running first")
         if living_struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
-            balance = xylem_Nm + (displaced_Nm_in 
-                                  - displaced_Nm_out 
-                                  + cumulated_radial_exchanges_Nm
+            balance = xylem_Nm + (displaced_Nm_in_xylem 
+                                  - displaced_Nm_out_xylem 
+                                  + cumulated_radial_exchanges_Nm_xylem
                                   - deficit_xylem_Nm
                                   ) / living_struct_mass
 
@@ -1348,11 +1389,11 @@ class RootNitrogenModel(Model):
             return 0.
 
     @state
-    def _xylem_AA(self, vertex_index, xylem_AA, displaced_AA_in, displaced_AA_out, cumulated_radial_exchanges_AA, deficit_xylem_AA, living_struct_mass):
+    def _xylem_AA(self, vertex_index, xylem_AA, displaced_AA_in_xylem, displaced_AA_out_xylem, cumulated_radial_exchanges_AA_xylem, deficit_xylem_AA, living_struct_mass):
         if living_struct_mass > 0:
-            balance = xylem_AA + (displaced_AA_in 
-                                  - displaced_AA_out 
-                                  + cumulated_radial_exchanges_AA 
+            balance = xylem_AA + (displaced_AA_in_xylem 
+                                  - displaced_AA_out_xylem 
+                                  + cumulated_radial_exchanges_AA_xylem 
                                   - deficit_xylem_AA) / living_struct_mass
 
             if balance < 0.:
@@ -1361,6 +1402,24 @@ class RootNitrogenModel(Model):
                 return 0.
             else:
                 self.props["deficit_xylem_AA"][vertex_index] = 0.
+                return balance
+        else:
+            return 0
+        
+    @state
+    def _phloem_AA(self, vertex_index, phloem_AA, displaced_AA_in_phloem, displaced_AA_out_phloem, cumulated_radial_exchanges_AA_phloem, deficit_phloem_AA, living_struct_mass):
+        if living_struct_mass > 0:
+            balance = phloem_AA + (displaced_AA_in_phloem 
+                                  - displaced_AA_out_phloem 
+                                  + cumulated_radial_exchanges_AA_phloem 
+                                  - deficit_phloem_AA) / living_struct_mass
+
+            if balance < 0.:
+                deficit = - balance * (living_struct_mass) / self.time_step
+                self.props["deficit_phloem_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
+                return 0.
+            else:
+                self.props["deficit_phloem_AA"][vertex_index] = 0.
                 return balance
         else:
             return 0
@@ -1392,7 +1451,7 @@ class RootNitrogenModel(Model):
 
     # PLANT SCALE PROPERTIES UPDATE
 
-    @totalstate
+    # @totalstate
     def _C_phloem_AA(self, total_phloem_AA, C_phloem_AA, total_phloem_volume, diffusion_AA_phloem, unloading_AA_phloem, AA_root_shoot_phloem, sucrose_input_rate, deficit_AA_phloem):
         # Initialization step
         if total_phloem_AA[1] < 0:
