@@ -16,8 +16,8 @@ from openalea.metafspm.scene_wrapper import play_Orchestra
 
 
 if __name__ == '__main__':
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
     custom_output_folder = "outputs/fig_7.4"
 
     scene_xrange = 0.15
@@ -29,10 +29,10 @@ if __name__ == '__main__':
     max_processes = mp.cpu_count() - subprocesses_number - parallel_development - 1 # -1 for the main process
 
     
-    # target_concentrations = np.logspace(0, 4, 5) * 5e-3
-    target_concentrations = [5e-1]    
+    target_concentrations = np.logspace(0, 4, 5) * 5e-3
+    # target_concentrations = [5e-1]    
 
-    parallel = False
+    parallel = True
     active_processes = 0 
     processes = []
 
@@ -67,7 +67,7 @@ if __name__ == '__main__':
                                                                 translator_path=root_cynaps.__path__[0],
                                                                 logger_class=Logger, log_settings=Logger.light_log,
                                                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                                                n_iterations=5))
+                                                                n_iterations=24))
                 
                 p.start()
                 processes.append(p)

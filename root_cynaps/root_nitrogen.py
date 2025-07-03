@@ -290,7 +290,7 @@ class RootNitrogenModel(Model):
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     C_phloem_AA: float =            declare(default=200, unit="mol.m-3", unit_comment="of amino acids", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                min_value="", max_value="", value_comment="", references="Winter et al. 1992", DOI="https://doi.org/10.1104/pp.99.3.996",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
@@ -384,8 +384,9 @@ class RootNitrogenModel(Model):
     km_unloading_AA_phloem: float = declare(default=100, unit="mol.m-3", unit_comment="", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-12, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
-                                                min_value="", max_value="", value_comment="From RhizoDep parameter, applied 5e-13 * 6 * 12 / 0.44 * 0.015 / 14 / 1.4, 25/07/03 changed to rather match baseline from inputs", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
+    reference_rate_of_AA_consumption_by_growth: float = declare(default=6.3e-14 / 20 / 10, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+                                                min_value="", max_value="", value_comment="From RhizoDep parameter, applied 5e-13 * 6 * 12 / 0.44 * 0.015 / 14 / 1.4 25-07-03 / by about 100 to match the reduction of the diffusion_phloem parameter for other parts of the system", 
+                                                references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
@@ -1297,6 +1298,8 @@ class RootNitrogenModel(Model):
                     - AA_catabolism
                     - deficit_AA)
             if balance < 0.:
+                # print(vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                #   hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA)
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1384,6 +1387,7 @@ class RootNitrogenModel(Model):
             balance = total_phloem_AA[1] + self.time_step * (sucrose_input_rate[1] * 0.25 # Winter 1992 replaced 0.74 from Hayashi et Chino 1986 measured 1.07 * stoechiometry
                                                             - sum(diffusion_AA_phloem.values())
                                                             - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
+            # print(total_phloem_AA[1], sucrose_input_rate[1]*2, sum(diffusion_AA_phloem.values()), sum(unloading_AA_phloem.values()), deficit_AA_phloem[1])
     
         if balance < 0.:
             self.props["deficit_AA_phloem"][1] = - balance if balance < -1e-20 else 0.

@@ -49,6 +49,7 @@ class RootCyNAPS(CompositeModel):
         # INIT INDIVIDUAL MODULES
         assert len(scenario["input_mtg"]) > 0
         self.g_root = scenario["input_mtg"]["root_mtg_file"]
+
         # NOTE: Requiered here only to initialize some requiered properties on mtg
         self.root_growth = RootGrowthModel(g=scenario["input_mtg"]["root_mtg_file"], time_step=time_step, **root_parameters)
         self.root_anatomy = RootAnatomy(self.g_root, time_step, **root_parameters)
@@ -73,6 +74,9 @@ class RootCyNAPS(CompositeModel):
 
         # Get properties from each MTG
         self.root_props = self.g_root.properties()
+        # Note specific property name adaptation to work from Frederic's RhizoDep outputs
+        self.root_props["hexose_consumption_by_growth"] = {}
+        self.root_props["hexose_consumption_by_growth"].update(self.root_props["hexose_consumption_by_growth_rate"])
         # TODO : Transfer to root growth as it is general?
         self.root_props["total_living_struct_mass"][1] = sum(list(self.root_props["living_struct_mass"].values()))
         
