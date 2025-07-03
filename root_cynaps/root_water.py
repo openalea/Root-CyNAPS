@@ -347,29 +347,29 @@ class RootWaterModel(Model):
         struct_mass = g.property('struct_mass')
 
         # elt_number = len(g) - 1 #TODO: check
-        local_vid = 0
+        local_vid = 1
         local_vids = {}
         for vid, value in struct_mass.items():
             if value > 0:
                 local_vids[vid] = local_vid
                 local_vid += 1
 
-        elt_number = len(local_vids) # Tested alternative
+        elt_number = len(local_vids)
         minusG = np.zeros(2 * elt_number)
         
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
-        nid = 0
-        # NOTE : WHY?
-        m = 20 * elt_number - 12  # -12 because of the coefficients outside the matrix at the boundaries
 
         ############
         # row and col indexes and non-zero Jacobian terms
         ############
-        nid = 0
-        row = np.empty(m)
-        col = np.empty(m)
-        data = np.empty(m)
+        # nid = 0
+        # row = np.empty(m, dtype=int)
+        # col = np.empty(m, dtype=int)
+        # data = np.empty(m, dtype=float)
+        row = []
+        col = []
+        data = []
 
         for v in g.vertices_iter(scale = 1):
 
@@ -401,82 +401,72 @@ class RootWaterModel(Model):
 
                     # First block column
                     # dGp_xy_i/dP_xy_p
-                    row[nid] = int(2 * local_vids[v] - 2)
-                    col[nid] = int(2 * local_vids[parent] - 2)
-                    data[nid] = - n.K_xylem
-                    nid += 1
+                    row.append(int(2 * local_vids[v] - 2))
+                    col.append(int(2 * local_vids[parent] - 2))
+                    data.append(- n.K_xylem)
 
-                    # dGp_ph_i/dP_xy_p
-                    row[nid] = int(2 * local_vids[v] - 1)
-                    col[nid] = int(2 * local_vids[parent] - 2)
-                    data[nid] = 0
-                    nid += 1
+                    # NOTE : Just kept for readability
+                    # # dGp_ph_i/dP_xy_p
+                    # row[nid] = int(2 * local_vids[v] - 1)
+                    # col[nid] = int(2 * local_vids[parent] - 2)
+                    # data[nid] = 0
 
-                    # Second block column
-                    # dGp_xy_i/dP_ph_p
-                    row[nid] = int(2 * local_vids[v] - 2)
-                    col[nid] = int(2 * local_vids[parent] - 1)
-                    data[nid] = 0
-                    nid += 1
+                    # # Second block column
+                    # # dGp_xy_i/dP_ph_p
+                    # row[nid] = int(2 * local_vids[v] - 2)
+                    # col[nid] = int(2 * local_vids[parent] - 1)
+                    # data[nid] = 0
 
                     # dGp_ph_i/dP_ph_p
-                    row[nid] = int(2 * local_vids[v] - 1)
-                    col[nid] = int(2 * local_vids[parent] - 1)
-                    data[nid] = - n.K_phloem
-                    nid += 1
+                    row.append(int(2 * local_vids[v] - 1))
+                    col.append(int(2 * local_vids[parent] - 1))
+                    data.append(- n.K_phloem)
 
                 # First block column
                 # dGp_xy_i/dP_xy_i
-                row[nid] = int(2 * local_vids[v] - 2)
-                col[nid] = int(2 * local_vids[v] - 2)
-                data[nid] = n.K_xylem + sum([cn.K_xylem for cn in children_n.values()]) + kr_xylem + kr_phloem
-                nid += 1
+                row.append(int(2 * local_vids[v] - 2))
+                col.append(int(2 * local_vids[v] - 2))
+                data.append(n.K_xylem + sum([cn.K_xylem for cn in children_n.values()]) + kr_xylem + kr_phloem)
 
                 # dGp_ph_i/dP_xy_i
-                row[nid] = int(2 * local_vids[v] - 1)
-                col[nid] = int(2 * local_vids[v] - 2)
-                data[nid] = - kr_phloem
-                nid += 1
+                row.append(int(2 * local_vids[v] - 1))
+                col.append(int(2 * local_vids[v] - 2))
+                data.append(- kr_phloem)
 
                 # Second block column
                 # dGp_xy_i/dP_ph_i
-                row[nid] = int(2 * local_vids[v] - 2)
-                col[nid] = int(2 * local_vids[v] - 1)
-                data[nid] = kr_phloem
-                nid += 1
+                row.append(int(2 * local_vids[v] - 2))
+                col.append(int(2 * local_vids[v] - 1))
+                data.append(kr_phloem)
 
                 # dGp_ph_i/dP_ph_i
-                row[nid] = int(2 * local_vids[v] - 1)
-                col[nid] = int(2 * local_vids[v] - 1)
-                data[nid] = - n.K_phloem + sum([cn.K_phloem for cn in children_n.values()]) + kr_phloem
-                nid += 1
+                row.append(int(2 * local_vids[v] - 1))
+                col.append(int(2 * local_vids[v] - 1))
+                data.append(- n.K_phloem + sum([cn.K_phloem for cn in children_n.values()]) + kr_phloem)
 
                 for cid, cn in children_n.items():
                     # First block column
                     # dGp_xy_i/dP_xy_j
-                    row[nid] = int(2 * local_vids[v] - 2)
-                    col[nid] = int(2 * local_vids[cid] - 2)
-                    data[nid] = - cn.K_xylem
-                    nid += 1
+                    row.append(int(2 * local_vids[v] - 2))
+                    col.append(int(2 * local_vids[cid] - 2))
+                    data.append(- cn.K_xylem)
 
-                    # dGp_ph_i/dP_xy_j
-                    row[nid] = int(2 * local_vids[v] - 1)
-                    col[nid] = int(2 * local_vids[cid] - 2)
-                    data[nid] = 0
-                    nid += 1
+                    # NOTE : Just kept for readability
+                    # # dGp_ph_i/dP_xy_j
+                    # row[nid] = int(2 * local_vids[v] - 1)
+                    # col[nid] = int(2 * local_vids[cid] - 2)
+                    # data[nid] = 0
 
-                    # Second block column
-                    # dGp_xy_i/dP_ph_j
-                    row[nid] = int(2 * local_vids[v] - 2)
-                    col[nid] = int(2 * local_vids[cid] - 1)
-                    data[nid] = 0
-                    nid += 1
+                    # # Second block column
+                    # # dGp_xy_i/dP_ph_j
+                    # row[nid] = int(2 * local_vids[v] - 2)
+                    # col[nid] = int(2 * local_vids[cid] - 1)
+                    # data[nid] = 0
 
                     # dGp_ph_i/dP_ph_j
-                    row[nid] = int(2 * local_vids[v] - 1)
-                    col[nid] = int(2 * local_vids[cid] - 1)
-                    data[nid] = - cn.K_phloem
-                    nid += 1
+                    row.append(int(2 * local_vids[v] - 1))
+                    col.append(int(2 * local_vids[cid] - 1))
+                    data.append(- cn.K_phloem)
 
                 # -Gp_xylem
                 minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
@@ -488,9 +478,15 @@ class RootWaterModel(Model):
                                     - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
                                     + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
 
-        print(data)
-        print(row)
-        print(col)
+        row = np.array(row, dtype=int)
+        col = np.array(col, dtype=int)
+        data = np.array(data, dtype=float)
+        assert len(row) == len(row) == len(data)
+
+        # NOTE for non standard cases (1 parent and more than 1 children): On main axis, no parent at collar and no children at root tip make 4 values fall out of the matrix
+        # Then each branching (several on collar or simple lateral insertion), adds 2 terms being a supplementary children, but also substract 2 as it forms an apex.
+        assert len(row) == 8 * elt_number - 4
+
         # Solving the system using sparse LU
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
         solve = linalg.splu(J)
