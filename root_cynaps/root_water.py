@@ -347,15 +347,21 @@ class RootWaterModel(Model):
         struct_mass = g.property('struct_mass')
 
         # elt_number = len(g) - 1 #TODO: check
-        local_vids = {vid: k for k, (vid, value) in enumerate(struct_mass.items()) if value > 0}
+        local_vid = 0
+        local_vids = {}
+        for vid, value in struct_mass.items():
+            if value > 0:
+                local_vids[vid] = local_vid
+                local_vid += 1
+
         elt_number = len(local_vids) # Tested alternative
         minusG = np.zeros(2 * elt_number)
-
+        
         # Select the base of the root
         root = next(g.component_roots_at_scale_iter(g.root, scale=1))
         nid = 0
         # NOTE : WHY?
-        m = 20 * elt_number  # -12 because of the coefficients outside the matrix at the boundaries
+        m = 20 * elt_number - 12  # -12 because of the coefficients outside the matrix at the boundaries
 
         ############
         # row and col indexes and non-zero Jacobian terms
@@ -482,6 +488,9 @@ class RootWaterModel(Model):
                                     - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
                                     + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * n.soil_temperature * (n.Cv_solute_phloem - n.Cv_solute_xylem)))
 
+        print(data)
+        print(row)
+        print(col)
         # Solving the system using sparse LU
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
         solve = linalg.splu(J)
