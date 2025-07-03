@@ -151,7 +151,7 @@ class RootWaterModel(Model):
 
     @potential
     @rate
-    def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
+    def _K(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor, vertex_index):
         A = 1.856e-11 * 1e-3 # Pa.s Viswanath & Natarajan (1989)
         B = 4209 # K Viswanath & Natarajan (1989)
         C = 0.04527 # K-1 Viswanath & Natarajan (1989)
@@ -194,13 +194,15 @@ class RootWaterModel(Model):
         # Equivalent conductance computation from tip to collar
         for v in post_order2(g, root):
             n = g.node(v)
-            if n.struct_mass > 0.:
+            if n.struct_mass > 0. and n.type != "Dead":
                 if v == root:
                     children = self.collar_children
                 else:
                     children = [child for child in g.children(v) if props["struct_mass"][child] > 0.]
                 
                 r = 1. / (n.kr_symplasmic_water + n.kr_apoplastic_water + sum(props["Keq"][cid] for cid in children))
+                if n.K == 0:
+                    print("debug")
                 R = 1. / n.K
                 n.Keq = 1. / (r + R)
 
@@ -208,7 +210,7 @@ class RootWaterModel(Model):
         for v in pre_order2(g, root):
             n = g.node(v)
             # Compute psi according to Millman theorem, then compute radial flux
-            if n.struct_mass > 0:
+            if n.struct_mass > 0 and n.type != "Dead":
                 if v in self.collar_children:
                     parent = 1
                     brothers = self.collar_children
