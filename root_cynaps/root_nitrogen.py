@@ -174,6 +174,9 @@ class RootNitrogenModel(Model):
     xylem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
+    phloem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
+                                        min_value="", max_value="", value_comment="", references="", DOI="",
+                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
     # Agregates for the water transport model 
     Cv_solute_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
