@@ -144,7 +144,7 @@ class RootNitrogenModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       declare(default=None, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     sucrose_input_rate: float = declare(default=0, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
@@ -179,12 +179,12 @@ class RootNitrogenModel(Model):
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
     # Agregates for the water transport model 
-    Cv_solute_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
+    C_solute_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
-                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
-    Cv_solute_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
+                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
+    C_solute_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
-                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+                                        variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
     # Transport processes
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
@@ -287,19 +287,19 @@ class RootNitrogenModel(Model):
     # Deficits
     deficit_Nm: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
                                          min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                          variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+                                          variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     deficit_AA: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     deficit_AA_phloem: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root phloem", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    deficit_xylem_Nm: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    deficit_Nm_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
-    deficit_xylem_AA: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Amino acids deficit rate in root", 
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    deficit_AA_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Amino acids deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # SUMMED STATE VARIABLES
 
@@ -927,10 +927,12 @@ class RootNitrogenModel(Model):
 
                 # If this is collar, the input from the shoot of amino acids is treated as any other input flux dilluting in the moving water column
                 if v == 1:
-                    if self.props["AA_root_shoot_phloem"][v] is not None:
-                        displaced_radial_fluxes_phloem["AA"] += self.props["AA_root_shoot_phloem"][v] * self.time_step
+                    # If it imports from shoot
+                    if self.props["axial_export_water_up_phloem"][v] < 0:
+                        displaced_radial_fluxes_phloem["AA"] += - self.props["axial_export_water_up_phloem"][v] * 300 # TODO : add as boundary input of the model
+                    # Else if it exports to shoot
                     else:
-                        displaced_radial_fluxes_phloem["AA"] += self.props["sucrose_input_rate"][v] * 0.25 * self.time_step # Winter 1992 replaced 0.74 from Hayashi et Chino 1986 measured 1.07 * stoechiometry
+                        displaced_radial_fluxes_phloem["AA"] += - self.props["axial_export_water_up_phloem"][v] * n.phloem_AA * n.living_struct_mass / n.phloem_volume
 
                 # We start the computation loop for this segment until it reaches the end of the water columns
                 # Note that "emitting_segment_id" will be passed at any depth of this recursive loop, 
@@ -1133,10 +1135,11 @@ class RootNitrogenModel(Model):
 
         # Special collar case handled here separatly to assess export to shoot through collar
         if "collar" in destinations:
-            print("up export to shoot for ", vessel)
+            if debug: print("up export to shoot for ", vessel)
             proportion_to_collar = destinations["collar"] / total_destination_flux
             
             for solute in solutes:
+                # print(vessel, solute, displaced_content[solute], displaced_radial_fluxes[solute])
                 props[f"{solute}_root_shoot_{vessel}"][1] += proportion_to_collar * (displaced_content[solute] + displaced_radial_fluxes[solute])
 
                 # Reducing flux by exported, in most cases if this is collar, this will be the only destination and the following loop will not run
@@ -1144,7 +1147,7 @@ class RootNitrogenModel(Model):
                 displaced_radial_fluxes[solute] *= (1 - proportion_to_collar)
 
         elif 'collar' in sources:
-            print('import in vessel from shoot for', vessel)
+            if debug: print('import in vessel from shoot for', vessel)
 
         # TODO : Here we assume collar N fluxes have already been applied as fake "radial fluxes" during the launching of 'axial_transport_N'
         # But we need to watch out! For xylem flux to shoot builds up from the export to shoot, but if the flux reverses, an input flux from shoot advection should be applied as we do for phloem (implicit 0 concentration) 
@@ -1377,75 +1380,74 @@ class RootNitrogenModel(Model):
             return 0
 
     @state
-    def _xylem_Nm(self, vertex_index, xylem_Nm, displaced_Nm_in_xylem, displaced_Nm_out_xylem, cumulated_radial_exchanges_Nm_xylem, deficit_xylem_Nm, living_struct_mass):
-        print("running first")
+    def _xylem_Nm(self, vertex_index, xylem_Nm, displaced_Nm_in_xylem, displaced_Nm_out_xylem, cumulated_radial_exchanges_Nm_xylem, deficit_Nm_xylem, living_struct_mass):
         if living_struct_mass > 0:
             # Vessel's nitrogen pool update
             # Xylem balance accounting for exports from all neighbors accessible by water flow
             balance = xylem_Nm + (displaced_Nm_in_xylem 
                                   - displaced_Nm_out_xylem 
                                   + cumulated_radial_exchanges_Nm_xylem
-                                  - deficit_xylem_Nm
+                                  - deficit_Nm_xylem
                                   ) / living_struct_mass
 
             if balance < 0.:
                 deficit = - balance * (living_struct_mass) / self.time_step
-                self.props["deficit_xylem_Nm"][vertex_index] = deficit if deficit > 1e-20 else 0.
+                self.props["deficit_Nm_xylem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
             else:
-                self.props["deficit_xylem_Nm"][vertex_index] = 0.
+                self.props["deficit_Nm_xylem"][vertex_index] = 0.
                 return balance
         else:
             return 0.
 
     @state
-    def _xylem_AA(self, vertex_index, xylem_AA, displaced_AA_in_xylem, displaced_AA_out_xylem, cumulated_radial_exchanges_AA_xylem, deficit_xylem_AA, living_struct_mass):
+    def _xylem_AA(self, vertex_index, xylem_AA, displaced_AA_in_xylem, displaced_AA_out_xylem, cumulated_radial_exchanges_AA_xylem, deficit_AA_xylem, living_struct_mass):
         if living_struct_mass > 0:
             balance = xylem_AA + (displaced_AA_in_xylem 
                                   - displaced_AA_out_xylem 
                                   + cumulated_radial_exchanges_AA_xylem 
-                                  - deficit_xylem_AA) / living_struct_mass
+                                  - deficit_AA_xylem) / living_struct_mass
 
             if balance < 0.:
                 deficit = - balance * (living_struct_mass) / self.time_step
-                self.props["deficit_xylem_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
+                self.props["deficit_AA_xylem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
             else:
-                self.props["deficit_xylem_AA"][vertex_index] = 0.
+                self.props["deficit_AA_xylem"][vertex_index] = 0.
                 return balance
         else:
             return 0
         
     @state
-    def _phloem_AA(self, vertex_index, phloem_AA, displaced_AA_in_phloem, displaced_AA_out_phloem, cumulated_radial_exchanges_AA_phloem, deficit_phloem_AA, living_struct_mass):
+    def _phloem_AA(self, vertex_index, phloem_AA, displaced_AA_in_phloem, displaced_AA_out_phloem, cumulated_radial_exchanges_AA_phloem, deficit_AA_phloem, living_struct_mass):
         if living_struct_mass > 0:
             balance = phloem_AA + (displaced_AA_in_phloem 
                                   - displaced_AA_out_phloem 
                                   + cumulated_radial_exchanges_AA_phloem 
-                                  - deficit_phloem_AA) / living_struct_mass
+                                  - deficit_AA_phloem) / living_struct_mass
 
             if balance < 0.:
                 deficit = - balance * (living_struct_mass) / self.time_step
-                self.props["deficit_phloem_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
+                self.props["deficit_AA_phloem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
             else:
-                self.props["deficit_phloem_AA"][vertex_index] = 0.
+                self.props["deficit_AA_phloem"][vertex_index] = 0.
                 return balance
         else:
             return 0
 
     @segmentation
     @state
-    def _Cv_solute_xylem(self, living_struct_mass, xylem_Nm, xylem_AA, xylem_volume):
-        print("running sec")
-        N_molar_fraction = 0.4
-        return ( xylem_Nm + xylem_AA ) * living_struct_mass / xylem_volume / N_molar_fraction
+    def _C_solute_xylem(self, xylem_Nm, xylem_AA):
+        N_in_total_ions=0.5
+        return xylem_Nm / N_in_total_ions + xylem_AA
     
 
     @segmentation
     @state
-    def _Cv_solute_phloem(self, living_struct_mass, C_sucrose_root, phloem_AA, phloem_volume):
-        return (C_sucrose_root + phloem_AA) * living_struct_mass / phloem_volume
+    def _C_solute_phloem(self, C_sucrose_root, phloem_AA):
+        ions_proportion = 0.4 # To account for high concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
+        return (C_sucrose_root + phloem_AA) / (1 - ions_proportion)
     
     
     # For plotting only
