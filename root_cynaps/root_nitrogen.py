@@ -144,9 +144,15 @@ class RootNitrogenModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
-    AA_root_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
-                                                variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    Cv_Nm_xylem_collar: float = declare(default=10, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+                                       min_value="", max_value="", value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    Cv_AA_xylem_collar: float = declare(default=10, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+                                       min_value="", max_value="", value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    Cv_AA_phloem_collar: float = declare(default=260, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+                                       min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     sucrose_input_rate: float = declare(default=0, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
@@ -327,10 +333,13 @@ class RootNitrogenModel(Model):
     C_phloem_AA: float =            declare(default=10, unit="mol.m-3", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Nm_root_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of nitrates", description="",
+    Nm_root_to_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    AA_root_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
+    AA_root_to_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    AA_root_to_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_AA_rhizodeposition: float =   declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
@@ -582,8 +591,8 @@ class RootNitrogenModel(Model):
     @stepinit
     def initialize_cumulative(self):
         # Reinitialize for the sum of the next loop
-        self.props["Nm_root_shoot_xylem"][1] = 0
-        self.props["Nm_root_shoot_xylem"][1] = 0
+        self.props["Nm_root_to_shoot_xylem"][1] = 0
+        self.props["Nm_root_to_shoot_xylem"][1] = 0
         for vid in self.vertices:
             n = self.g.node(vid)
             # Cumulative flows are reinitialized
@@ -925,14 +934,28 @@ class RootNitrogenModel(Model):
                 displaced_radial_fluxes_xylem["AA"] = (n.export_AA - n.apoplastic_AA_soil_xylem) * self.time_step
                 displaced_radial_fluxes_phloem["AA"] = (- n.diffusion_AA_phloem - n.unloading_AA_phloem) * self.time_step
 
-                # If this is collar, the input from the shoot of amino acids is treated as any other input flux dilluting in the moving water column
+                # If this is collar, the input from the shoot is treated as any other input flux dilluting in the moving water column
                 if v == 1:
-                    # If it imports from shoot
+                    # If it imports from shoot, supposed to be the usual case
                     if self.props["axial_export_water_up_phloem"][v] < 0:
-                        displaced_radial_fluxes_phloem["AA"] += - self.props["axial_export_water_up_phloem"][v] * 300 # TODO : add as boundary input of the model
-                    # Else if it exports to shoot
-                    else:
-                        displaced_radial_fluxes_phloem["AA"] += - self.props["axial_export_water_up_phloem"][v] * n.phloem_AA * n.living_struct_mass / n.phloem_volume
+                        if debug: print('import in phloem from shoot')
+                        downflux_AA_phloem = - self.props["axial_export_water_up_phloem"][v] * self.props["Cv_AA_phloem_collar"][1]
+                        displaced_radial_fluxes_phloem["AA"] += downflux_AA_phloem
+                        # We record the collar exchanges once here since this boundary remains constant over the time step
+                        self.props["AA_root_to_shoot_phloem"][1] = - downflux_AA_phloem
+
+                    # Not supposed to be the usual case, at least during the day
+                    if self.props["axial_export_water_up_xylem"][v] < 0:
+                        if debug: print('import in xylem from shoot')
+                        downflux_Nm_xylem = - self.props["axial_export_water_up_xylem"][v] * self.props["Cv_Nm_xylem_collar"][1]
+                        downflux_AA_xylem = - self.props["axial_export_water_up_xylem"][v] * self.props["Cv_AA_xylem_collar"][1]
+                        displaced_radial_fluxes_xylem["Nm"] += downflux_Nm_xylem
+                        displaced_radial_fluxes_xylem["AA"] += downflux_AA_xylem
+                        # We record the collar exchanges once here since this boundary remains constant over the time step
+                        self.props["Nm_root_to_shoot_xylem"][1] = - downflux_Nm_xylem
+                        self.props["AA_root_to_shoot_xylem"][1] = - downflux_AA_xylem
+
+                    # However the opposite case when solutes are flowing out is handled latter when fluxes are flowing out when collar is a destination
 
                 # We start the computation loop for this segment until it reaches the end of the water columns
                 # Note that "emitting_segment_id" will be passed at any depth of this recursive loop, 
@@ -1135,23 +1158,18 @@ class RootNitrogenModel(Model):
 
         # Special collar case handled here separatly to assess export to shoot through collar
         if "collar" in destinations:
-            if debug: print("up export to shoot for ", vessel)
+            if debug: print("up export to shoot for", vessel)
             proportion_to_collar = destinations["collar"] / total_destination_flux
             
             for solute in solutes:
                 # print(vessel, solute, displaced_content[solute], displaced_radial_fluxes[solute])
-                props[f"{solute}_root_shoot_{vessel}"][1] += proportion_to_collar * (displaced_content[solute] + displaced_radial_fluxes[solute])
+                props[f"{solute}_root_to_shoot_{vessel}"][1] += proportion_to_collar * (displaced_content[solute] + displaced_radial_fluxes[solute])
 
                 # Reducing flux by exported, in most cases if this is collar, this will be the only destination and the following loop will not run
                 displaced_content[solute] *= (1 - proportion_to_collar)
                 displaced_radial_fluxes[solute] *= (1 - proportion_to_collar)
 
-        elif 'collar' in sources:
-            if debug: print('import in vessel from shoot for', vessel)
-
-        # TODO : Here we assume collar N fluxes have already been applied as fake "radial fluxes" during the launching of 'axial_transport_N'
-        # But we need to watch out! For xylem flux to shoot builds up from the export to shoot, but if the flux reverses, an input flux from shoot advection should be applied as we do for phloem (implicit 0 concentration) 
-        # For phloem, this is the reverse problem. We well apply the flux and suppose it will be computed by shoot according too root-shoot gradient, but if the flux reverses and goes up, N from roots should be advected to shoot but here this is unidirectionnal flux cannot be corrected by roots.
+        # NOTE : Here we assume collar N fluxes from the shoot, if they occur, have already been applied as fake "radial fluxes" during the launching of 'axial_transport_N'
 
         # For all destination between which the flux is partitioned
         for vid, destination_flux in destinations.items():
@@ -1446,7 +1464,7 @@ class RootNitrogenModel(Model):
     @segmentation
     @state
     def _C_solute_phloem(self, C_sucrose_root, phloem_AA):
-        ions_proportion = 0.4 # To account for high concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
+        ions_proportion = 0.4 # To account for high 300 mM concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
         return (C_sucrose_root + phloem_AA) / (1 - ions_proportion)
     
     
@@ -1464,14 +1482,14 @@ class RootNitrogenModel(Model):
     # PLANT SCALE PROPERTIES UPDATE
 
     # @totalstate
-    def _C_phloem_AA(self, total_phloem_AA, C_phloem_AA, total_phloem_volume, diffusion_AA_phloem, unloading_AA_phloem, AA_root_shoot_phloem, sucrose_input_rate, deficit_AA_phloem):
+    def _C_phloem_AA(self, total_phloem_AA, C_phloem_AA, total_phloem_volume, diffusion_AA_phloem, unloading_AA_phloem, AA_root_to_shoot_phloem, sucrose_input_rate, deficit_AA_phloem):
         # Initialization step
         if total_phloem_AA[1] < 0:
             self.props["total_phloem_AA"][1] = C_phloem_AA[1] * total_phloem_volume[1]
 
-        # print("OPTION", AA_root_shoot_phloem[1], sucrose_input_rate[1])
-        if AA_root_shoot_phloem[1] is not None:
-            balance = total_phloem_AA[1] + self.time_step * (AA_root_shoot_phloem[1]
+        # print("OPTION", AA_root_to_shoot_phloem[1], sucrose_input_rate[1])
+        if AA_root_to_shoot_phloem[1] is not None:
+            balance = total_phloem_AA[1] + self.time_step * (-AA_root_to_shoot_phloem[1]
                                                             - sum(diffusion_AA_phloem.values())
                                                             - sum(unloading_AA_phloem.values())) - deficit_AA_phloem[1]
         else:
