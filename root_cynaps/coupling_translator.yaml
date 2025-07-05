@@ -1,21 +1,18 @@
 RootAnatomy:
+
   RootAnatomy: {}
-  RootGrowthModel: {}
+
   RootNitrogenModel: {}
+
   RootWaterModel: {}
-  SoilModel: {}
-  
-RootGrowthModel:
-  RootAnatomy: {}
-  RootGrowthModel: {}
-  RootNitrogenModel: {}
-  RootWaterModel: {}
+
   SoilModel: {}
 
 RootNitrogenModel:
+
   RootAnatomy:
-    cortex_exchange_surface:
-      cortex_exchange_surface: 1.0
+    xylem_exchange_surface:
+      xylem_exchange_surface: 1.0
     endodermis_conductance_factor:
       endodermis_conductance_factor: 1.0
     phloem_exchange_surface:
@@ -23,32 +20,38 @@ RootNitrogenModel:
     root_exchange_surface:
       root_exchange_surface: 1.0
     xylem_differentiation_factor:
-      xylem_differentiation_factor: 1.
-  RootGrowthModel:
-    initial_struct_mass:
-      initial_struct_mass: 1.0
-    length:
-      length: 1.0
-    radius:
-      radius: 1.0
-    struct_mass:
-      struct_mass: 1.0
-    struct_mass_produced:
-      struct_mass_produced: 1.0
-    root_hairs_struct_mass_produced:
-      root_hairs_struct_mass_produced: 1.0
-    thermal_time_since_emergence:
-      thermal_time_since_emergence: 1.0
-    distance_from_tip:
-      distance_from_tip: 1.0
+      xylem_differentiation_factor: 1.0
+    symplasmic_volume:
+      symplasmic_volume: 1.0
+    xylem_volume:
+      xylem_volume: 1.0
+    phloem_volume:
+      phloem_volume: 1.0
+    total_phloem_volume:
+      total_phloem_volume: 1.0
+
   RootNitrogenModel: {}
+
   RootWaterModel:
-    axial_export_water_up:
-      axial_export_water_up: 1.0
-    axial_import_water_down:
-      axial_import_water_down: 1.0
+    radial_import_water_xylem:
+      radial_import_water_xylem: 1.0
+    radial_import_water_xylem_apoplastic:
+      radial_import_water_xylem_apoplastic: 1.0
+    axial_export_water_up_xylem:
+      axial_export_water_up_xylem: 1.0
+    axial_import_water_down_xylem:
+      axial_import_water_down_xylem: 1.0
+    radial_import_water_phloem:
+      radial_import_water_phloem: 1.0
+    axial_export_water_up_phloem:
+      axial_export_water_up_phloem: 1.0
+    axial_import_water_down_phloem:
+      axial_import_water_down_phloem: 1.0
     xylem_water:
       xylem_water: 1.0
+    phloem_water:
+      phloem_water: 1.0
+    
   SoilModel:
     soil_AA:
       C_amino_acids_soil: 1.0
@@ -63,31 +66,61 @@ RootNitrogenModel:
 
 RootWaterModel:
   RootAnatomy:
-    apoplasmic_exchange_surface:
-      apoplasmic_exchange_surface: 1.0
-    cortex_exchange_surface:
-      cortex_exchange_surface: 1.0
+    xylem_vessel_radii:
+      xylem_vessel_radii: 1.0
+    phloem_vessel_radii:
+      phloem_vessel_radii: 1.0
     xylem_volume:
       xylem_volume: 1.0
-  RootGrowthModel: {}
+    phloem_volume:
+      phloem_volume: 1.0
+    kr_symplasmic_water_xylem:
+      kr_symplasmic_water_xylem: 1.0
+    kr_apoplastic_water_xylem:
+      kr_apoplastic_water_xylem: 1.0
+    kr_symplasmic_water_phloem:
+      kr_symplasmic_water_phloem: 1.0
+    xylem_differentiation_factor:
+      xylem_differentiation_factor: 1.0
+
   RootNitrogenModel:
-    xylem_AA:
-      xylem_AA: 1.0
-    xylem_Nm:
-      xylem_Nm: 1.0
+    C_solute_xylem:
+      C_solute_xylem: 1.0
+    C_solute_phloem:
+      C_solute_phloem: 1.0
+
   RootWaterModel: {}
+
   SoilModel:
-    soil_temperature:
-      soil_temperature: 1.0
     soil_water_pressure:
       water_potential_soil: 1.0
-    C_solutes_soil:
-      C_solutes_soil: 1.0
+    soil_temperature:
+      soil_temperature: 1.0
+    Cv_solute_soil:
+      Cv_solute_soil: 1.0
+
 SoilModel:
+
   RootAnatomy:
     root_exchange_surface:
       root_exchange_surface: 1.0
-  RootGrowthModel: {}
-  RootNitrogenModel: {}
-  RootWaterModel: {}
+
+  RootNitrogenModel:
+    mineralN_uptake:
+      import_Nm: 14 # N molar mass
+    amino_acids_uptake:
+      import_AA: 12 * 6 # C molar mass * number of atoms 
+    mineralN_diffusion_from_roots:
+      diffusion_Nm_soil: 14 # N molar mass
+    amino_acids_diffusion_from_roots:
+      diffusion_AA_soil: 12 * 6 # C molar mass * number of atoms 
+    mineralN_diffusion_from_xylem:
+      apoplastic_Nm_soil_xylem: 14 # N molar mass
+    amino_acids_diffusion_from_xylem:
+      apoplastic_AA_soil_xylem: 12 * 6 # C molar mass * number of atoms 
+
+  RootWaterModel:
+    water_uptake:
+      radial_import_water_xylem: 1.0
+
   SoilModel: {}

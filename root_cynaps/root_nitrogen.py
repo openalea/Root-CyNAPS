@@ -168,7 +168,7 @@ class RootNitrogenModel(Model):
     Nm: float =                 declare(default=1e-4, unit="mol.g-1", unit_comment="of nitrates", description="",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    AA: float =                 declare(default=9e-4, unit="mol.g-1", unit_comment="of amino acids", description="",
+    AA: float =                 declare(default=2.6e-5, unit="mol.g-1", unit_comment="of amino acids", description="",
                                         min_value=1e-5, max_value=1e-2, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 

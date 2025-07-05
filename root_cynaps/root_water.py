@@ -374,7 +374,7 @@ class RootWaterModel(Model):
 
             n = g.node(v)
             
-            if n.struct_mass > 0:
+            if n.struct_mass > 0 and n.type != "Dead":
                 # Volumic concentrations retreived there from inputs because metabolic only provides massic to be able to update on a growing arch 
                 Cv_solute_xylem = n.C_solute_xylem * n.living_struct_mass / n.xylem_volume
                 Cv_solute_phloem = n.C_solute_phloem * n.living_struct_mass / n.phloem_volume
@@ -505,7 +505,7 @@ class RootWaterModel(Model):
         for v in pre_order2(g, root):
             n = g.node(v)
 
-            if n.struct_mass > 0:
+            if n.struct_mass > 0 and n.type != "Dead":
 
                 # print(n.index(), n.xylem_pressure_in, dY[2 * local_vids[v] - 2], 2 * local_vids[v] - 2)
                 if not np.isnan(dY[2 * local_vids[v] - 2]):
