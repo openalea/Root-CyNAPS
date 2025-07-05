@@ -95,7 +95,7 @@ class RootNitrogenModel(Model):
     radial_import_water_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_water", state_variable_type="", edit_by="user")
-    radial_import_water_apoplastic_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
+    radial_import_water_xylem_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_water", state_variable_type="", edit_by="user")
     axial_export_water_up_xylem: float =      declare(default=0, unit="m3.s-1", unit_comment="of water", description="", 
@@ -144,11 +144,11 @@ class RootNitrogenModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
 
     # FROM SHOOT MODEL
-    Cv_Nm_xylem_collar: float = declare(default=10, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
-                                       min_value="", max_value="", value_comment="", references="", DOI="",
+    Cv_Nm_xylem_collar: float = declare(default=0, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+                                       min_value="", max_value="", value_comment="range approximation", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    Cv_AA_xylem_collar: float = declare(default=10, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
-                                       min_value="", max_value="", value_comment="", references="", DOI="",
+    Cv_AA_xylem_collar: float = declare(default=0, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+                                       min_value="", max_value="", value_comment="range approximation", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     Cv_AA_phloem_collar: float = declare(default=260, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
@@ -293,26 +293,26 @@ class RootNitrogenModel(Model):
     # Deficits
     deficit_Nm: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
                                          min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                          variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+                                          variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     deficit_AA: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     deficit_AA_phloem: float = declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="Amino acids deficit rate in root phloem", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     deficit_Nm_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Mineral nitrogen deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
     deficit_AA_xylem: float = declare(default=0., unit="mol.s-1", unit_comment="of mineral nitrogen", description="Amino acids deficit rate in root", 
                                            min_value="", max_value="", value_comment="", references="Hypothesis of no initial deficit", DOI="",
-                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+                                            variable_type="state_variable", by="model_nitrogen", state_variable_type="extensive", edit_by="user")
 
     # SUMMED STATE VARIABLES
 
-    C_Nm_average: float =                   declare(default=0., unit="mol.g-1", unit_comment="of nitrates", description="", 
+    C_Nm_average: float =                   declare(default=3., unit="mol.g-1", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    C_AA_average: float =                   declare(default=0., unit="mol.g-1", unit_comment="of amino acids", description="", 
+    C_AA_average: float =                   declare(default=1., unit="mol.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     C_hexose_average: float =               declare(default=0., unit="mol.g-1", unit_comment="of hexose", description="", 
@@ -428,7 +428,7 @@ class RootNitrogenModel(Model):
     km_unloading_AA_phloem: float = declare(default=100, unit="mol.m-3", unit_comment="", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    reference_rate_of_AA_consumption_by_growth: float = declare(default=6.3e-14, unit="mol.s-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
+    reference_rate_of_AA_consumption_by_growth: float = declare(default=1e-10, unit="mol.s-1.g-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
                                                 min_value="", max_value="", value_comment="From RhizoDep parameter, applied 5e-13 * 6 * 12 / 0.44 * 0.015 / 14 / 1.4", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
     diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
@@ -592,7 +592,8 @@ class RootNitrogenModel(Model):
     def initialize_cumulative(self):
         # Reinitialize for the sum of the next loop
         self.props["Nm_root_to_shoot_xylem"][1] = 0
-        self.props["Nm_root_to_shoot_xylem"][1] = 0
+        self.props["AA_root_to_shoot_xylem"][1] = 0
+        self.props["AA_root_to_shoot_phloem"][1] = 0
         for vid in self.vertices:
             n = self.g.node(vid)
             # Cumulative flows are reinitialized
@@ -757,20 +758,27 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
+
+        # if debug: print((xylem_Nm * living_struct_mass / xylem_volume), (Nm * living_struct_mass / symplasmic_volume))
         return diffusion_xylem * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * xylem_exchange_surface
 
     @rate
-    def _apoplastic_Nm_soil_xylem(self, soil_Nm, xylem_Nm, radius, radial_import_water_apoplastic_xylem, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
+    def _apoplastic_Nm_soil_xylem(self, import_Nm, diffusion_Nm_soil, soil_Nm, xylem_Nm, radius, radial_import_water_xylem_apoplastic, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0.:
             return 0.
         else:
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
-                if radial_import_water_apoplastic_xylem > 0:
-                    advection_process = - soil_Nm * radial_import_water_apoplastic_xylem # Here we compure a flux leaving the segment, but here it enters
+                if radial_import_water_xylem_apoplastic > 0:
+                    advection_process = min(0, - soil_Nm * radial_import_water_xylem_apoplastic + (import_Nm - diffusion_Nm_soil)) # Here we compure a flux leaving the segment, but here it enters
+                    # A corrective depending on what was actively uptaken along the way was also applied
+
                 # this is an outflow
                 else:
-                    advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_apoplastic_xylem # accounts for xylem opening and endodermis conductance already
+                    advection_process = 0 # Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
+                    # advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
+                
+                # advection_process = min(0, advection_process)
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 # Here, surface is not really representative of a structure as everything is apoplasmic
@@ -780,7 +788,7 @@ class RootNitrogenModel(Model):
                                                                         B=self.passive_processes_B,
                                                                         C=self.passive_processes_C)
                 diffusion_process = diffusion_apoplasm * (xylem_Nm * living_struct_mass / xylem_volume - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
-
+                # print(advection_process, diffusion_process)
                 return advection_process + diffusion_process
 
             else:
@@ -826,17 +834,19 @@ class RootNitrogenModel(Model):
                 * xylem_exchange_surface * (C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
-    def _apoplastic_AA_soil_xylem(self, soil_AA, xylem_AA, radius, length, radial_import_water_apoplastic_xylem, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
+    def _apoplastic_AA_soil_xylem(self, import_AA, diffusion_AA_soil, soil_AA, xylem_AA, radius, length, radial_import_water_xylem_apoplastic, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
         if xylem_volume <= 0:
             return 0.
         else:
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
-                if radial_import_water_apoplastic_xylem > 0:
-                    advection_process = - soil_AA * radial_import_water_apoplastic_xylem # Here we compure a flux leaving the segment, but here it enters
+                if radial_import_water_xylem_apoplastic > 0:
+                    advection_process = min(0, - soil_AA * radial_import_water_xylem_apoplastic + (import_AA - diffusion_AA_soil)) # Here we compure a flux leaving the segment, but here it enters
+                    # A corrective depending on what was actively uptaken along the way was also applied
                 # this is an outflow
                 else:
-                    advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_apoplastic_xylem # accounts for xylem opening and endodermis conductance already
+                    advection_process = 0 # Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
+                    advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
@@ -855,9 +865,9 @@ class RootNitrogenModel(Model):
     @rate
     def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
-        AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+        # AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
 
-        diffusion_phloem = self.diffusion_phloem * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
+        diffusion_phloem = self.diffusion_phloem # * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
 
         diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
                                                                     T_ref=self.passive_processes_T_ref,
@@ -869,17 +879,22 @@ class RootNitrogenModel(Model):
     
 
     @rate
-    def _unloading_AA_phloem(self, phloem_AA, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature):
-        AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
-        vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
-        vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                            T_ref=self.active_processes_T_ref,
-                                                            A=self.active_processes_A,
-                                                            B=self.active_processes_B,
-                                                            C=self.active_processes_C)
+    def _unloading_AA_phloem(self, AA, phloem_AA, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature, living_struct_mass, phloem_volume, symplasmic_volume):
+        Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
         
-        return max(vmax_unloading_AA_phloem * phloem_AA * phloem_exchange_surface / (
-                    self.km_unloading_AA_phloem +phloem_AA), 0)
+        if Cv_AA_phloem <= (AA * living_struct_mass) / symplasmic_volume / 2.:
+                return 0
+        else:
+            AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+            vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + (AA_consumption_by_growth / living_struct_mass) / self.reference_rate_of_AA_consumption_by_growth)
+            vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                T_ref=self.active_processes_T_ref,
+                                                                A=self.active_processes_A,
+                                                                B=self.active_processes_B,
+                                                                C=self.active_processes_C)
+            
+            return vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+                        self.km_unloading_AA_phloem + phloem_AA)
 
 
 
@@ -908,8 +923,8 @@ class RootNitrogenModel(Model):
 
                 # Knowing mass conservation of fluxes between old side, young side and radial flow,
                 # Displaced water from previous time-step content is the segment volume + or - the radial flow, not saying where this volume is translated yet
-                displaced_water_xylem = n.xylem_water + (n.radial_import_water_xylem - n.radial_import_water_phloem) * self.time_step
-                displaced_water_phloem = n.phloem_water + n.radial_import_water_phloem * self.time_step
+                displaced_water_xylem = n.xylem_water + max(0, (n.radial_import_water_xylem - n.radial_import_water_phloem) * self.time_step) # Maxed because in case of outflow, leaving water goes through a selective membrane
+                displaced_water_phloem = n.phloem_water + max(0, n.radial_import_water_phloem * self.time_step)
 
                 # Whatever direction water from which water is entering the segment, this is new water, not previously there, that can be loaded by radial N flows 
                 queue_xylem = sum(list(sources_xylem.values())) * self.time_step
@@ -918,6 +933,8 @@ class RootNitrogenModel(Model):
                 # Explicit, whole volume which at some point moved through, exited only, or entered only (3 cases) the considered segment during the time-step
                 water_column_xylem = displaced_water_xylem + queue_xylem
                 water_column_phloem = displaced_water_phloem + queue_phloem
+                if debug: assert water_column_xylem >= 0
+                if debug: assert water_column_phloem >= 0
 
                 # Previous content in the segment, precomputed in case partitionning is requiered
                 displaced_content_xylem = {}
@@ -1158,7 +1175,7 @@ class RootNitrogenModel(Model):
 
         # Special collar case handled here separatly to assess export to shoot through collar
         if "collar" in destinations:
-            if debug: print("up export to shoot for", vessel)
+            # if debug: print("up export to shoot for", vessel)
             proportion_to_collar = destinations["collar"] / total_destination_flux
             
             for solute in solutes:
@@ -1348,7 +1365,11 @@ class RootNitrogenModel(Model):
                     + AA_catabolism / self.r_Nm_AA
                     + nitrogenase_fixation
                     - deficit_Nm)
+            
+            # if debug: print(vertex_index, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm)
+            
             if balance < 0.:
+                if debug: print("Deficit Nm for", vertex_index)
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_Nm"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1376,7 +1397,12 @@ class RootNitrogenModel(Model):
                     + storage_catabolism / self.r_AA_stor
                     - AA_catabolism
                     - deficit_AA)
+            
+            if debug: print(vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA, (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA / living_struct_mass)
+
             if balance < 0.:
+                if debug: print("Deficit AA for", vertex_index)
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1407,8 +1433,11 @@ class RootNitrogenModel(Model):
                                   + cumulated_radial_exchanges_Nm_xylem
                                   - deficit_Nm_xylem
                                   ) / living_struct_mass
-
+            
+            # if debug: print(vertex_index, xylem_Nm, displaced_Nm_in_xylem, displaced_Nm_out_xylem, cumulated_radial_exchanges_Nm_xylem, deficit_Nm_xylem, living_struct_mass)
+            
             if balance < 0.:
+                if debug: print("xylem Nm deficit for", vertex_index)
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_Nm_xylem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1427,6 +1456,7 @@ class RootNitrogenModel(Model):
                                   - deficit_AA_xylem) / living_struct_mass
 
             if balance < 0.:
+                if debug: print("xylem AA deficit for", vertex_index)
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA_xylem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1445,6 +1475,7 @@ class RootNitrogenModel(Model):
                                   - deficit_AA_phloem) / living_struct_mass
 
             if balance < 0.:
+                if debug: print("phloem AA deficit for", vertex_index)
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA_phloem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1465,7 +1496,7 @@ class RootNitrogenModel(Model):
     @state
     def _C_solute_phloem(self, C_sucrose_root, phloem_AA):
         ions_proportion = 0.4 # To account for high 300 mM concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
-        return (C_sucrose_root + phloem_AA) / (1 - ions_proportion)
+        return (phloem_AA) / (1 - ions_proportion) # TODO : Sucrose was removed here because the current unloading created crazy concentrations, needs to be coupled later
     
     
     # For plotting only

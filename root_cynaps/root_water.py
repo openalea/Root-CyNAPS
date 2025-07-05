@@ -11,6 +11,8 @@ from openalea.metafspm.component_factory import *
 from scipy.sparse import csc_matrix, linalg
 
 
+debug = True
+
 @dataclass
 class RootWaterModel(Model):
 
@@ -371,7 +373,7 @@ class RootWaterModel(Model):
         for v in g.vertices_iter(scale = 1):
 
             n = g.node(v)
-
+            
             if n.struct_mass > 0:
                 # Volumic concentrations retreived there from inputs because metabolic only provides massic to be able to update on a growing arch 
                 Cv_solute_xylem = n.C_solute_xylem * n.living_struct_mass / n.xylem_volume
@@ -437,12 +439,12 @@ class RootWaterModel(Model):
                 # dGp_xy_i/dP_ph_i
                 row.append(int(2 * local_vids[v] - 2))
                 col.append(int(2 * local_vids[v] - 1))
-                data.append(kr_phloem)
+                data.append(- kr_phloem)
 
                 # dGp_ph_i/dP_ph_i
                 row.append(int(2 * local_vids[v] - 1))
                 col.append(int(2 * local_vids[v] - 1))
-                data.append(- n.K_phloem + sum([cn.K_phloem for cn in children_n.values()]) + kr_phloem)
+                data.append(n.K_phloem + sum([cn.K_phloem for cn in children_n.values()]) + kr_phloem)
 
                 for cid, cn in children_n.items():
                     # First block column
@@ -468,24 +470,31 @@ class RootWaterModel(Model):
                     col.append(int(2 * local_vids[cid] - 1))
                     data.append(- cn.K_phloem)
 
+                # On growing architecture, pressure property has not been initialized on children here so we set it as that of the parent
+                for cn in children_n.values():
+                    # Only one check reveals an assignation need for both
+                    if cn.xylem_pressure_in is None:
+                        cn.xylem_pressure_in = n.xylem_pressure_in
+                        cn.phloem_pressure_in = n.phloem_pressure_in
+
                 # -Gp_xylem
                 minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
                                     - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
-                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (n.Cv_solute_soil - Cv_solute_xylem))
-                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * n.soil_temperature * (Cv_solute_phloem - Cv_solute_xylem)))
+                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solute_soil - Cv_solute_xylem))
+                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solute_phloem - Cv_solute_xylem)))
                 # -Gp_phloem
                 minusG[2 * local_vids[v] - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
                                     - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
-                                    + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * n.soil_temperature * (Cv_solute_phloem - Cv_solute_xylem)))
+                                    + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solute_phloem - Cv_solute_xylem)))
 
         row = np.array(row, dtype=int)
         col = np.array(col, dtype=int)
         data = np.array(data, dtype=float)
-        assert len(row) == len(row) == len(data)
+        if debug: assert len(row) == len(row) == len(data)
 
         # NOTE for non standard cases (1 parent and more than 1 children): On main axis, no parent at collar and no children at root tip make 4 values fall out of the matrix
         # Then each branching (several on collar or simple lateral insertion), adds 2 terms being a supplementary children, but also substract 2 as it forms an apex.
-        assert len(row) == 8 * elt_number - 4
+        if debug: assert len(row) == 8 * elt_number - 4
 
         # Solving the system using sparse LU
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
@@ -498,8 +507,16 @@ class RootWaterModel(Model):
 
             if n.struct_mass > 0:
 
-                n.xylem_pressure_in = n.xylem_pressure_in + dY[2 * local_vids[v] - 2]
-                n.phloem_pressure_in = n.phloem_pressure_in + dY[2 * local_vids[v] - 1]
+                # print(n.index(), n.xylem_pressure_in, dY[2 * local_vids[v] - 2], 2 * local_vids[v] - 2)
+                if not np.isnan(dY[2 * local_vids[v] - 2]):
+                    n.xylem_pressure_in = n.xylem_pressure_in + dY[2 * local_vids[v] - 2]
+                else:
+                    print("WARNING static xylem pressure")
+
+                if not np.isnan(dY[2 * local_vids[v] - 1]):
+                    n.phloem_pressure_in = n.phloem_pressure_in + dY[2 * local_vids[v] - 1]
+                else:
+                    print("WARNING static phloem pressure")
 
                 if v == root:
                     n.xylem_pressure_out = props['xylem_pressure_collar'][root]
@@ -518,19 +535,25 @@ class RootWaterModel(Model):
                 Cv_solute_xylem = n.C_solute_xylem * n.living_struct_mass / n.xylem_volume
                 Cv_solute_phloem = n.C_solute_phloem * n.living_struct_mass / n.phloem_volume
 
-                n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - Cv_solute_xylem))
-                n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * n.soil_temperature) * (n.Cv_solute_soil - Cv_solute_xylem))
+                n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solute_soil - Cv_solute_xylem))
+                n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solute_soil - Cv_solute_xylem))
                 # Minus the orientation defined for G 
                 # NOTE: Very important to keep this convention for vessel flux advection
-                n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * n.soil_temperature) * (Cv_solute_phloem - Cv_solute_xylem))
+                n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature)) * (Cv_solute_phloem - Cv_solute_xylem))
                 
                 # Computed to avoid children iteration when needed by other modules
-                if len(g.children(v)) > 0:
-                    n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
-                    n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
-                else:
-                    n.axial_import_water_down_xylem = 0
-                    n.axial_import_water_down_phloem = 0
+                n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
+                n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
+                if debug: assert np.abs(n.axial_export_water_up_xylem + n.radial_import_water_phloem - n.axial_import_water_down_xylem - n.radial_import_water_xylem) < 1e-18
+                if debug: assert np.abs(n.axial_export_water_up_phloem - n.axial_import_water_down_phloem - n.radial_import_water_phloem) < 1e-18
+
+                if len(g.children(v)) == 0:
+                    if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18
+                    if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18
+
+                # Usefull visual checks
+                # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solute_phloem, Cv_solute_xylem)
+                # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
 
 
     @state
