@@ -18,7 +18,7 @@ from openalea.metafspm.scene_wrapper import play_Orchestra
 if __name__ == '__main__':
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/fig_7.4"
+    custom_output_folder = "outputs/fig_7.5"
 
     scene_xrange = 0.15
     scene_yrange = 0.15
@@ -37,12 +37,6 @@ if __name__ == '__main__':
     processes = []
 
     for scenario_name, scenario in scenarios.items():
-
-        # scenarios = ms.from_table(file_path="inputs/Scenarios_24_11_10.xlsx", which=["RC_debug"])
-        # target_days = [10, 20, 30, 40, 50, 60]
-        
-        # target_days = [125]
-        # target_days = [10, 20, 30]
         
         if parallel:
             for concentration in target_concentrations:
@@ -67,7 +61,7 @@ if __name__ == '__main__':
                                                                 translator_path=root_cynaps.__path__[0],
                                                                 logger_class=Logger, log_settings=Logger.light_log,
                                                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                                                n_iterations=24))
+                                                                time_step=3600, n_iterations=24))
                 
                 p.start()
                 processes.append(p)
@@ -83,7 +77,7 @@ if __name__ == '__main__':
                                     translator_path=root_cynaps.__path__[0],
                                     logger_class=Logger, log_settings=Logger.light_log,
                                     scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                    n_iterations=24) 
+                                    time_step=3600, n_iterations=24) 
 
                 target_folder_key = "RootCyNAPS_0"
 

@@ -427,7 +427,10 @@ class RootNitrogenModel(Model):
     
     # metabolism-related parameters
     transport_C_regulation: float =     declare(default=7e-3, unit="mol.g-1", unit_comment="of hexose", description="", 
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                min_value="", max_value="", value_comment="", references="7e-3 from CN-Wheat for whole root system", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    max_fold_increase_C_regulation: float =     declare(default=1, unit="dimensionless", unit_comment="", description="", 
+                                                min_value="", max_value="", value_comment="above 1 since measured kinetic parameters included this C regulation", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
     # N METABOLISM PROCESSES
@@ -617,7 +620,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         
-        carbon_regulation = (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
+        carbon_regulation = self.max_fold_increase_C_regulation * (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
         return (import_Nm_HATS + import_Nm_LATS) * temperature_modification * root_exchange_surface * carbon_regulation
     
@@ -663,7 +666,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         
-        carbon_regulation = (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
+        carbon_regulation = self.max_fold_increase_C_regulation * (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
         return import_Nm_LATS * temperature_modification * root_exchange_surface * carbon_regulation
 
@@ -701,7 +704,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         return ((Nm * vmax_Nm_xylem) / (Nm + self.Km_Nm_xylem)) * xylem_exchange_surface * (
-                C_hexose_root / (C_hexose_root + self.transport_C_regulation))
+                self.max_fold_increase_C_regulation * C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
     @rate
     def _diffusion_Nm_xylem(self, xylem_Nm, Nm, xylem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, xylem_volume):
@@ -751,7 +754,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         return ((soil_AA * vmax_AA_root / (soil_AA + self.Km_AA_root)) * root_exchange_surface * (
-            C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
+            self.max_fold_increase_C_regulation * C_hexose_root / (C_hexose_root + self.transport_C_regulation)))
 
     @rate
     def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, living_struct_mass, symplasmic_volume, soil_temperature):
@@ -822,7 +825,7 @@ class RootNitrogenModel(Model):
 
         # print(diffusion_phloem, self.props["C_phloem_AA"][1], (AA * living_struct_mass) / symplasmic_volume)
 
-        return diffusion_phloem * (max(0, self.props["C_phloem_AA"][1]) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        return max(0, diffusion_phloem * (max(0, self.props["C_phloem_AA"][1]) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface)
     
 
     @rate
@@ -1367,7 +1370,7 @@ class RootNitrogenModel(Model):
     # For plotting only
     @state
     def _net_N_uptake(self, import_Nm, import_AA, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_AA_soil, apoplastic_Nm_soil_xylem, apoplastic_AA_soil_xylem):
-        return import_Nm + import_AA + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - diffusion_AA_soil - apoplastic_Nm_soil_xylem - apoplastic_AA_soil_xylem
+        return import_Nm + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - apoplastic_Nm_soil_xylem + (import_AA - diffusion_AA_soil - apoplastic_AA_soil_xylem) * self.r_Nm_AA
 
 
     # PLANT SCALE PROPERTIES UPDATE
