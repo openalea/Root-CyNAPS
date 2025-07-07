@@ -20,6 +20,9 @@ from openalea.mtg.traversal import post_order2, pre_order2
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *
 
+from scipy.sparse import csc_matrix, identity, linalg
+from scipy.integrate import solve_ivp
+from scipy.optimize import lsq_linear
 
 debug = True
 
@@ -124,6 +127,9 @@ class RootNitrogenModel(Model):
     radius: float =                     declare(default=0, unit="m", unit_comment="of root segment", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    struct_mass: float =                declare(default=0, unit="g", unit_comment="of dry weight", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     living_struct_mass: float =                declare(default=0, unit="g", unit_comment="of dry weight", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
@@ -142,9 +148,12 @@ class RootNitrogenModel(Model):
     vertex_index: int = declare(default=1, unit="adim", unit_comment="", description="Unique vertex identifier stored for ease of value access", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
+    hexose_diffusion_from_phloem_rate: float = declare(default=0., unit="mol.s-1", unit_comment="", description="Hexose unloading rate from phloem", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="input", by="model_carbon", state_variable_type="", edit_by="user")
 
     # FROM SHOOT MODEL
-    Cv_Nm_xylem_collar: float = declare(default=0, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+    Cv_Nm_xylem_collar: float = declare(default=1, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="range approximation", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     Cv_AA_xylem_collar: float = declare(default=0, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
@@ -169,7 +178,7 @@ class RootNitrogenModel(Model):
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     AA: float =                 declare(default=2.6e-5, unit="mol.g-1", unit_comment="of amino acids", description="",
-                                        min_value=1e-5, max_value=1e-2, value_comment="", references="", DOI="",
+                                        min_value=1e-5, max_value=1e-2, value_comment="increased from expected 2.6e-5 for initial stability", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
@@ -770,7 +779,7 @@ class RootNitrogenModel(Model):
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
                 if radial_import_water_xylem_apoplastic > 0:
-                    advection_process = min(0, - soil_Nm * radial_import_water_xylem_apoplastic + (import_Nm - diffusion_Nm_soil)) # Here we compure a flux leaving the segment, but here it enters
+                    advection_process = min(0, - soil_Nm * radial_import_water_xylem_apoplastic + import_Nm) # Here we compure a flux leaving the segment, but here it enters
                     # A corrective depending on what was actively uptaken along the way was also applied
 
                 # this is an outflow
@@ -841,12 +850,12 @@ class RootNitrogenModel(Model):
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
                 if radial_import_water_xylem_apoplastic > 0:
-                    advection_process = min(0, - soil_AA * radial_import_water_xylem_apoplastic + (import_AA - diffusion_AA_soil)) # Here we compure a flux leaving the segment, but here it enters
+                    advection_process = min(0, - soil_AA * radial_import_water_xylem_apoplastic + import_AA) # Here we compure a flux leaving the segment, but here it enters
                     # A corrective depending on what was actively uptaken along the way was also applied
                 # this is an outflow
                 else:
                     advection_process = 0 # Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
-                    advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
+                    # advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
 
                 # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
                 diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
@@ -865,44 +874,336 @@ class RootNitrogenModel(Model):
     @rate
     def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
-        # AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
-
-        diffusion_phloem = self.diffusion_phloem # * (1 + AA_consumption_by_growth / self.reference_rate_of_AA_consumption_by_growth)
-
-        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                    T_ref=self.passive_processes_T_ref,
-                                                                    A=self.passive_processes_A,
-                                                                    B=self.passive_processes_B,
-                                                                    C=self.passive_processes_C)
-
-        return diffusion_phloem * (max(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
+        
+        if Cv_AA_phloem <= (AA * living_struct_mass) / symplasmic_volume / 2.:
+                return 0
     
+        else:
+
+            AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+
+            diffusion_phloem = self.diffusion_phloem * (1 + (AA_consumption_by_growth / living_struct_mass) / self.reference_rate_of_AA_consumption_by_growth)
+
+            diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                        T_ref=self.passive_processes_T_ref,
+                                                                        A=self.passive_processes_A,
+                                                                        B=self.passive_processes_B,
+                                                                        C=self.passive_processes_C)
+
+            return diffusion_phloem * (max(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
+        
 
     @rate
     def _unloading_AA_phloem(self, AA, phloem_AA, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature, living_struct_mass, phloem_volume, symplasmic_volume):
         Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
         
-        if Cv_AA_phloem <= (AA * living_struct_mass) / symplasmic_volume / 2.:
-                return 0
-        else:
-            AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
-            vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + (AA_consumption_by_growth / living_struct_mass) / self.reference_rate_of_AA_consumption_by_growth)
-            vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                T_ref=self.active_processes_T_ref,
-                                                                A=self.active_processes_A,
-                                                                B=self.active_processes_B,
-                                                                C=self.active_processes_C)
-            
-            return vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
-                        self.km_unloading_AA_phloem + phloem_AA)
+        # if Cv_AA_phloem <= (AA * living_struct_mass) / symplasmic_volume / 2.:
+        #         return 0
+        # else:
+        AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+        vmax_unloading_AA_phloem = self.vmax_unloading_AA_phloem * (1 + (AA_consumption_by_growth / living_struct_mass) / self.reference_rate_of_AA_consumption_by_growth)
+        vmax_unloading_AA_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                            T_ref=self.active_processes_T_ref,
+                                                            A=self.active_processes_A,
+                                                            B=self.active_processes_B,
+                                                            C=self.active_processes_C)
+        
+        return min(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + phloem_AA), phloem_AA * living_struct_mass / 2)
 
 
-
-    
     @axial
     @rate
-    # AXIAL TRANSPORT PROCESSES
     def _axial_transport_N(self):
+        """
+        Transient resolution of solute advection
+        TODO : Apply collar fluxes to dedicated variables
+        """
+
+        living_struct_mass = []
+
+        row_xylem = []
+        col_xylem = []
+        data_xylem = []
+        xylem_volume = []
+        
+        row_phloem = []
+        col_phloem = []
+        data_phloem = []
+        phloem_volume = []
+
+        radial_Nm_influx_xylem = []
+        radial_AA_influx_xylem = []
+        Cv_Nm_xylem = []
+        Cv_AA_xylem = []
+        
+        radial_AA_influx_phloem = []
+        Cv_AA_phloem = []
+
+        g = self.g
+        props = g.properties()
+        struct_mass = g.property('struct_mass')
+
+        local_vid = 0
+        local_vids = {}
+        for vid, value in struct_mass.items():
+            if value > 0:
+                local_vids[vid] = local_vid
+                local_vid += 1
+
+        elt_number = len(local_vids)
+        boundary_Nm_xylem = np.zeros(elt_number)
+        boundary_AA_xylem = np.zeros(elt_number)
+        boundary_AA_phloem = np.zeros(elt_number)
+
+        for v in self.vertices:
+            n = g.node(v)
+            if n.struct_mass > 0:
+                Cv_Nm_xylem.append(n.xylem_Nm * n.living_struct_mass / n.xylem_volume)
+                Cv_AA_xylem.append(n.xylem_AA * n.living_struct_mass / n.xylem_volume)
+                Cv_AA_phloem.append(n.phloem_AA * n.living_struct_mass / n.phloem_volume)
+                xylem_volume.append(n.xylem_volume)
+                phloem_volume.append(n.phloem_volume)
+                living_struct_mass.append(n.living_struct_mass)
+
+                radial_Nm_influx_xylem.append(n.export_Nm - n.apoplastic_Nm_soil_xylem - n.diffusion_Nm_xylem)
+                radial_AA_influx_xylem.append(n.export_AA - n.apoplastic_AA_soil_xylem)
+                radial_AA_influx_phloem.append(- n.diffusion_AA_phloem - n.unloading_AA_phloem)
+
+                # First build xylem matrix
+                xylem_axial_outflow_current = 0
+
+                # Outflux goes to the diagonal
+                if n.axial_export_water_up_xylem > 0:
+                    xylem_axial_outflow_current += n.axial_export_water_up_xylem   
+                # Influx goes to parent column since it will multiply parent concentration             
+                else:
+                    if v in self.collar_children:
+                        parent = 1
+                        row_xylem.append(local_vids[v])
+                        col_xylem.append(local_vids[parent])
+                        data_xylem.append(-n.axial_export_water_up_xylem)
+                    else:
+                        parent = g.parent(v)
+                        # If we pull from collar, we apply a Dirichet boundary condition
+                        if parent is None:
+                            boundary_Nm_xylem[0] = -n.axial_export_water_up_xylem * props["Cv_Nm_xylem_collar"][1]
+                            boundary_AA_xylem[0] = -n.axial_export_water_up_xylem * props["Cv_AA_xylem_collar"][1]
+                        else:
+                            row_xylem.append(local_vids[v])
+                            col_xylem.append(local_vids[parent])
+                            data_xylem.append(-n.axial_export_water_up_xylem)
+
+                if v == 1:
+                    children = self.collar_children
+                else:
+                    children = g.children(v)
+
+                for cid in children:
+                    cn = g.node(cid)
+                    # Influx goes to child column since it will multiply child concentration
+                    if cn.axial_export_water_up_xylem > 0:
+                        row_xylem.append(local_vids[v])
+                        col_xylem.append(local_vids[cid])
+                        data_xylem.append(cn.axial_export_water_up_xylem)
+                    # Outflux goes to the diagonal
+                    else:
+                        xylem_axial_outflow_current += (- cn.axial_export_water_up_xylem)
+
+                if xylem_axial_outflow_current > 0:
+                    row_xylem.append(local_vids[v])
+                    col_xylem.append(local_vids[v])
+                    data_xylem.append(- xylem_axial_outflow_current)
+
+
+                # Second build phloem matrix
+                phloem_axial_outflow_current = 0
+
+                # Outflux goes to the diagonal
+                if n.axial_export_water_up_phloem > 0:
+                    phloem_axial_outflow_current += n.axial_export_water_up_phloem
+                # Influx goes to parent column since it will multiply parent concentration             
+                else:
+                    if v in self.collar_children:
+                        parent = 1
+                        row_phloem.append(local_vids[v])
+                        col_phloem.append(local_vids[parent])
+                        data_phloem.append(- n.axial_export_water_up_phloem)
+                    else:
+                        parent = g.parent(v)
+                        # If we pull from collar, we apply a Dirichet boundary condition
+                        if parent is None:
+                            boundary_AA_phloem[0] = - n.axial_export_water_up_phloem * props["Cv_AA_phloem_collar"][1]
+                        else:
+                            row_phloem.append(local_vids[v])
+                            col_phloem.append(local_vids[parent])
+                            data_phloem.append(-n.axial_export_water_up_phloem)
+
+                if v == 1:
+                    children = self.collar_children
+                else:
+                    children = g.children(v)
+
+                for cid in children:
+                    cn = g.node(cid)
+                    # Influx goes to child column since it will multiply child concentration
+                    if cn.axial_export_water_up_phloem > 0:
+                        row_phloem.append(local_vids[v])
+                        col_phloem.append(local_vids[cid])
+                        data_phloem.append(cn.axial_export_water_up_phloem)
+                    # Outflux goes to the diagonal
+                    else:
+                        phloem_axial_outflow_current += (- cn.axial_export_water_up_phloem)
+
+                if phloem_axial_outflow_current > 0:
+                    row_phloem.append(local_vids[v])
+                    col_phloem.append(local_vids[v])
+                    data_phloem.append(- phloem_axial_outflow_current)
+        
+        # Xylem
+        # Static components
+        A_xylem = csc_matrix((data_xylem, (row_xylem, col_xylem)), shape = (elt_number, elt_number))
+        xylem_volume = np.array(xylem_volume)
+        living_struct_mass = np.array(living_struct_mass)
+        R_Nm_xylem = np.array(radial_Nm_influx_xylem)
+        R_AA_xylem = np.array(radial_AA_influx_xylem)
+
+        # Initial conditions
+        Cv_Nm_xylem = np.array(Cv_Nm_xylem)
+        Cv_AA_xylem = np.array(Cv_AA_xylem)
+
+        # Identity matrix (I)
+        I = identity(elt_number, format="csc")
+
+        # LHS = I - dt * (V^{-1} A)
+        LHS_xylem = I - self.time_step * (A_xylem.multiply(1.0 / xylem_volume[:, None]))
+
+        # RHS = C^n + dt * V^{-1} * (R + boundary)
+        RHS_Nm_xylem = Cv_Nm_xylem + self.time_step * (R_Nm_xylem + boundary_Nm_xylem) / xylem_volume
+
+        # RHS = C^n + dt * V^{-1} * (R + boundary)
+        RHS_AA_xylem = Cv_AA_xylem + self.time_step * (R_AA_xylem + boundary_AA_xylem) / xylem_volume
+
+        # def dC_Nm_xylem_dt(t, C):
+        #     # dC/dt = V⁻¹(AC + R)
+        #     return (A_xylem @ C + R_Nm_xylem + boundary_Nm_xylem) / xylem_volume
+        
+        # def dC_AA_xylem_dt(t, C):
+        #     # dC/dt = V⁻¹(AC + R)
+        #     return (A_xylem @ C + R_AA_xylem + boundary_AA_xylem) / xylem_volume
+
+        # Phloem
+        # Static components
+        A_phloem = csc_matrix((data_phloem, (row_phloem, col_phloem)), shape = (elt_number, elt_number))
+        phloem_volume = np.array(phloem_volume)
+        R_AA_phloem = np.array(radial_Nm_influx_xylem)
+
+        # Initial conditions
+        Cv_AA_phloem = np.array(Cv_AA_phloem)
+
+        # LHS = I - dt * (V^{-1} A)
+        LHS_phloem = I - self.time_step * (A_phloem.multiply(1.0 / phloem_volume[:, None]))
+
+        # RHS = C^n + dt * V^{-1} * (R + boundary)
+        RHS_AA_phloem = Cv_AA_phloem + self.time_step * (R_AA_phloem + boundary_AA_phloem) / phloem_volume
+
+        # def dC_AA_phloem_dt(t, C):
+        #     # dC/dt = V⁻¹(AC + R)
+        #     return (A_phloem @ C + R_AA_phloem + boundary_AA_phloem) / phloem_volume
+
+
+        # # Solve xylem Nm
+        # solution_Nm_xylem = solve_ivp(fun=dC_Nm_xylem_dt,
+        #     t_span=[0, self.time_step],   # time interval for simulation
+        #     y0=Cv_Nm_xylem, method='BDF',      # BDF is good for stiff problems (recommended)
+        #     rtol=1e-3, # 1e-5,
+        #     atol=1e-6, # 1e-8,
+        #     t_eval=[self.time_step]
+        # )
+
+        # Cv_Nm_xylem_sol = solution_Nm_xylem.y[:, 0]
+        # Solve for C^{n+1}
+        print("start xylem Nm solve")
+        res_Nm_xylem = lsq_linear(
+            A=LHS_xylem,
+            b=RHS_Nm_xylem,
+            bounds=(0, 1e3),
+            tol=1e-3
+        )
+        Cv_Nm_xylem_sol = res_Nm_xylem.x
+        # Cv_Nm_xylem_sol = linalg.spsolve(LHS_xylem, RHS_Nm_xylem)
+        print("over")
+        assert not np.any(Cv_Nm_xylem_sol < 0)
+        # Cv_Nm_xylem_sol[Cv_Nm_xylem_sol < 0] = 0
+
+        xylem_Nm_sol = Cv_Nm_xylem_sol * xylem_volume / living_struct_mass
+        props['xylem_Nm'].update(dict(zip(local_vids.keys(), xylem_Nm_sol)))
+
+
+        # Solve xylem AA
+        # solution_AA_xylem = solve_ivp(fun=dC_AA_xylem_dt,
+        #     t_span=[0, self.time_step],   # time interval for simulation
+        #     y0=Cv_AA_xylem, method='BDF',      # BDF is good for stiff problems (recommended)
+        #     rtol=1e-3, # 1e-5,
+        #     atol=1e-6, # 1e-8,
+        #     t_eval=[self.time_step]
+        # )
+
+        # Cv_AA_xylem_sol = solution_AA_xylem.y[:, 0]
+        print("start xylem AA solve")
+        res_AA_xylem = lsq_linear(
+            A=LHS_xylem,
+            b=RHS_AA_xylem,
+            bounds=(0, 1e3),
+            tol=1e-3
+        )
+        Cv_AA_xylem_sol = res_AA_xylem.x
+        # Cv_AA_xylem_sol = linalg.spsolve(LHS_xylem, RHS_AA_xylem)
+        print("over")
+        assert not np.any(Cv_AA_xylem_sol < 0)
+        # Cv_AA_xylem_sol[Cv_AA_xylem_sol < 0] = 0
+
+        xylem_AA_sol = Cv_AA_xylem_sol * xylem_volume / living_struct_mass
+        props['xylem_AA'].update(dict(zip(local_vids.keys(), xylem_AA_sol)))
+
+
+        # Solve phloem AA
+        # solution_AA_phloem = solve_ivp(fun=dC_AA_phloem_dt,
+        #     t_span=[0, self.time_step],   # time interval for simulation
+        #     y0=Cv_AA_phloem, method='BDF',      # BDF is good for stiff problems (recommended)
+        #     rtol=1e-3, # 1e-5,
+        #     atol=1e-6, # 1e-8,
+        #     t_eval=[self.time_step]
+        # )
+
+        # Cv_AA_phloem_sol = solution_AA_phloem.y[:, 0]
+        # Cv_AA_xylem_sol = solution_AA_xylem.y[:, 0]
+        print("start phloem AA solve")
+        res_AA_phloem = lsq_linear(
+            A=LHS_phloem,
+            b=RHS_AA_phloem,
+            bounds=(0, 1e4),
+            tol=1e-3
+        )
+        Cv_AA_phloem_sol = res_AA_phloem.x
+        # Cv_AA_phloem_sol = linalg.spsolve(LHS_phloem, RHS_AA_phloem)
+        print("over")
+        assert not np.any(Cv_AA_phloem_sol < 0)
+        Cv_AA_phloem_sol[Cv_AA_phloem_sol < 0] = 0
+
+        phloem_AA_sol = Cv_AA_phloem_sol * phloem_volume / living_struct_mass
+        props['phloem_AA'].update(dict(zip(local_vids.keys(), phloem_AA_sol)))
+
+        print("xylem Nm", Cv_Nm_xylem_sol)
+        print("xylem AA", Cv_AA_xylem_sol)
+        print("phloem AA", Cv_AA_phloem_sol)
+
+    
+    # @axial
+    # @rate
+    # AXIAL TRANSPORT PROCESSES
+    def _axial_transport_N_old(self):
         """
             Description
             ___________
@@ -913,7 +1214,7 @@ class RootNitrogenModel(Model):
         for v in self.vertices:
             n = self.g.node(v)
 
-            if n.living_struct_mass > 0 :
+            if n.struct_mass > 0 :
                 solutes_xylem = ["Nm", "AA"]
                 solutes_phloem = ["AA"]
 
@@ -922,9 +1223,9 @@ class RootNitrogenModel(Model):
                 _, sources_phloem = self.search_advection_neighboring(v, vessel="phloem")
 
                 # Knowing mass conservation of fluxes between old side, young side and radial flow,
-                # Displaced water from previous time-step content is the segment volume + or - the radial flow, not saying where this volume is translated yet
-                displaced_water_xylem = n.xylem_water + max(0, (n.radial_import_water_xylem - n.radial_import_water_phloem) * self.time_step) # Maxed because in case of outflow, leaving water goes through a selective membrane
-                displaced_water_phloem = n.phloem_water + max(0, n.radial_import_water_phloem * self.time_step)
+                # Displaced water from previous time-step content is the segment volume. Radial flux speeding or slowing is accounted in the next parts.
+                displaced_water_xylem = n.xylem_water # + max(0, (n.radial_import_water_xylem - n.radial_import_water_phloem) * self.time_step)
+                displaced_water_phloem = n.phloem_water # + max(0, n.radial_import_water_phloem * self.time_step)
 
                 # Whatever direction water from which water is entering the segment, this is new water, not previously there, that can be loaded by radial N flows 
                 queue_xylem = sum(list(sources_xylem.values())) * self.time_step
@@ -955,7 +1256,7 @@ class RootNitrogenModel(Model):
                 if v == 1:
                     # If it imports from shoot, supposed to be the usual case
                     if self.props["axial_export_water_up_phloem"][v] < 0:
-                        if debug: print('import in phloem from shoot')
+                        # if debug: print('import in phloem from shoot')
                         downflux_AA_phloem = - self.props["axial_export_water_up_phloem"][v] * self.props["Cv_AA_phloem_collar"][1]
                         displaced_radial_fluxes_phloem["AA"] += downflux_AA_phloem
                         # We record the collar exchanges once here since this boundary remains constant over the time step
@@ -963,7 +1264,7 @@ class RootNitrogenModel(Model):
 
                     # Not supposed to be the usual case, at least during the day
                     if self.props["axial_export_water_up_xylem"][v] < 0:
-                        if debug: print('import in xylem from shoot')
+                        # if debug: print('import in xylem from shoot')
                         downflux_Nm_xylem = - self.props["axial_export_water_up_xylem"][v] * self.props["Cv_Nm_xylem_collar"][1]
                         downflux_AA_xylem = - self.props["axial_export_water_up_xylem"][v] * self.props["Cv_AA_xylem_collar"][1]
                         displaced_radial_fluxes_xylem["Nm"] += downflux_Nm_xylem
@@ -1002,7 +1303,9 @@ class RootNitrogenModel(Model):
             for solute in solutes:
                 props[f"cumulated_radial_exchanges_{solute}_{vessel}"][current_v] += displaced_radial_fluxes[solute]
 
-            # ...and no outflux so N content originally there is left untouched
+                # ...and no outflux so N content originally there is left untouched
+                displaced_radial_fluxes[solute] = 0.
+                displaced_content[solute] = 0.
 
             # Then we don't call recursively, so we stop the loop there
 
@@ -1015,6 +1318,9 @@ class RootNitrogenModel(Model):
 
                 # ... And all displaced content,  
                 props[f"displaced_{solute}_in_{vessel}"][current_v] += displaced_content[solute]
+
+                displaced_radial_fluxes[solute] = 0.
+                displaced_content[solute] = 0.
 
         # Else we are effectively propagating towards identified destinations
         else:
@@ -1032,10 +1338,12 @@ class RootNitrogenModel(Model):
             else:
                 raise ValueError
             segment_water_acceleration = (radial_water_input + sum(list(local_sources.values()))) * segment_filling_time * (water_column / props[f"{vessel}_water"][current_v])
-
+            
             # Update the size of the water column (increase / decrease) and its components accordingly
             displaced_water += segment_water_acceleration * displaced_water / water_column # Just dilated by its original proportion in the water column
             water_column += segment_water_acceleration
+            displaced_water = max(0, displaced_water)
+            water_column = max(0, water_column)
             queue = water_column - displaced_water
 
             # If translated volume from v doesn't stop here, only radial exchanges are perceived here
@@ -1072,6 +1380,9 @@ class RootNitrogenModel(Model):
                         # Note that this is just in case, normally it is impossible to reach this condition
                         if current_v != emitting_segment_id:
                             props[f"displaced_{solute}_in_{vessel}"][current_v] += displaced_content[solute]
+
+                        displaced_radial_fluxes[solute] = 0.
+                        displaced_content[solute] = 0.
 
                     # Then we don't call so we stop loop there for water column
 
@@ -1130,33 +1441,37 @@ class RootNitrogenModel(Model):
         # If we are in a special situation where collar is parent that cannot be retreived from MTG
         elif v in self.collar_children:
             # Children of elements can be computed by MTG
-            children = [child for child in self.g.children(v) if props["living_struct_mass"][child] > 0]
+            children = [child for child in self.g.children(v) if props["struct_mass"][child] > 0]
             
             # Same conditions as above, except for collar which is a source or destination depending on water flow direction on the old side of the current element
             if props[axial_export_water_up][v] > 0:
-                destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0}
-                destinations.update({1: props[axial_export_water_up][v]})
+                destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
+                if 1 != not_condidered:
+                    destinations.update({1: props[axial_export_water_up][v]})
                 sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
             
             else:
                 destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
                 sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
-                sources.update({1: - props[axial_export_water_up][v]})
+                if 1 != not_condidered:
+                    sources.update({1: - props[axial_export_water_up][v]})
 
         # Same situation as previous, except here we are in the general case where parent and children are retreived from MTG
         else:
             p = self.g.parent(v)
-            children = [child for child in self.g.children(v) if props["living_struct_mass"][child] > 0]
+            children = [child for child in self.g.children(v) if props["struct_mass"][child] > 0]
 
             if props[axial_export_water_up][v] > 0:
                 destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0 and vid != not_condidered}
-                destinations.update({p: props[axial_export_water_up][v]})
+                if p != not_condidered:
+                    destinations.update({p: props[axial_export_water_up][v]})
                 sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
             
             else:
                 destinations = {vid: - props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] < 0. and vid != not_condidered}
                 sources = {vid: props[axial_export_water_up][vid] for vid in children if props[axial_export_water_up][vid] > 0 and vid != not_condidered}
-                sources.update({p: - props[axial_export_water_up][v]})
+                if p != not_condidered:
+                    sources.update({p: - props[axial_export_water_up][v]})
         
         return destinations, sources
     
@@ -1370,6 +1685,7 @@ class RootNitrogenModel(Model):
             
             if balance < 0.:
                 if debug: print("Deficit Nm for", vertex_index)
+                if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_Nm"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1398,11 +1714,12 @@ class RootNitrogenModel(Model):
                     - AA_catabolism
                     - deficit_AA)
             
-            if debug: print(vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA, (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA / living_struct_mass)
+            # if hexose_consumption_by_growth > 0:
+            #     if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
 
             if balance < 0.:
                 if debug: print("Deficit AA for", vertex_index)
+                if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1423,7 +1740,7 @@ class RootNitrogenModel(Model):
         else:
             return 0
 
-    @state
+    # @state
     def _xylem_Nm(self, vertex_index, xylem_Nm, displaced_Nm_in_xylem, displaced_Nm_out_xylem, cumulated_radial_exchanges_Nm_xylem, deficit_Nm_xylem, living_struct_mass):
         if living_struct_mass > 0:
             # Vessel's nitrogen pool update
@@ -1439,6 +1756,7 @@ class RootNitrogenModel(Model):
             if balance < 0.:
                 if debug: print("xylem Nm deficit for", vertex_index)
                 deficit = - balance * (living_struct_mass) / self.time_step
+                # if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
                 self.props["deficit_Nm_xylem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
             else:
@@ -1447,7 +1765,7 @@ class RootNitrogenModel(Model):
         else:
             return 0.
 
-    @state
+    # @state
     def _xylem_AA(self, vertex_index, xylem_AA, displaced_AA_in_xylem, displaced_AA_out_xylem, cumulated_radial_exchanges_AA_xylem, deficit_AA_xylem, living_struct_mass):
         if living_struct_mass > 0:
             balance = xylem_AA + (displaced_AA_in_xylem 
@@ -1457,6 +1775,7 @@ class RootNitrogenModel(Model):
 
             if balance < 0.:
                 if debug: print("xylem AA deficit for", vertex_index)
+                # if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA_xylem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.
@@ -1466,8 +1785,8 @@ class RootNitrogenModel(Model):
         else:
             return 0
         
-    @state
-    def _phloem_AA(self, vertex_index, phloem_AA, displaced_AA_in_phloem, displaced_AA_out_phloem, cumulated_radial_exchanges_AA_phloem, deficit_AA_phloem, living_struct_mass):
+    # @state
+    def _phloem_AA(self, vertex_index, type, label, phloem_AA, displaced_AA_in_phloem, displaced_AA_out_phloem, cumulated_radial_exchanges_AA_phloem, deficit_AA_phloem, living_struct_mass):
         if living_struct_mass > 0:
             balance = phloem_AA + (displaced_AA_in_phloem 
                                   - displaced_AA_out_phloem 
@@ -1476,6 +1795,7 @@ class RootNitrogenModel(Model):
 
             if balance < 0.:
                 if debug: print("phloem AA deficit for", vertex_index)
+                if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
                 deficit = - balance * (living_struct_mass) / self.time_step
                 self.props["deficit_AA_phloem"][vertex_index] = deficit if deficit > 1e-20 else 0.
                 return 0.

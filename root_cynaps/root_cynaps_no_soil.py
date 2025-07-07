@@ -9,6 +9,7 @@ from openalea.metafspm.composite_wrapper import CompositeModel
 from openalea.metafspm.component_factory import Choregrapher
 from log.visualize import plot_mtg
 
+import numpy as np
 
 class RootCyNAPS(CompositeModel):
     """
@@ -78,9 +79,19 @@ class RootCyNAPS(CompositeModel):
         self.root_props["hexose_consumption_by_growth"].update(self.root_props["hexose_consumption_by_growth_rate"])
         # TODO : Transfer to root growth as it is general?
         self.root_props["total_living_struct_mass"][1] = sum(list(self.root_props["living_struct_mass"].values()))
+        # Check MTG quality
+        for v in self.g_root.vertices(scale=self.g_root.max_scale()):
+            n = self.g_root.node(v)
+            if n.struct_mass > 0 and not isinstance(n.type, str):
+                n.type = 'Normal_root_after_emergence'
+                if len(n.children()) > 0:
+                    n.label = 'Segment'
+                else:
+                    n.label = 'Apex'
         
         # Performed in initialization and run to update coordinates
-        plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
+        print("WARNING, coordinates updating has been manually commented to use input MTGs")
+        # plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
 
         self.name = name
         # ROOT PROPERTIES INITIAL PASSING IN MTG

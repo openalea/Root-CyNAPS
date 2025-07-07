@@ -77,7 +77,7 @@ if __name__ == '__main__':
                                     translator_path=root_cynaps.__path__[0],
                                     logger_class=Logger, log_settings=Logger.light_log,
                                     scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                    n_iterations=24) 
+                                    time_step=3600, n_iterations=24)
 
                 target_folder_key = "RootCyNAPS_0"
 

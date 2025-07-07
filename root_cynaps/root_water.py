@@ -349,7 +349,6 @@ class RootWaterModel(Model):
         props = self.props
         struct_mass = g.property('struct_mass')
 
-        # elt_number = len(g) - 1 #TODO: check
         local_vid = 1
         local_vids = {}
         for vid, value in struct_mass.items():
@@ -374,7 +373,7 @@ class RootWaterModel(Model):
 
             n = g.node(v)
             
-            if n.struct_mass > 0 and n.type != "Dead":
+            if n.struct_mass > 0:
                 # Volumic concentrations retreived there from inputs because metabolic only provides massic to be able to update on a growing arch 
                 Cv_solute_xylem = n.C_solute_xylem * n.living_struct_mass / n.xylem_volume
                 Cv_solute_phloem = n.C_solute_phloem * n.living_struct_mass / n.phloem_volume
@@ -494,6 +493,7 @@ class RootWaterModel(Model):
 
         # NOTE for non standard cases (1 parent and more than 1 children): On main axis, no parent at collar and no children at root tip make 4 values fall out of the matrix
         # Then each branching (several on collar or simple lateral insertion), adds 2 terms being a supplementary children, but also substract 2 as it forms an apex.
+        # print(len(row), elt_number, len(minusG))
         if debug: assert len(row) == 8 * elt_number - 4
 
         # Solving the system using sparse LU
@@ -505,7 +505,7 @@ class RootWaterModel(Model):
         for v in pre_order2(g, root):
             n = g.node(v)
 
-            if n.struct_mass > 0 and n.type != "Dead":
+            if n.struct_mass > 0:
 
                 # print(n.index(), n.xylem_pressure_in, dY[2 * local_vids[v] - 2], 2 * local_vids[v] - 2)
                 if not np.isnan(dY[2 * local_vids[v] - 2]):
@@ -548,6 +548,7 @@ class RootWaterModel(Model):
                 if debug: assert np.abs(n.axial_export_water_up_phloem - n.axial_import_water_down_phloem - n.radial_import_water_phloem) < 1e-18
 
                 if len(g.children(v)) == 0:
+                    # print(np.abs(n.axial_import_water_down_xylem), np.abs(n.axial_import_water_down_phloem))
                     if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18
                     if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18
 
