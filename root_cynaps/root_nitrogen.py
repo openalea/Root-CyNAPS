@@ -477,7 +477,7 @@ class RootNitrogenModel(Model):
                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # metabolism-related parameters
-    transport_C_regulation: float =     declare(default=7e-3, unit="mol.g-1", unit_comment="of hexose", description="", 
+    transport_C_regulation: float =     declare(default=7e-3 / 4, unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
@@ -778,8 +778,7 @@ class RootNitrogenModel(Model):
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
                 if radial_import_water_xylem_apoplastic > 0:
-                    advection_process = min(0, - soil_Nm * radial_import_water_xylem_apoplastic + import_Nm) # Here we compure a flux leaving the segment, but here it enters
-                    # A corrective depending on what was actively uptaken along the way was also applied
+                    advection_process = - soil_Nm * radial_import_water_xylem_apoplastic # Here we compure a flux leaving the segment, but here it enters
 
                 # this is an outflow
                 else:
@@ -849,7 +848,7 @@ class RootNitrogenModel(Model):
             if endodermis_conductance_factor != 0:
                 # If water is imported from the soil
                 if radial_import_water_xylem_apoplastic > 0:
-                    advection_process = min(0, - soil_AA * radial_import_water_xylem_apoplastic + import_AA) # Here we compure a flux leaving the segment, but here it enters
+                    advection_process = - soil_AA * radial_import_water_xylem_apoplastic # Here we compure a flux leaving the segment, but here it enters
                     # A corrective depending on what was actively uptaken along the way was also applied
                 # this is an outflow
                 else:
@@ -986,13 +985,8 @@ class RootNitrogenModel(Model):
                         parent = g.parent(v)
                         # If we pull from collar, we apply a Dirichet boundary condition
                         if parent is None:
-                            flux_from_shoot_Nm_xylem = - n.axial_export_water_up_xylem * props["Cv_Nm_xylem_collar"][1]
-                            flux_from_shoot_AA_xylem = - n.axial_export_water_up_xylem * props["Cv_AA_xylem_collar"][1]
-                            boundary_Nm_xylem[0] = flux_from_shoot_Nm_xylem
-                            boundary_AA_xylem[0] = flux_from_shoot_AA_xylem
-                            # We record the flux globally
-                            props["Nm_root_to_shoot_xylem"][1] = - flux_from_shoot_Nm_xylem * self.time_step
-                            props["AA_root_to_shoot_xylem"][1] = - flux_from_shoot_AA_xylem * self.time_step
+                            boundary_Nm_xylem[0] = - n.axial_export_water_up_xylem * props["Cv_Nm_xylem_collar"][1]
+                            boundary_AA_xylem[0] = - n.axial_export_water_up_xylem * props["Cv_AA_xylem_collar"][1]
                         else:
                             row_xylem.append(local_vids[v])
                             col_xylem.append(local_vids[parent])
@@ -1037,10 +1031,7 @@ class RootNitrogenModel(Model):
                         parent = g.parent(v)
                         # If we pull from collar, we apply a Dirichet boundary condition
                         if parent is None:
-                            flux_from_shoot_AA_phloem = - n.axial_export_water_up_phloem * props["Cv_AA_phloem_collar"][1]
-                            boundary_AA_phloem[0] = flux_from_shoot_AA_phloem
-                            # We record the flux globally
-                            props["AA_root_to_shoot_phloem"][1] = - flux_from_shoot_AA_phloem * self.time_step
+                            boundary_AA_phloem[0] = - n.axial_export_water_up_phloem * props["Cv_AA_phloem_collar"][1]
                         else:
                             row_phloem.append(local_vids[v])
                             col_phloem.append(local_vids[parent])
@@ -1095,7 +1086,7 @@ class RootNitrogenModel(Model):
         # Static components
         A_phloem = csc_matrix((data_phloem, (row_phloem, col_phloem)), shape = (elt_number, elt_number))
         phloem_volume = np.array(phloem_volume)
-        R_AA_phloem = np.array(radial_Nm_influx_xylem)
+        R_AA_phloem = np.array(radial_AA_influx_phloem)
 
         # Initial conditions
         Cv_AA_phloem = np.array(Cv_AA_phloem)
@@ -1119,6 +1110,7 @@ class RootNitrogenModel(Model):
 
         xylem_Nm_sol = Cv_Nm_xylem_sol * xylem_volume / living_struct_mass
         props['xylem_Nm'].update(dict(zip(local_vids.keys(), xylem_Nm_sol)))
+
 
         # Solve xylem AA
         res_AA_xylem = lsq_linear(
@@ -1149,18 +1141,16 @@ class RootNitrogenModel(Model):
         phloem_AA_sol = Cv_AA_phloem_sol * phloem_volume / living_struct_mass
         props['phloem_AA'].update(dict(zip(local_vids.keys(), phloem_AA_sol)))
 
+
         # print("xylem Nm", Cv_Nm_xylem_sol)
         # print("xylem AA", Cv_AA_xylem_sol)
         # print("phloem AA", Cv_AA_phloem_sol)
 
         # If the collar flux has not been assigned by a downward flux yet, we have to compute the outflux to shoot from system balance
-        # Deducted from equation C_{t+1}.V - (C_t.V + R - outflux) = 0
-        if props["Nm_root_to_shoot_xylem"][1] == 0:
-            props["Nm_root_to_shoot_xylem"][1] = max(0, (R_Nm_xylem + xylem_volume * (Cv_Nm_xylem - Cv_Nm_xylem_sol)).sum()) # TODO : Max breaks the matter balance but since this is up advection we should not import from shoot
-            props["AA_root_to_shoot_xylem"][1] = max(0, (R_AA_xylem + xylem_volume * (Cv_AA_xylem - Cv_AA_xylem_sol)).sum())
-        
-        if props["AA_root_to_shoot_phloem"][1] == 0:
-            props["AA_root_to_shoot_phloem"][1] = max(0, (R_AA_phloem + phloem_volume * (Cv_AA_phloem - Cv_AA_phloem_sol)).sum())
+        # Deducted from equation C_{t+1}.V - (C_t.V + R.\Delta t - outflux.\Delta t) = 0
+        props["Nm_root_to_shoot_xylem"][1] = (R_Nm_xylem * self.time_step + xylem_volume * (Cv_Nm_xylem - Cv_Nm_xylem_sol)).sum()
+        props["AA_root_to_shoot_xylem"][1] = (R_AA_xylem * self.time_step + xylem_volume * (Cv_AA_xylem - Cv_AA_xylem_sol)).sum()
+        props["AA_root_to_shoot_phloem"][1] = (R_AA_phloem * self.time_step + phloem_volume * (Cv_AA_phloem - Cv_AA_phloem_sol)).sum()
 
 
     # METABOLIC PROCESSES

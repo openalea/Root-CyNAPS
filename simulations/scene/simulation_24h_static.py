@@ -16,7 +16,7 @@ from openalea.metafspm.scene_wrapper import play_Orchestra
 
 
 if __name__ == '__main__':
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
     custom_output_folder = "outputs/fig_7.5"
 
