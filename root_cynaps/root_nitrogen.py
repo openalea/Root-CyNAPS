@@ -917,7 +917,6 @@ class RootNitrogenModel(Model):
     def _axial_transport_N(self):
         """
         Transient resolution of solute advection
-        TODO : Apply collar fluxes to dedicated variables
         """
         # Initialize vectors that will be incremented
         living_struct_mass = []
@@ -992,8 +991,8 @@ class RootNitrogenModel(Model):
                             boundary_Nm_xylem[0] = flux_from_shoot_Nm_xylem
                             boundary_AA_xylem[0] = flux_from_shoot_AA_xylem
                             # We record the flux globally
-                            props["Nm_root_to_shoot_xylem"][1] = - flux_from_shoot_Nm_xylem
-                            props["AA_root_to_shoot_xylem"][1] = - flux_from_shoot_AA_xylem
+                            props["Nm_root_to_shoot_xylem"][1] = - flux_from_shoot_Nm_xylem * self.time_step
+                            props["AA_root_to_shoot_xylem"][1] = - flux_from_shoot_AA_xylem * self.time_step
                         else:
                             row_xylem.append(local_vids[v])
                             col_xylem.append(local_vids[parent])
@@ -1041,7 +1040,7 @@ class RootNitrogenModel(Model):
                             flux_from_shoot_AA_phloem = - n.axial_export_water_up_phloem * props["Cv_AA_phloem_collar"][1]
                             boundary_AA_phloem[0] = flux_from_shoot_AA_phloem
                             # We record the flux globally
-                            props["AA_root_to_shoot_phloem"][1] = - flux_from_shoot_AA_phloem
+                            props["AA_root_to_shoot_phloem"][1] = - flux_from_shoot_AA_phloem * self.time_step
                         else:
                             row_phloem.append(local_vids[v])
                             col_phloem.append(local_vids[parent])
