@@ -251,6 +251,10 @@ class RootNitrogenModel(Model):
     storage_catabolism: float =             declare(default=0., unit="mol.s-1", unit_comment="of storage", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    # NOTE : temporary for root CyNAPS outputs when used alone, otherwise should just be an input of the model
+    amino_acids_consumption_by_growth: float =             declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Axial transport processes
     
@@ -333,6 +337,9 @@ class RootNitrogenModel(Model):
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     C_xylem_AA_average: float =             declare(default=0., unit="mol", unit_comment="of amino acids", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
+    C_phloem_AA_average: float =             declare(default=0., unit="mol", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_phloem_AA: float =            declare(default=-1, unit="mol", unit_comment="of amino acids", description="",
@@ -477,7 +484,7 @@ class RootNitrogenModel(Model):
                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
     # metabolism-related parameters
-    transport_C_regulation: float =     declare(default=7e-3 / 4, unit="mol.g-1", unit_comment="of hexose", description="", 
+    transport_C_regulation: float =     declare(default=7e-3/7, unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
@@ -1200,6 +1207,11 @@ class RootNitrogenModel(Model):
                                                                      C=self.active_processes_C)
         return living_struct_mass * cmax_AA * AA / (Km_stor_root + AA)
 
+    # NOTE only for outputs
+    @rate
+    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
+        return (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA 
+
     @rate
     def _nitrogenase_fixation(self, type, living_struct_mass, C_hexose_root, Nm, soil_temperature):
         if type == "Root_nodule":
@@ -1506,6 +1518,10 @@ class RootNitrogenModel(Model):
     @totalstate
     def _C_xylem_AA_average(self, xylem_AA, living_struct_mass, total_living_struct_mass):
         return sum([x*y for x, y in zip(xylem_AA.values(), living_struct_mass.values())])  / total_living_struct_mass[1]
+
+    @totalstate
+    def _C_phloem_AA_average(self, phloem_AA, living_struct_mass, total_living_struct_mass):
+        return sum([x*y for x, y in zip(phloem_AA.values(), living_struct_mass.values())])  / total_living_struct_mass[1]
 
     @totalstate
     def _total_AA_rhizodeposition(self, diffusion_AA_soil, import_AA):

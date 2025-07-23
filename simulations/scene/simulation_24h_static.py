@@ -16,9 +16,14 @@ from openalea.metafspm.scene_wrapper import play_Orchestra
 
 
 if __name__ == '__main__':
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/fig_7.5"
+    # custom_output_folder = "outputs/fig_visuals_bis"
+    # custom_output_folder = "outputs/fig_visuals_aa_exudation"
+    # custom_output_folder = "outputs/fig_visuals_water"
+    # custom_output_folder = "outputs/fig_batch_net_N_uptake"
 
     scene_xrange = 0.15
     scene_yrange = 0.15
@@ -28,11 +33,12 @@ if __name__ == '__main__':
     parallel_development = 1 # To keep room in CPUs if launching dev simulations in parallel on the machine
     max_processes = mp.cpu_count() - subprocesses_number - parallel_development - 1 # -1 for the main process
 
-    
     # target_concentrations = np.logspace(0, 4, 5) * 5e-3
+    # explored_space = np.logspace(0, 4, 9) * 5e-3
+    # target_concentrations = [explored_space[i] for i in range(len(explored_space)-1) if i % 2 == 1]
     target_concentrations = [5e-1]    
 
-    parallel = False
+    parallel = True
     active_processes = 0 
     processes = []
 
@@ -40,15 +46,25 @@ if __name__ == '__main__':
         
         if parallel:
             for concentration in target_concentrations:
-                scenario["parameters"]["root_cynaps"]["roots"]["dissolved_mineral_N"] = 5e-7 * concentration / 1e-1
+                scenario["parameters"]["soil_model"]["soil"]["dissolved_mineral_N"] = 2.958e-6 * concentration
 
                 # Main process creation part
-                while active_processes >= max_processes:
+
+                # Wait until there is a free slot
+                while True:
+                    # Remove any finished processes and join them to release resources
+                    alive_processes = []
                     for proc in processes:
-                        if not proc.is_alive():
-                            processes.remove(proc)
-                            active_processes -= subprocesses_number
+                        if proc.is_alive():
+                            alive_processes.append(proc)
+                        else:
+                            proc.join()
+                    processes = alive_processes
+
+                    if len(processes) < max_processes:
+                        break
                     time.sleep(1)
+
                 print("")
                 print(f'### Launching {scenario_name} over already {active_processes} processes running ###')
                 print("")
@@ -88,3 +104,8 @@ if __name__ == '__main__':
                                 animate_raw_logs=False,
                                 target_properties=None
                                 )
+                
+                
+     # After all tasks started, join any remaining processes
+    for proc in processes:
+        proc.join()
