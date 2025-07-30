@@ -15,7 +15,6 @@ Methods' names are systematic through all class for ease of use :
 # Imports
 import numpy as np
 from dataclasses import dataclass
-from openalea.mtg.traversal import post_order2, pre_order2
 
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *

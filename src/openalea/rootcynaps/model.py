@@ -1,4 +1,4 @@
-import root_cynaps
+import src.openalea.rootcynaps.model as model
 
 from rootcynaps.root_nitrogen import RootNitrogenModel
 from rootcynaps.root_water import RootWaterModel
@@ -57,7 +57,7 @@ class Model(CompositeModel):
 
         # LINKING MODULES
         self.declare_data_and_couple_components(root=self.g, soil=self.soil_voxels,
-                                                translator_path=root_cynaps.__path__[0],
+                                                translator_path=model.__path__[0],
                                                 components=(self.root_growth, self.root_anatomy, self.root_water, self.root_nitrogen, self.soil))
 
         # Some initialization must be performed after linking modules

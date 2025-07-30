@@ -1,6 +1,6 @@
 import numpy as np
 from math import pi
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *

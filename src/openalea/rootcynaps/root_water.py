@@ -1,8 +1,6 @@
 import numpy as np
-from numba import njit
 from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
-import inspect
 from openalea.mtg.traversal import post_order2, pre_order2
 
 from openalea.metafspm.component import Model, declare

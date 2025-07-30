@@ -1,11 +1,11 @@
 # Model packages
-from root_cynaps.root_cynaps import Model
+from openalea.rootcynaps import RootCyNAPS
 # Utility packages
-from initialize.initialize import MakeScenarios as ms
+from openalea.fspm.utility.scenario import MakeScenarios as ms
 
 def test_init():
     scenarios = ms.from_table(file_path="inputs/Scenarios_24_06.xlsx", which=["Reference_Fischer"])
     for scenario_name, scenario in scenarios.items():
-        root_cynaps = Model(time_step=3600, **scenario)
+        root_cynaps = RootCyNAPS(time_step=3600, **scenario)
 
 test_init()

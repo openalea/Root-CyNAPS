@@ -4,14 +4,14 @@ import multiprocessing as mp
 import time
 
 # Model packages
-import root_cynaps
-from wheat_bridges.rhizospheric_soil import RhizosphericSoil
-from root_cynaps.root_cynaps_no_soil import RootCyNAPS
+import openalea.rootcynaps
+from openalea.rootcynaps.soon_public_packages.static_soil_assembly import StaticSoilAssembly
+from openalea.rootcynaps import RootCyNAPS
 
 # Utility packages
-from initialize.initialize import MakeScenarios as ms
-from log.logging import Logger
-from analyze.analyze import analyze_data
+from openalea.fspm.utility.scenario import MakeScenarios as ms
+from openalea.fspm.utility.writer import Logger
+from openalea.fspm.utility.plot import analyze_data
 from openalea.metafspm.scene_wrapper import play_Orchestra
 
 
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    # custom_output_folder = "outputs/fig_visuals_bis"
+    custom_output_folder = "outputs/fig_visuals_bis"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
     # custom_output_folder = "outputs/fig_batch_net_N_uptake"
@@ -73,8 +73,8 @@ if __name__ == '__main__':
                 current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}"
 
                 p = mp.Process(target=play_Orchestra, kwargs=dict(scene_name=current_scenario_name, output_folder=custom_output_folder, plant_models=[RootCyNAPS], plant_scenarios=[scenario], 
-                                                                soil_model=RhizosphericSoil, soil_scenario=scenario,
-                                                                translator_path=root_cynaps.__path__[0],
+                                                                soil_model=StaticSoilAssembly, soil_scenario=scenario,
+                                                                translator_path=openalea.rootcynaps.__path__[0],
                                                                 logger_class=Logger, log_settings=Logger.light_log,
                                                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
                                                                 time_step=3600, n_iterations=24))
@@ -89,8 +89,8 @@ if __name__ == '__main__':
                 current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}"
 
                 play_Orchestra(scene_name=current_scenario_name, output_folder=custom_output_folder, plant_models=[RootCyNAPS], plant_scenarios=[scenario], 
-                                    soil_model=RhizosphericSoil, soil_scenario=scenario,
-                                    translator_path=root_cynaps.__path__[0],
+                                    soil_model=StaticSoilAssembly, soil_scenario=scenario,
+                                    translator_path=openalea.rootcynaps.__path__[0],
                                     logger_class=Logger, log_settings=Logger.light_log,
                                     scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
                                     time_step=3600, n_iterations=24)

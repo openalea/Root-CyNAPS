@@ -54,7 +54,13 @@ dependencies = []
 
 
 dependencies = [
-    "pyyaml"
+    "openalea.metafspm",
+    "openalea.fspm-utility",
+    # Bellow is probably not needed since already a dependency of openalea.fspm-utility
+    # Just mentioned for precision for now
+    "scipy",
+    "numpy",
+    "openalea.mtg"
 ]
 
 [project.optional-dependencies]

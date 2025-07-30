@@ -1,15 +1,13 @@
 # Components classes
-from rootcynaps.root_anatomy import RootAnatomy
-from rootcynaps.root_water import RootWaterModel
-from rootcynaps.root_nitrogen import RootNitrogenModel
-from rhizodep.root_growth import RootGrowthModel
+from openalea.rootcynaps import RootAnatomy
+from openalea.rootcynaps import RootWaterModel
+from openalea.rootcynaps import RootNitrogenModel
+from openalea.rootcynaps.soon_public_packages.mtg_structural_init import StaticRootGrowthModel
 
 # Utilities
 from openalea.metafspm.composite_wrapper import CompositeModel
 from openalea.metafspm.component_factory import Choregrapher
-from log.visualize import plot_mtg
 
-import numpy as np
 
 class RootCyNAPS(CompositeModel):
     """
