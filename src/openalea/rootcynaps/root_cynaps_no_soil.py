@@ -1,7 +1,7 @@
 # Components classes
-from root_cynaps.root_anatomy import RootAnatomy
-from root_cynaps.root_water import RootWaterModel
-from root_cynaps.root_nitrogen import RootNitrogenModel
+from rootcynaps.root_anatomy import RootAnatomy
+from rootcynaps.root_water import RootWaterModel
+from rootcynaps.root_nitrogen import RootNitrogenModel
 from rhizodep.root_growth import RootGrowthModel
 
 # Utilities

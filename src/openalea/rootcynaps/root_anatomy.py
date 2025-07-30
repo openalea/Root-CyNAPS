@@ -9,12 +9,7 @@ from openalea.metafspm.component_factory import *
 @dataclass
 class RootAnatomy(Model):
     """
-    Root anatomy model originating from both Rhizodep shoot.py and Root_CyNAPS model_topology.py
-
-    Rhizodep forked :
-        https://forgemia.inra.fr/tristan.gerault/rhizodep/-/commits/rhizodep_2022?ref_type=heads
-    base_commit :
-        92a6f7ad927ffa0acf01aef645f9297a4531878c
+    
     """
 
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
