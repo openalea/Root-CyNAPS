@@ -46,21 +46,22 @@ Representation of root segments net N uptake simulated by Root-CyNAPS along the 
 
 ![Figure not found](doc/data/Fig_1.png)
 
-### Installation
+### Installation options
 
-#### Install Conda
+#### User Docker Installation (Easy)
 
-Intall the lastest version of conda : https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html.  
+> - [Install Docker Desktop](https://www.docker.com/products/docker-desktop/)
+> - In Docker Desktop, go to Docker Hub, search for **geraulttr/rootcynaps** and pull this image.
+> - From *Image*, run the **geraulttr/rootcynaps** image, in *Optional settings > Host port*, put 8888 and then *Run*
+> - Root-CyNAPS container is running, open http://localhost:8888/ in your browser to access a running example notebook.
 
-Then open an anaconda terminal and install mamba in your base environement for robust package management: 
+
+#### User Conda Installation (Available Soon)
+> - [Install Conda](https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html), then open an anaconda terminal and install *Mamba* in your base environement for robust package management: 
 ```
 conda install -c conda-forge mamba
 ```
-
-
-#### User Conda Installation (Available soon)
-
-Create an environment in which to install OpenAlea.Root-CyNAPS
+> - Create an environment in which to install OpenAlea.Root-CyNAPS
 ```
 mamba create -n root-cynaps -c conda-forge -c openalea3 openalea.rootcynaps
 ```
@@ -68,25 +69,30 @@ mamba create -n root-cynaps -c conda-forge -c openalea3 openalea.rootcynaps
 
 #### Developer Installation
 
-Also install the latest version of git to retreive and version code : https://git-scm.com/downloads
+> - [Install Conda](https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html), then open an anaconda terminal and install *Mamba* in your base environement for robust package management: 
+```
+conda install -c conda-forge mamba
+```
+> - Also install the latest version of git to retreive and version code : https://git-scm.com/downloads
 
-First, in *YourPythonProjects* folder, clone or fork the repository to retreive source code of Root-CyNAPS and its utilitary packages :
+> - First, in *YourPythonProjects* folder, clone or fork the repository to retreive source code of Root-CyNAPS and its utilitary packages :
 ```
 git clone git@github.com:openalea/Root-CyNAPS.git
 git clone git@github.com:openalea/metafspm.git
 git clone git@github.com:openalea/fspm-utility.git
 ```
 
-Then create and activate a conda environment in which to install Root-CyNAPS requirements into
+> - Then create and activate a conda environment in which to install Root-CyNAPS requirements into
 ```
 mamba create -n root-cynaps -c conda-forge python
 mamba activate root-cynaps
 ```
 
-Finally to install model's dependencies, for each of these 3 packages, get to the root of the package and install the package using *pip* (repeat this step everytime you make change to the source code):
+> - Finally to install model's dependencies, for each of these 3 packages, get to the root of the package and install the package using *pip* (repeat this step everytime you make change to the source code):
 
 ```
 cd .../YourPythonProjects/Root-CyNAPS
+mamba env create -f conda/environment.yaml
 pip install .
 cd ..
 cd .../YourPythonProjects/metafspm
