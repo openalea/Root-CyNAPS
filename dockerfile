@@ -1,26 +1,44 @@
 # Specifying the base image
-FROM condaforge/mambaforge:23.3.1-1
+FROM condaforge/mambaforge
 
-RUN mamba create -y -n rootcynaps -c conda-forge -c openalea3 openalea.rootcynaps
+# Install directly in base to avoid a too large image
+RUN mamba install -y -n base -c conda-forge python jupyterlab 
 
 # May be optional
 RUN mamba init bash
 
-# Equivalent command to mamba activate root_cynaps
-SHELL ["mamba", "run", "-n", "root_cynaps", "/bin/bash", "-c"]
+# Equivalent command to mamba activate base, just to be sure
+SHELL ["mamba", "run", "-n", "base", "/bin/bash", "-c"]
+
+RUN mkdir /package
+
+WORKDIR /package
+
+RUN git clone https://github.com/openalea/Root-CyNAPS.git
+RUN git clone https://github.com/openalea/metafspm.git
+RUN git clone https://github.com/openalea/fspm-utility.git
+
+# Install local packages and their dependencies
+WORKDIR /package/Root-CyNAPS
+RUN pip install .
+RUN mamba env update -n base -f environment.yaml
+WORKDIR /package/metafspm
+RUN pip install .
+RUN mamba env update -n base -f environment.yaml
+WORKDIR /package/fspm-utility
+RUN pip install .
+RUN mamba env update -n base -f environment.yaml
 
 # graphical library necessary for simulations
-RUN apt update && apt -y install libgl1
+RUN apt update && apt -y install libgl1-mesa-glx xvfb 
 
-RUN mkdir rootcynaps_outputs
+# Expose notebook port
+EXPOSE 8888
 
-WORKDIR ./package/root_cynaps
-
-RUN python setup.py develop
-
-VOLUME ./package/root_cynaps/simulations/outputs
+# Set working directory to volume mount point
+WORKDIR /data/notebooks
 
 # Mandatory for good packages indexing
 USER root
 
-CMD python -m ./package/root_cynaps/simulations/simutation.py
+CMD ["mamba", "run", "-n", "rootcynaps", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''", "--notebook-dir=/package/Root-CyNAPS/doc/notebooks", "/package/Root-CyNAPS/doc/notebooks/example_notebook_24h_static.ipynb"]
