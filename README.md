@@ -44,7 +44,7 @@ The OpenAlea.Root-CyNAPS package contains modules for simulating nitrogen cycle,
 
 Representation of root segments net N uptake simulated by Root-CyNAPS along the roots of a 50 days-old spring wheat root system architecture (homogeneous 20°C and 0.5 mM nitrate of nutrient solution)
 
-![Figure not found](doc/notebooks/data/Fig_1.png)
+![Figure not found](doc/data/Fig_1.png)
 
 ### Installation
 

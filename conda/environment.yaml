@@ -1,9 +1,9 @@
-name: metafspm
+name: rootcynaps
 channels:
   - openalea3
   - conda-forge
 dependencies:
   - python
-  - pip
-  - pandoc
-  - yaml
+  - scipy
+  - numpy
+  - openalea.mtg
