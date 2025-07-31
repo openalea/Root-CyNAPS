@@ -112,13 +112,13 @@ pip install .
 > -   trimesh
 > -   salib
 
-#### Launch a reference simulation
+### Launch a reference simulation
 
-##### User
+#### User
 
 [See the example usage notebook](doc/notebooks/example_notebook_24h_static.ipynb) in the doc directory.
 
-##### Developper
+#### Developper
 Go to the *Root-CyNAPS/simulations/scene folder*, then run and adapt the reference simulation script (*simulation_24h_static.py*) with:
 ```
 cd .../YourPythonProjects/Root-CyNAPS/simulations/scene
