@@ -38,7 +38,6 @@ def mtg_pyvista_plotter(g):
     plotter.show(interactive_update=False)
     
 
-
 def compute_distance_between_vertices(v1, v2):
     try:
         return np.sqrt((v1.x1 - v2.x1)**2 + (v1.y1 - v2.y1)**2 + (v1.z1 - v2.z1)**2)

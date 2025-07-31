@@ -1,9 +1,8 @@
 import os
-import numpy as np
 
 # Utility packages
-from analyze.analyze import analyze_data, test_output_range
-from log.visualize import post_compress_gltf, custom_colorbar
+from openalea.fspm.utility.plot import analyze_data, test_output_range
+from openalea.fspm.utility.writer.visualize import post_compress_gltf, custom_colorbar
 
 
 if __name__ == '__main__':

@@ -1,14 +1,14 @@
 # Public packages
 import os, sys
 # Model packages
-from root_cynaps.root_cynaps import Model
+from openalea.rootcynaps import RootCyNAPS
 # Utility packages
-from log.logging import Logger
-from initialize.initialize import MakeScenarios as ms
+from openalea.fspm.utility.writer import Logger
+from openalea.fspm.utility.scenario import MakeScenarios as ms
 
 
 def single_run(scenario, outputs_dirpath="outputs", simulation_length=2500, echo=True, log_settings={}):
-    root_cynaps = Model(time_step=3600, **scenario)
+    root_cynaps = RootCyNAPS(time_step=3600, **scenario)
 
     logger = Logger(model_instance=root_cynaps, outputs_dirpath=outputs_dirpath, 
                     time_step_in_hours=1, logging_period_in_hours=1,
