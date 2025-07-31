@@ -1,7 +1,7 @@
 # Specifying the base image
 FROM condaforge/mambaforge:23.3.1-1
 
-RUN mamba create -y -n root_cynaps -c conda-forge -c openalea3 --strict-channel-priority --file requirements.txt
+RUN mamba create -y -n rootcynaps -c conda-forge -c openalea3 openalea.rootcynaps
 
 # May be optional
 RUN mamba init bash
@@ -10,11 +10,9 @@ RUN mamba init bash
 SHELL ["mamba", "run", "-n", "root_cynaps", "/bin/bash", "-c"]
 
 # graphical library necessary for simulations
-RUN apt-get update && apt-get -y install libgl1
+RUN apt update && apt -y install libgl1
 
-RUN mkdir package
-
-ADD . ./package/root_cynaps
+RUN mkdir rootcynaps_outputs
 
 WORKDIR ./package/root_cynaps
 
