@@ -1,12 +1,10 @@
 # Specifying the base image
 FROM condaforge/mambaforge
 
-# Install directly in base to avoid a too large image
-RUN mamba install -y -n base -c conda-forge python jupyterlab 
-
 # May be optional
 RUN mamba init bash
 
+# Install directly in base to avoid a too large image
 # Equivalent command to mamba activate base, just to be sure
 SHELL ["mamba", "run", "-n", "base", "/bin/bash", "-c"]
 
@@ -20,14 +18,20 @@ RUN git clone https://github.com/openalea/fspm-utility.git
 
 # Install local packages and their dependencies
 WORKDIR /package/Root-CyNAPS
+RUN mamba env create -n rootcynaps -f conda/environment.yaml
 RUN pip install .
-RUN mamba env update -n base -f environment.yaml
 WORKDIR /package/metafspm
 RUN pip install .
-RUN mamba env update -n base -f environment.yaml
+RUN mamba env update -n base -f conda/environment.yaml
 WORKDIR /package/fspm-utility
 RUN pip install .
-RUN mamba env update -n base -f environment.yaml
+RUN mamba env update -n base -f conda/environment.yaml
+
+# Notebook to interact with the container
+RUN mamba install -y -n rootcynaps -c conda-forge jupyterlab 
+
+# To remove installation leftovers that might take too much space in the image
+RUN conda clean -a -y
 
 # graphical library necessary for simulations
 RUN apt update && apt -y install libgl1-mesa-glx xvfb 
