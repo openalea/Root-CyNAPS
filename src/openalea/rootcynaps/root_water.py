@@ -24,7 +24,7 @@ class RootWaterModel(Model):
     soil_temperature: float = declare(default=7.8, unit="°C", unit_comment="", description="soil temperature in contact with roots",
                                         min_value="", max_value="", value_comment="Derived from Swinnen et al. 1994 C inputs, estimated from a labelling experiment starting 3rd of March, with average temperature at 7.8 °C", references="Swinnen et al. 1994", DOI="",
                                         variable_type="input", by="model_temperature", state_variable_type="", edit_by="user")
-    Cv_solute_soil: float = declare(default=0., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in soil", 
+    Cv_solutes_soil: float = declare(default=0., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in soil", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
@@ -80,10 +80,10 @@ class RootWaterModel(Model):
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     
     # FROM METABOLIC MODELS
-    Cv_solute_xylem: float = declare(default=0., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem", 
+    Cv_solutes_xylem: float = declare(default=0., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
-    C_solute_phloem: float = declare(default=1., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in phloem", 
+    C_solutes_phloem: float = declare(default=1., unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in phloem", 
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="input", by="model_soil", state_variable_type="", edit_by="user")
 
@@ -215,12 +215,12 @@ class RootWaterModel(Model):
     
     @potential
     @rate
-    def _K_phloem(self, C_solute_phloem, living_struct_mass, phloem_volume, soil_temperature, length, phloem_vessel_radii):
+    def _K_phloem(self, C_solutes_phloem, living_struct_mass, phloem_volume, soil_temperature, length, phloem_vessel_radii):
         """
         Haggen-Poiseuille model
         """
         solute_molar_volume = 160.35 * 1e-6 # m3.mol-1
-        solute_volumetric_fraction = min(0.5, C_solute_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
+        solute_volumetric_fraction = min(0.5, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
         # print("frac", solute_volumetric_fraction) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
@@ -373,8 +373,8 @@ class RootWaterModel(Model):
             
             if n.struct_mass > 0:
                 # Volumic concentrations retreived there from inputs because metabolic only provides massic to be able to update on a growing arch 
-                Cv_solute_xylem = n.C_solute_xylem * n.living_struct_mass / n.xylem_volume
-                Cv_solute_phloem = n.C_solute_phloem * n.living_struct_mass / n.phloem_volume
+                Cv_solutes_xylem = n.C_solutes_xylem * n.living_struct_mass / n.xylem_volume
+                Cv_solutes_phloem = n.C_solutes_phloem * n.living_struct_mass / n.phloem_volume
 
                 # Simulated separatly for apoplastic pathway decomposition, for phloem it is only symplastic so not differentiated
                 kr_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
@@ -477,12 +477,12 @@ class RootWaterModel(Model):
                 # -Gp_xylem
                 minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
                                     - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
-                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solute_soil - Cv_solute_xylem))
-                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solute_phloem - Cv_solute_xylem)))
+                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
+                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
                 # -Gp_phloem
                 minusG[2 * local_vids[v] - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
                                     - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
-                                    + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solute_phloem - Cv_solute_xylem)))
+                                    + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
 
         row = np.array(row, dtype=int)
         col = np.array(col, dtype=int)
@@ -530,14 +530,14 @@ class RootWaterModel(Model):
                 n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
                 n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
 
-                Cv_solute_xylem = n.C_solute_xylem * n.living_struct_mass / n.xylem_volume
-                Cv_solute_phloem = n.C_solute_phloem * n.living_struct_mass / n.phloem_volume
+                Cv_solutes_xylem = n.C_solutes_xylem * n.living_struct_mass / n.xylem_volume
+                Cv_solutes_phloem = n.C_solutes_phloem * n.living_struct_mass / n.phloem_volume
 
-                n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solute_soil - Cv_solute_xylem))
-                n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solute_soil - Cv_solute_xylem))
+                n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solutes_soil - Cv_solutes_xylem))
+                n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solutes_soil - Cv_solutes_xylem))
                 # Minus the orientation defined for G 
                 # NOTE: Very important to keep this convention for vessel flux advection
-                n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature)) * (Cv_solute_phloem - Cv_solute_xylem))
+                n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature)) * (Cv_solutes_phloem - Cv_solutes_xylem))
                 
                 # Computed to avoid children iteration when needed by other modules
                 n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
@@ -551,7 +551,7 @@ class RootWaterModel(Model):
                     if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18
 
                 # Usefull visual checks
-                # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solute_phloem, Cv_solute_xylem)
+                # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
                 # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
 
 

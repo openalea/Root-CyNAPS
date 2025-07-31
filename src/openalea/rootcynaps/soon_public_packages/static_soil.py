@@ -8,7 +8,7 @@ from openalea.metafspm.component import Model, declare
 
 
 @dataclass
-class StaticSoil(Model):
+class SoilModel(Model):
     """
     Empty doc
     """
@@ -54,6 +54,13 @@ class StaticSoil(Model):
                                                  value_comment="", references="", DOI="",
                                                  min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="descriptor", edit_by="user")
     
+    # Temperature
+    soil_temperature: float = declare(default=7.8, unit="°C", unit_comment="", description="soil temperature in contact with roots",
+                                                 value_comment="Derived from Swinnen et al. 1994 C inputs, estimated from a labelling experiment starting 3rd of March, with average temperature at 7.8 °C", references="Swinnen et al. 1994", DOI="",
+                                                 min_value="", max_value="", variable_type="state_variable", by="model_temperature", state_variable_type="intensive", edit_by="user")
+
+
+    # C&N    
     dissolved_mineral_N: float = declare(default=20e-6, unit="adim", unit_comment="gN per g of dry soil", description="dissolved mineral N massic concentration in soil",
                                         value_comment="", references="Fischer et al. 1966", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
@@ -64,7 +71,14 @@ class StaticSoil(Model):
     C_amino_acids_soil: float = declare(default=8.2e-3, unit="mol.m-3", unit_comment="of equivalent mineral nitrogen", description="Mineral nitrogen concentration in soil", 
                                         value_comment="", references="Fischer et al 2007, water leaching estimation", DOI="",
                                        min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
+    microbial_C: float = declare(default=0.2e-3, unit="adim", unit_comment="gC per g of dry soil", description="microbial Carbon massic concentration in soil", 
+                                        value_comment="", references="Fischer et al. 1966", DOI="",
+                                       min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
+    microbial_N: float = declare(default=0.03e-3, unit="adim", unit_comment="gN per g of dry soil", description="microbial N massic concentration in soil", 
+                                        value_comment="", references="Fischer et al. 1966", DOI="",
+                                       min_value="", max_value="", variable_type="state_variable", by="model_soil", state_variable_type="intensive", edit_by="user")
     
+
     # All solutes
     Cv_solutes_soil: float = declare(default=32.2 / 10, unit="mol.m-3", unit_comment="mol of  all dissolved mollecules in the soil solution", description="All dissolved mollecules concentration", 
                                         value_comment="", references="", DOI="",

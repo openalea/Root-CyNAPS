@@ -84,10 +84,10 @@ RootWaterModel:
       xylem_differentiation_factor: 1.0
 
   RootNitrogenModel:
-    C_solute_xylem:
-      C_solute_xylem: 1.0
-    C_solute_phloem:
-      C_solute_phloem: 1.0
+    C_solutes_xylem:
+      C_solutes_xylem: 1.0
+    C_solutes_phloem:
+      C_solutes_phloem: 1.0
 
   RootWaterModel: {}
 
@@ -96,8 +96,8 @@ RootWaterModel:
       water_potential_soil: 1.0
     soil_temperature:
       soil_temperature: 1.0
-    Cv_solute_soil:
-      Cv_solute_soil: 1.0
+    Cv_solutes_soil:
+      Cv_solutes_soil: 1.0
 
 SoilModel:
 

@@ -192,10 +192,10 @@ class RootNitrogenModel(Model):
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
     # Agregates for the water transport model 
-    C_solute_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
+    C_solutes_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    C_solute_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
+    C_solutes_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
@@ -1448,14 +1448,14 @@ class RootNitrogenModel(Model):
 
     @segmentation
     @state
-    def _C_solute_xylem(self, xylem_Nm, xylem_AA):
+    def _C_solutes_xylem(self, xylem_Nm, xylem_AA):
         N_in_total_ions=0.5
         return xylem_Nm / N_in_total_ions + xylem_AA
     
 
     @segmentation
     @state
-    def _C_solute_phloem(self, C_sucrose_root, phloem_AA):
+    def _C_solutes_phloem(self, C_sucrose_root, phloem_AA):
         ions_proportion = 0.4 # To account for high 300 mM concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
         return (phloem_AA) / (1 - ions_proportion) # TODO : Sucrose was removed here because the current unloading created crazy concentrations, needs to be coupled later
     

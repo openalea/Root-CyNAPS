@@ -1,5 +1,5 @@
 # Soil model
-from openalea.rootcynaps.soon_public_packages.static_soil import StaticSoil
+from openalea.rootcynaps.soon_public_packages.static_soil import SoilModel
 
 # Utilities
 from openalea.metafspm.composite_wrapper import CompositeModel
@@ -36,7 +36,7 @@ class StaticSoilAssembly(CompositeModel):
         self.input_tables = scenario["input_tables"]
 
         # INIT INDIVIDUAL MODULES
-        self.soil = StaticSoil(time_step_in_seconds=time_step,
+        self.soil = SoilModel(time_step_in_seconds=time_step,
                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, **soil_parameters)
 
         self.soil_voxels = self.soil.voxels
