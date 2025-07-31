@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/fig_visuals_bis"
+    custom_output_folder = "outputs/fig_standalone"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
     # custom_output_folder = "outputs/fig_batch_net_N_uptake"
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # target_concentrations = [explored_space[i] for i in range(len(explored_space)-1) if i % 2 == 1]
     target_concentrations = [5e-1]    
 
-    parallel = True
+    parallel = False
     active_processes = 0 
     processes = []
 
@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 scenario["parameters"]["root_cynaps"]["roots"]["dissolved_mineral_N"] = 5e-7 * concentration / 1e-1
                 
                 current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}"
-
+                print(openalea.rootcynaps.__path__[0])
                 play_Orchestra(scene_name=current_scenario_name, output_folder=custom_output_folder, plant_models=[RootCyNAPS], plant_scenarios=[scenario], 
                                     soil_model=StaticSoilAssembly, soil_scenario=scenario,
                                     translator_path=openalea.rootcynaps.__path__[0],

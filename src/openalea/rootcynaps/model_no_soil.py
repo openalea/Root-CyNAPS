@@ -49,7 +49,7 @@ class RootCyNAPS(CompositeModel):
         assert len(scenario["input_mtg"]) > 0
         self.g_root = scenario["input_mtg"]["root_mtg_file"]
         # NOTE: Requiered here only to initialize some requiered properties on mtg
-        self.root_growth = RootGrowthModel(g=scenario["input_mtg"]["root_mtg_file"], time_step=time_step, **root_parameters)
+        self.root_growth = StaticRootGrowthModel(g=scenario["input_mtg"]["root_mtg_file"], time_step=time_step, **root_parameters)
         self.root_anatomy = RootAnatomy(self.g_root, time_step, **root_parameters)
         self.root_water = RootWaterModel(self.g_root, time_step, **root_parameters)
         self.root_nitrogen = RootNitrogenModel(self.g_root, time_step, **root_parameters)

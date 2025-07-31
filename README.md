@@ -1,59 +1,3 @@
-
-
-TODO
-
-
-
-## Installation option 1 : stable installation with docker (about 6Gb)
-
-1. First, download the docker engine : https://docs.docker.com/engine/install/
-
-2. Then create a project directory (example : PythonProjects), and clone this repository from command line :
-```
-cd .../PythonProjects
-git clone https://forgemia.inra.fr/tristan.gerault/root_cynaps.git
-```
-
-3. Finally, build the docker image with the following command
-```
-cd root_cynaps
-docker image build -t root_cynaps .
-docker run root_cynaps
-```
-
-(For developpers, build this image directly into your IDE)'
-
-
-## Installation option 2 : more classic but unstable installation with conda + mamba (about 4Gb)
-
-First, clone the repository :
-```
-git clone https://forgemia.inra.fr/tristan.gerault/root_cynaps.git
-```
-
-Intall the lastest version of conda : https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html
-
-Then, install necessary packages with the following requirements files. cd to the root_cynaps directory, then :
-
-- On Windows :
-```
-requirements.bat
-```
-- On Linux :
-```
-bash requirements.sh
-```
-- On MacOs :
-No available yet
-
-## Running example code
-
-cd to the simulations/running_example folder, then run :
-```
-python main.py
-```
-
-#
 # Root-CyNAPS : Root Cycling Nitrogen Across Plant Scales
 ### A 3D FSPM root model to simulate nitrogen acquisition and rhizodeposition
 
@@ -110,9 +54,51 @@ arabidopsis root.
 
 ### Installation
 
+## Installation option 1 : stable installation with docker (about 6Gb)
+
+1. First, download the docker engine : https://docs.docker.com/engine/install/
+
+2. Then create a project directory (example : PythonProjects), and clone this repository from command line :
+```
+cd .../PythonProjects
+git clone https://forgemia.inra.fr/tristan.gerault/root_cynaps.git
+```
+
+3. Finally, build the docker image with the following command
+```
+cd root_cynaps
+docker image build -t root_cynaps .
+docker run root_cynaps
+```
+
+(For developpers, build this image directly into your IDE)'
+
+
+## Installation option 2 : more classic but unstable installation with conda + mamba (about 4Gb)
+
+
+
+Intall the lastest version of conda : https://docs.conda.io/projects/miniconda/en/latest/miniconda-install.html
+
+
 #### Conda Installation
 
-    conda create -n hydroroot -c conda-forge -c openalea3 openalea.hydroroot
+    mamba create -n root-cynaps -c conda-forge -c openalea3 openalea.rootcynaps
+
+#### Developper Installation
+
+First, clone or fork the repository to retreive source code :
+```
+git clone https://github.com/openalea/root-cynaps.git
+```
+
+Then create a conda environment in which to install Root-CyNAPS requirements into
+```
+mamba create -n root-cynaps
+```
+
+Finally to install model's dependencies, 1) open a terminal 2) 
+
 
 #### Requirements
 
@@ -126,6 +112,10 @@ arabidopsis root.
 #### Usage
 
 See notebook in example directory.
+cd to the simulations/running_example folder, then run :
+```
+python simulation.py
+```
 
 ## Documentation
 
@@ -133,17 +123,7 @@ See notebook in example directory.
 
 ## Citations
 
-If you use Hydroroot for your research, please cite:
+RootCyNAPS has been submitted for publication. For now, please cite:
 
-1.  Yann Boursiac, Christophe Pradal, Fabrice Bauget, Mikaël Lucas,
-    Stathis Delivorias, Christophe Godin, Christophe Maurel, Phenotyping
-    and modeling of root hydraulic architecture reveal critical
-    determinants of axial water transport, Plant Physiology, Volume 190,
-    Issue 2, October 2022, Pages 1289--1306,
-    <https://doi.org/10.1093/plphys/kiac281>
-2.  Fabrice Bauget, Virginia Protto, Christophe Pradal, Yann Boursiac,
-    Christophe Maurel, A root functional--structural model allows
-    assessment of the effects of water deficit on water and solute
-    transport parameters, Journal of Experimental Botany, Volume 74,
-    Issue 5, 13 March 2023, Pages 1594--1608,
-    <https://doi.org/10.1093/jxb/erac471>
+    Tristan Gérault, Christophe Pradal, Romain Barillot, Céline Richard-Molard, Marion Gauthier, Alexandra Jullien, Frédéric Rees, 
+    "Do specific root zones shape plant net N uptake? Modeling insights from Root-CyNAPS", submitted
