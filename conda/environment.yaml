@@ -14,7 +14,9 @@ dependencies:
   - pandas
   - salib
   - xarray
+  - dask
   - pyvista
+  - imageio
   - matplotlib
   - brokenaxes
   - pint
