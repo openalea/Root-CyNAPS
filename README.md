@@ -51,7 +51,7 @@ Representation of root segments net N uptake simulated by Root-CyNAPS along the 
 #### User Docker Installation (Easy and Smaller on disk)
 
 > - [Install Docker Desktop](https://www.docker.com/products/docker-desktop/)
-> - In Docker Desktop, go to Docker Hub, search for **geraulttr/rootcynaps** and pull this image.
+> - In Docker Desktop, go to Docker Hub, search for **geraulttr/rootcynaps** and pull the image with the *stable* tag.
 > - From *Image*, run the **geraulttr/rootcynaps** image, in *Optional settings > Host port*, put 8888 and then *Run*
 > - Root-CyNAPS container is running, open http://localhost:8888/ in your browser to access a running example notebook.
 
