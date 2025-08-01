@@ -31,7 +31,7 @@ class RootNitrogenModel(Model):
     """
 
 
-    # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
+    # --- @note INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
 
     # FROM CARBON MODEL
     C_hexose_root: float = declare(default=1e-4, unit="mol.g-1", unit_comment="of labile hexose", description="Hexose concentration in root",
@@ -167,7 +167,7 @@ class RootNitrogenModel(Model):
                                                  min_value="", max_value="", value_comment="", references="", DOI="",
                                                  variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
-    # --- INITIALIZE MODEL STATE VARIABLES ---
+    # --- @note INITIALIZE MODEL STATE VARIABLES --- 
 
     # LOCAL VARIABLES
 
@@ -375,7 +375,7 @@ class RootNitrogenModel(Model):
                                                 variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
 
     
-    # --- INITIALIZES MODEL PARAMETERS ---
+    # --- @note MODEL PARAMETERS INITIALIZATION ---
 
     # time resolution
     sub_time_step: int =                declare(default=3600, unit="s", unit_comment="", description="MUST be a multiple of base time_step", 
@@ -633,7 +633,7 @@ class RootNitrogenModel(Model):
         self.link_self_to_mtg()
 
 
-    # NITROGEN PROCESSES
+    # @note PROCESSES OF N TRANSPORT AND METABOLISM
 
     # RADIAL TRANSPORT PROCESSES
     # MINERAL NITROGEN TRANSPORT
@@ -1189,6 +1189,8 @@ class RootNitrogenModel(Model):
                 C_Nm_average[1] / (C_Nm_average[1] + self.Km_N_cytok))
 
 
+    # @note CONCENTRATIONS UPDATE
+
     @state
     # UPDATE NITROGEN POOLS
     def _Nm(self, vertex_index, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
@@ -1277,7 +1279,8 @@ class RootNitrogenModel(Model):
         return (phloem_AA) / (1 - ions_proportion) # TODO : Sucrose was removed here because the current unloading created crazy concentrations, needs to be coupled later
     
 
-    # PLANT SCALE PROPERTIES UPDATE
+    # @note PLANT SCALE PROPERTIES UPDATE
+    
     @totalstate
     def _total_cytokinins(self, total_cytokinins, cytokinin_synthesis, cytokinins_root_shoot_xylem):
         return total_cytokinins[1] + cytokinin_synthesis[1] * self.time_step - cytokinins_root_shoot_xylem[1]

@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
     # target_concentrations = np.logspace(0, 4, 5) * 5e-3
     # explored_space = np.logspace(0, 4, 9) * 5e-3
+    # target_concentrations = np.logspace(0, 4, 9) * 5e-3
     # target_concentrations = [explored_space[i] for i in range(len(explored_space)-1) if i % 2 == 1]
     target_concentrations = [5e-1]    
 
