@@ -17,6 +17,7 @@ dependencies:
   - dask
   - pyvista
   - imageio
+  - imageio-ffmpeg
   - matplotlib
   - brokenaxes
   - pint
