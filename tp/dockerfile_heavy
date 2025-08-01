@@ -1,0 +1,45 @@
+# Specifying the base image
+FROM condaforge/mambaforge
+
+RUN mkdir /package
+
+WORKDIR /package
+
+RUN git clone https://github.com/openalea/Root-CyNAPS.git
+RUN git clone https://github.com/openalea/metafspm.git
+RUN git clone https://github.com/openalea/fspm-utility.git
+
+# Install local packages and their dependencies
+WORKDIR /package/Root-CyNAPS
+RUN mamba env create -f conda/environment.yaml
+# May be optional
+RUN mamba init bash
+SHELL ["mamba", "run", "-n", "rootcynaps", "/bin/bash", "-c"]
+RUN pip install .
+
+WORKDIR /package/metafspm
+RUN pip install .
+
+WORKDIR /package/fspm-utility
+RUN pip install .
+
+# Notebook to interact with the container
+RUN mamba install -y -n rootcynaps -c conda-forge jupyterlab 
+
+# To remove installation leftovers that might take too much space in the image
+RUN conda clean -a -y
+
+# graphical library necessary for simulations
+RUN apt update && apt -y install libgl1-mesa-glx xvfb 
+
+# Expose notebook port
+EXPOSE 8888
+
+# Set working directory to volume mount point
+WORKDIR /doc/notebooks
+
+# Mandatory for good packages indexing
+USER root
+
+# Launch the example notebook on container launch
+CMD ["mamba", "run", "-n", "rootcynaps", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''", "--notebook-dir=/package/Root-CyNAPS/doc/notebooks", "/package/Root-CyNAPS/doc/notebooks/example_notebook_24h_static.ipynb"]
