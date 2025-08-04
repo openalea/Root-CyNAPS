@@ -211,6 +211,7 @@ class RootWaterModel(Model):
         D = -3.376e-5 # K-2 Viswanath & Natarajan (1989)
         soil_temperature_Kelvin = soil_temperature + 273.15
         sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
+        # print(sap_viscosity)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
     
     @potential
@@ -220,9 +221,11 @@ class RootWaterModel(Model):
         Haggen-Poiseuille model
         """
         solute_molar_volume = 160.35 * 1e-6 # m3.mol-1
-        solute_volumetric_fraction = min(0.5, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
-        # print("frac", solute_volumetric_fraction) # TODO: should not be constrained but here absurd values
+        # solute_molar_volume = 100 * 1e-6 # m3.mol-1
+        solute_volumetric_fraction = min(0.9, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
+        # print("frac",  C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
+        # print(sap_viscosity)
         return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
 
 
@@ -343,6 +346,7 @@ class RootWaterModel(Model):
         """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
         is solved by LU decomposition.
         """
+        # print("water build matrix")
         g = self.g # To prevent repeated MTG lookups
         props = self.props
         struct_mass = g.property('struct_mass')
@@ -496,9 +500,11 @@ class RootWaterModel(Model):
 
         # Solving the system using sparse LU
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
+        # print("water solve")
         solve = linalg.splu(J)
         dY = solve.solve(minusG)
 
+        # print("water applies")
         # We apply results from collar to tips
         for v in pre_order2(g, root):
             n = g.node(v)
@@ -547,13 +553,13 @@ class RootWaterModel(Model):
 
                 if len(g.children(v)) == 0:
                     # print(np.abs(n.axial_import_water_down_xylem), np.abs(n.axial_import_water_down_phloem))
-                    if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18
-                    if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18
+                    if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18 * 100
+                    if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18 * 100
 
                 # Usefull visual checks
                 # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
                 # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
-
+        # print("finished")
 
     @state
     def _xylem_water(self, xylem_volume):

@@ -19,8 +19,10 @@ from dataclasses import dataclass
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *
 
-from scipy.sparse import csc_matrix, identity, linalg
+from scipy.sparse import csc_matrix, identity, linalg, diags
 from scipy.optimize import lsq_linear
+from sksundae.ida import IDA
+from scipy.integrate import solve_ivp
 
 debug = True
 
@@ -157,10 +159,16 @@ class RootNitrogenModel(Model):
     Cv_AA_xylem_collar: float = declare(default=0.1, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="range approximation", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    Cv_AA_phloem_collar: float = declare(default=260, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+    Cv_AA_phloem_collar: float = declare(default=260*2, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    sucrose_input_rate: float = declare(default=0, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+    AA_input_rate_phloem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Amino acids input rate in phloem at root-shoot junction", 
+                                       min_value="", max_value="", value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    AA_input_rate_xylem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Amino acids input rate in xylem at root-shoot junction", 
+                                       min_value="", max_value="", value_comment="", references="", DOI="",
+                                        variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
+    Nm_input_rate_xylem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at root-shoot junction", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     cytokinins_root_shoot_xylem: float = declare(default=0, unit="mol.h-1", unit_comment="of cytokinins", description="",
@@ -585,30 +593,36 @@ class RootNitrogenModel(Model):
     solute_configs = {
     "xylem_Nm": {
         "solute_massic_concentration_prop": "xylem_Nm",
+        "solute_massic_concentration_prop_symplasm": "Nm",
         "conductive_element_volume_prop": "xylem_volume",
         "water_flux_prop": "axial_export_water_up_xylem",
         "radial_solute_flux": lambda n: n.export_Nm - n.apoplastic_Nm_soil_xylem - n.diffusion_Nm_xylem,
+        "flux_shoot_boundary": lambda props: props["Nm_input_rate_xylem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_Nm_xylem_collar"][1],
         "solute_flux_to_shoot": "Nm_root_to_shoot_xylem",
-        "solute_volumic_concentration_bounds": (0, 1e3),
+        "solute_volumic_concentration_bounds": (0.1, 5e2),
         },
     "xylem_AA": {
         "solute_massic_concentration_prop": "xylem_AA",
+        "solute_massic_concentration_prop_symplasm": "AA",
         "conductive_element_volume_prop": "xylem_volume",
         "water_flux_prop": "axial_export_water_up_xylem",
         "radial_solute_flux": lambda n: n.export_AA - n.apoplastic_AA_soil_xylem,
+        "flux_shoot_boundary": lambda props: props["AA_input_rate_xylem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_AA_xylem_collar"][1],
         "solute_flux_to_shoot": "AA_root_to_shoot_xylem",
-        "solute_volumic_concentration_bounds": (0, 1e3),
+        "solute_volumic_concentration_bounds": (0.1, 5e2),
         },
     "phloem_AA": {
         "solute_massic_concentration_prop": "phloem_AA",
+        "solute_massic_concentration_prop_symplasm": "AA",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
         "radial_solute_flux": lambda n: -n.diffusion_AA_phloem - n.unloading_AA_phloem,
+        "flux_shoot_boundary": lambda props: props["AA_input_rate_phloem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_AA_phloem_collar"][1],
         "solute_flux_to_shoot": "AA_root_to_shoot_phloem",
-        "solute_volumic_concentration_bounds": (0, 1e4),
+        "solute_volumic_concentration_bounds": (10, 1.5e3),
         }
     }
 
@@ -953,69 +967,109 @@ class RootNitrogenModel(Model):
         # Create a solute configs and buffer that enables iterating through vertices only once
         solute_configs = self.solute_configs
         solute_buffers = {
-            name: {"solute_volumic_concentration": [], "conductive_element_volume": [], "radial_solute_flux": [], "boundary_solute_flux_from_shoot": 0,
+            name: {"solute_volumic_concentration": [], "Cv_symplasm": [], "conductive_element_volume": [], "radial_solute_flux": [], "boundary_solute_flux_from_shoot": 0, "impacted_by_root_shoot_boundary": {},
                 "row": [], "col": [], "data": []}
             for name in solute_configs
         }
+        bdd = 8*1e-6 # back_diffusion_downscaling_factor
 
         elt_number = len(local_vids)
-
+        # print("start building the axial transport matrix...")
         for v in self.vertices:
             n = g.node(v)
             if n.struct_mass > 0:
                 lid = local_vids[v]
-                children = self.collar_children if v == 1 else g.children(v)
 
                 for name, cfg in solute_configs.items():
                     buf = solute_buffers[name]
                     water_flux_prop = cfg["water_flux_prop"]
                     conductive_element_volume_prop = cfg["conductive_element_volume_prop"]
                     solute_massic_concentration_prop = cfg["solute_massic_concentration_prop"]
+                    solute_massic_concentration_prop_symplasm = cfg["solute_massic_concentration_prop_symplasm"]
+                    axial_diffusivity = 1e3/2 * 1e-10 # m2/s
 
                     water_flux = getattr(n, water_flux_prop)
                     conductive_element_volume = getattr(n, conductive_element_volume_prop)
                     solute_massic_concentration = getattr(n, solute_massic_concentration_prop)
-
-                    buf["solute_volumic_concentration"].append(solute_massic_concentration * n.living_struct_mass / conductive_element_volume)
+                    solute_volumic_concentration = solute_massic_concentration * n.living_struct_mass / conductive_element_volume
+                    buf["solute_volumic_concentration"].append(solute_volumic_concentration)
                     buf["conductive_element_volume"].append(conductive_element_volume)
                     buf["radial_solute_flux"].append(cfg["radial_solute_flux"](n))
+                    buf["Cv_symplasm"].append(getattr(n, solute_massic_concentration_prop_symplasm) * n.living_struct_mass / n.symplasmic_volume)
 
-                    # Axial matrix building
-                    axial_outflow = 0
+                    # Identify which segments are directly impacted by collar flux
+                    if v == 1:
+                        impacted_volume = np.abs(water_flux) * self.time_step
+                        cummulated_volume = conductive_element_volume
+                        impacted_by_root_shoot_boundary = [local_vids[v]]
+                        impacted_by_root_shoot_boundary_volume = [conductive_element_volume]
+                        parent_set = [v]
+                        while impacted_volume > cummulated_volume:
+                            children_set = []
+                            for parent in parent_set:
+                                if parent == 1:
+                                    children_set += self.collar_children
+                                else:
+                                    children_set += g.children(parent)
+                            
+                            if len(children_set) == 0:
+                                # For very young root systems it is possble it exceeds whole root system's volume, so we prevent infinit loop
+                                break
 
-                    # Outflux from the current segment goes to the diagonal
-                    if water_flux > 0:
-                        axial_outflow += water_flux
+                            for cid in children_set:
+                                children_conductive_element_volume = getattr(g.node(cid), conductive_element_volume_prop)
+                                if children_conductive_element_volume is not None:
+                                    if children_conductive_element_volume > 0:
+                                        impacted_by_root_shoot_boundary.append(local_vids[cid])
+                                        impacted_by_root_shoot_boundary_volume.append(children_conductive_element_volume)
+                                        cummulated_volume += children_conductive_element_volume
+                                
+                            parent_set = children_set
+
+                        total_grouped_volume = sum(impacted_by_root_shoot_boundary_volume)
+                        impacted_by_root_shoot_boundary_prop = {impacted_by_root_shoot_boundary[k]: v/total_grouped_volume for k, v in enumerate(impacted_by_root_shoot_boundary_volume)}
+                        buf["impacted_by_root_shoot_boundary"] = impacted_by_root_shoot_boundary_prop
+
+                    # Diffusive component
+                    if v in self.collar_children:
+                        parent = 1
                     else:
-                        if v in self.collar_children:
-                            parent = 1
-                            buf["row"].append(lid)
-                            buf["col"].append(local_vids[parent])
-                            buf["data"].append(-water_flux)
+                        parent = g.parent(v)
+
+                    if parent is not None:
+                        dx = (n.length + g.node(parent).length) / 2
+                        cross_area = (0.1 * (n.radius + g.node(parent).radius) / 2)**2
+                        D = axial_diffusivity * cross_area / dx
+                        buf["row"].extend([lid, lid, local_vids[parent], local_vids[parent]])
+                        buf["col"].extend([lid, local_vids[parent], local_vids[parent], lid])
+                        buf["data"].extend([-D, D, -D, D])
+
+                    # Advection component
+                    if v in self.collar_children:
+                        parent=1
+                    else:
+                        parent = g.parent(v)
+
+                    if parent is None:
+                        # This is imposed by data so there is no condition to apply this
+                        if cfg["flux_shoot_boundary"](props) is not None:
+                            print(name, True)
+                            buf["boundary_solute_flux_from_shoot"] = cfg["flux_shoot_boundary"](props)
                         else:
-                            parent = g.parent(v)
-                            # If we pull from collar, we apply a Dirichet boundary condition
-                            if parent is None:
-                                buf["boundary_solute_flux_from_shoot"] = -water_flux * cfg["boundary_shoot_solute_concentration"](props)
+                            if water_flux < 0:
+                                buf["boundary_solute_flux_from_shoot"] = - water_flux * cfg["boundary_shoot_solute_concentration"](props) * bdd
                             else:
-                                buf["row"].append(lid)
-                                buf["col"].append(local_vids[parent])
-                                buf["data"].append(-water_flux)
-
-                    for cid in children:
-                        cn = g.node(cid)
-                        child_flux = getattr(cn, water_flux_prop)
-                        if child_flux > 0:
-                            buf["row"].append(lid)
-                            buf["col"].append(local_vids[cid])
-                            buf["data"].append(child_flux)
+                                buf["boundary_solute_flux_from_shoot"] = - water_flux * solute_volumic_concentration * bdd
+                            # else condition to write only if bellow for system mass adjustment is replaced
+                    else:
+                        if water_flux > 0:
+                            buf["row"].extend([lid, local_vids[parent]])
+                            buf["col"].extend([lid, lid])
+                            buf["data"].extend([-water_flux, water_flux])
                         else:
-                            axial_outflow += -child_flux
-
-                    if axial_outflow > 0:
-                        buf["row"].append(lid)
-                        buf["col"].append(lid)
-                        buf["data"].append(-axial_outflow)
+                            buf["row"].extend([local_vids[parent], lid])
+                            buf["col"].extend([local_vids[parent], local_vids[parent]])
+                            buf["data"].extend([water_flux, -water_flux])
 
         # Identity matrix (I)
         I = identity(elt_number, format="csc")
@@ -1025,33 +1079,107 @@ class RootNitrogenModel(Model):
             buf = solute_buffers[name]
 
             # Static components
-            A = csc_matrix((buf["data"], (buf["row"], buf["col"])), shape=(elt_number, elt_number))
+            A = bdd * csc_matrix((buf["data"], (buf["row"], buf["col"])), shape=(elt_number, elt_number))
+            # print(A.toarray()) 
             V = np.array(buf["conductive_element_volume"])
             R = np.array(buf["radial_solute_flux"])
             B = buf["boundary_solute_flux_from_shoot"]
+            impacted_by_root_shoot_boundary = buf["impacted_by_root_shoot_boundary"]
 
             # Initial conditions
             Cv = np.array(buf["solute_volumic_concentration"])
+            ns0 = Cv * V
 
-            # LHS = I - dt * (V^{-1} A)
-            LHS = I - self.time_step * A.multiply(1.0 / V[:, None])
+            boundary = np.zeros_like(R)
+            # boundary[0] = B
+            for i, p in impacted_by_root_shoot_boundary_prop.items():
+                boundary[i] = p * B
 
-            # RHS = C^n + dt * V^{-1} * (R + boundary)
-            RHS = Cv + self.time_step * R / V
-            RHS[0] = self.time_step * B / V[0]
+            R_total = R + boundary
+
+            # print(R + boundary)
+            # print(Cv - self.time_step * (A @ Cv + R + boundary)/V)
+            # print("A sum", A.sum()) # YOU HAVE TO ENSURE IT NEARS 0 (<1e-30)
+            A_to_V = A @ diags(1.0 / V)
+
+
+            method = "euler"
 
             # Solve the system
-            res = lsq_linear(A=LHS, b=RHS, bounds=cfg["solute_volumic_concentration_bounds"], tol=1e-3)
-            Cv_sol = res.x
-            assert not np.any(Cv_sol < 0)
+            if method == "euler": # DROPPED BECAUSE TOO UNSTABLE 
+                # LSQ
+                # LHS = I - self.time_step * A_to_V
+
+                # RHS = ns0 + self.time_step * R_total
+                # c_min, c_max = cfg["solute_volumic_concentration_bounds"]
+                # # res = lsq_linear(A=LHS, b=RHS, bounds=(c_min*V, c_max*V), tol=1e-8)
+                # res = linalg.spsolve(LHS, RHS)
+                # # Cv_sol = res.x / V
+                # Cv_sol = res / V
+
+                # SPLU
+                LHS      = I - self.time_step * A_to_V          # shape (n×n), still sparse
+                solve_BE = linalg.factorized(LHS)
+                RHS   = ns0 + self.time_step * R_total
+                n_sol = solve_BE(RHS)
+
+
+            elif method == "solve_ivp":
+
+                def rhs(t, ns):
+                    return A_to_V @ ns + R_total
+
+                def jac(t, ns):
+                    return A_to_V
+
+                t0 = 0
+                tf = self.time_step
+                sol = solve_ivp(
+                    fun=rhs,
+                    t_span=(t0, tf),
+                    y0=ns0,
+                    method="BDF",
+                    jac=jac,
+                    # first_step=1e-3,
+                    vectorized=False,
+                    rtol=1e-8, # default 1e-3
+                    atol=1e-12, # default 1e-6
+                )
+
+                n_sol = np.array(sol.y[:, -1])   # final state at t = t0 + tf
+
+            c_min, c_max = cfg["solute_volumic_concentration_bounds"]
+            n_min = c_min * V
+            n_max = c_max * V
+
+            n_sol_clip = np.clip(n_sol, n_min, n_max)
+            deficit = (n_sol - n_sol_clip).sum()
+            if deficit > 0:
+                free = c_max * V - n_sol_clip
+                if free.sum() < deficit:
+                    print("Warning impossible adjustment of concentrations")
+                    # n_sol_clip = n_sol
+                else:
+                    n_sol_clip += deficit * free / free.sum()
+            else:
+                free = n_sol_clip - c_min * V
+                if free.sum() < -deficit:
+                    print("Warning impossible adjustment of concentrations")
+                    # n_sol_clip = n_sol
+                else:
+                    n_sol_clip += deficit * free / free.sum()
+
+            Cv_sol = n_sol_clip / V 
+
+            # Debug print
+            # print(n_sol.sum(), n_sol_clip.sum())
+            print(name, Cv_sol)
 
             # Retreive resulting massic concentrations and update MTG props with it
-            Cm_sol = Cv_sol * V / living_struct_mass
+            Cm_sol = n_sol_clip / living_struct_mass
+            # Quality check
+            assert not np.any(Cm_sol < 0)
             props[cfg["solute_massic_concentration_prop"]].update(dict(zip(local_vids.keys(), Cm_sol)))
-
-            # If the collar flux has not been assigned by a downward flux yet, we have to compute the outflux to shoot from system balance
-            # Deducted from equation C_{t+1}.V - (C_t.V + R.\Delta t - outflux.\Delta t) = 0
-            props[cfg["solute_flux_to_shoot"]][1] = (R * self.time_step + V * (Cv - Cv_sol)).sum()
 
 
     # METABOLIC PROCESSES
