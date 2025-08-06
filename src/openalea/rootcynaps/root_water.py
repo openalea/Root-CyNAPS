@@ -69,10 +69,10 @@ class RootWaterModel(Model):
                                                     variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
 
     # FROM SHOOT MODEL
-    water_root_shoot_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
+    water_root_shoot_xylem: float = declare(default=None, unit="m3.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    xylem_pressure_collar: float = declare(default=-0.5e6, unit="Pa", unit_comment="", description="Xylem water pressure at collar", 
+    xylem_pressure_collar: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="Xylem water pressure at collar", 
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     phloem_pressure_collar: float = declare(default=2e6, unit="Pa", unit_comment="", description="Phloem water potential at collar", 
@@ -388,7 +388,12 @@ class RootWaterModel(Model):
                 if v == root:
                     children = self.collar_children
                     children_n = {cid: g.node(cid) for cid in children if struct_mass[cid] > 0}
-                    p_parent_xylem = props['xylem_pressure_collar'][root]
+                    # If no transpiration flux is provided, we take the boundary water potential that is provided
+                    if props['water_root_shoot_xylem'][1] is None:
+                        p_parent_xylem = props['xylem_pressure_collar'][root]
+                    else:
+                        p_parent_xylem = props['xylem_pressure_collar'][root]
+                    # else case is treated bellow
                     p_parent_phloem = props['phloem_pressure_collar'][root]
 
                 else:

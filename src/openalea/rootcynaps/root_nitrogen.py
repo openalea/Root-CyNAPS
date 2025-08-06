@@ -189,10 +189,10 @@ class RootNitrogenModel(Model):
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    xylem_Nm: float =           declare(default=1e-4 / 10, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
+    xylem_Nm: float =           declare(default=1e-4 / 100, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    xylem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
+    xylem_AA: float =           declare(default=1e-4 / 100 / 2, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     phloem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
@@ -599,7 +599,7 @@ class RootNitrogenModel(Model):
         "flux_shoot_boundary": lambda props: props["Nm_input_rate_xylem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_Nm_xylem_collar"][1],
         "solute_flux_to_shoot": "Nm_root_to_shoot_xylem",
-        "solute_volumic_concentration_bounds": (1e-2, 5e2),
+        "solute_volumic_concentration_bounds": (1e-3, 5e2),
         },
     "xylem_AA": {
         "solute_massic_concentration_prop": "xylem_AA",
@@ -609,7 +609,7 @@ class RootNitrogenModel(Model):
         "flux_shoot_boundary": lambda props: props["AA_input_rate_xylem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_AA_xylem_collar"][1],
         "solute_flux_to_shoot": "AA_root_to_shoot_xylem",
-        "solute_volumic_concentration_bounds": (1e-2, 5e2),
+        "solute_volumic_concentration_bounds": (1e-4, 5e2),
         },
     "phloem_AA": {
         "solute_massic_concentration_prop": "phloem_AA",
@@ -619,7 +619,7 @@ class RootNitrogenModel(Model):
         "flux_shoot_boundary": lambda props: props["AA_input_rate_phloem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_AA_phloem_collar"][1],
         "solute_flux_to_shoot": "AA_root_to_shoot_phloem",
-        "solute_volumic_concentration_bounds": (10, 1.5e3),
+        "solute_volumic_concentration_bounds": (10, 2e3),
         }
     }
 
@@ -969,15 +969,6 @@ class RootNitrogenModel(Model):
             for name in solute_configs
         }
 
-        # The following factor is a back_diffusion_downscaling factor ensuring the system is not too stiff
-        # Indeed, parenchyma buffering, osmotic pressure waves are considered to compensate too stiff variations under high advection fluxes
-        # This was adjusted manually so that phloem concentration can meet expected ranges.
-        # bdd = 10*1e-6 # back_diffusion_downscaling_factor
-        total_struct_mass = sum(list(props["living_struct_mass"].values()))
-
-        bdd = total_struct_mass / 200 # back_diffusion_downscaling_factor
-        print(bdd)
-
         elt_number = len(local_vids)
         # print("start building the axial transport matrix...")
         for v in self.vertices:
@@ -986,10 +977,6 @@ class RootNitrogenModel(Model):
                 lid = local_vids[v]
 
                 for name, cfg in solute_configs.items():
-                    if "xylem" in name:
-                        numerical_stabilizer = bdd / 100
-                    else:
-                        numerical_stabilizer = bdd
 
                     buf = solute_buffers[name]
                     water_flux_prop = cfg["water_flux_prop"]
@@ -1032,9 +1019,9 @@ class RootNitrogenModel(Model):
                             buf["boundary_solute_flux_from_shoot"] = cfg["flux_shoot_boundary"](props)
                         else:
                             if water_flux < 0:
-                                buf["boundary_solute_flux_from_shoot"] = - water_flux * cfg["boundary_shoot_solute_concentration"](props) * numerical_stabilizer
+                                buf["boundary_solute_flux_from_shoot"] = - water_flux * cfg["boundary_shoot_solute_concentration"](props)
                             else:
-                                buf["boundary_solute_flux_from_shoot"] = - water_flux * solute_volumic_concentration * numerical_stabilizer
+                                buf["boundary_solute_flux_from_shoot"] = - water_flux * solute_volumic_concentration
                             # else condition to write only if bellow for system mass adjustment is replaced
                     else:
                         if water_flux > 0:
@@ -1085,15 +1072,11 @@ class RootNitrogenModel(Model):
 
         # Solve sequentially for each solute
         for name, cfg in solute_configs.items():
-            if "xylem" in name:
-                numerical_stabilizer = bdd / 100
-            else:
-                numerical_stabilizer = bdd
                 
             buf = solute_buffers[name]
 
             # Static components
-            A = numerical_stabilizer * csc_matrix((buf["data"], (buf["row"], buf["col"])), shape=(elt_number, elt_number))
+            A = csc_matrix((buf["data"], (buf["row"], buf["col"])), shape=(elt_number, elt_number))
             V = np.array(buf["conductive_element_volume"])
             R = np.array(buf["radial_solute_flux"])
             B = buf["boundary_solute_flux_from_shoot"]
@@ -1125,7 +1108,8 @@ class RootNitrogenModel(Model):
             n_max = c_max * V
 
             n_sol_clip = np.clip(n_sol, n_min, n_max)
-            deficit = (n_sol - n_sol_clip).sum()
+            n_sol_clip = (ns0 + n_sol_clip) / 2 # Average the two resulting concentrations for numerical stability and repartition based on deficit
+            deficit = (ns0 + R_total - n_sol_clip).sum()
             if deficit > 0:
                 free = c_max * V - n_sol_clip
                 if free.sum() < deficit:
@@ -1143,7 +1127,7 @@ class RootNitrogenModel(Model):
 
             # Debug print
             # print(name, "mass", n_sol_clip.sum() - (ns0.sum() + self.time_step * R_total.sum()))
-            print(name, n_sol_clip / V)
+            # print(name, n_sol_clip / V)
 
             # Retreive resulting massic concentrations and update MTG props with it
             Cm_sol = n_sol_clip / living_struct_mass
