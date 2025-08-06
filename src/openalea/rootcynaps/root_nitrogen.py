@@ -189,7 +189,7 @@ class RootNitrogenModel(Model):
     storage_protein: float =    declare(default=0., unit="mol.g-1", unit_comment="of storage proteins", description="", 
                                         min_value="", max_value="", value_comment="0 value for wheat", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    xylem_Nm: float =           declare(default=1e-4 / 100, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
+    xylem_Nm: float =           declare(default=1e-4 / 100 / 10, unit="mol.g-1", unit_comment="of structural nitrates", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     xylem_AA: float =           declare(default=1e-4 / 100 / 2, unit="mol.g-1", unit_comment="of amino acids", description="", 

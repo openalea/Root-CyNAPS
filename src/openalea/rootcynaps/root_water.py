@@ -391,8 +391,7 @@ class RootWaterModel(Model):
                     # If no transpiration flux is provided, we take the boundary water potential that is provided
                     if props['water_root_shoot_xylem'][1] is None:
                         p_parent_xylem = props['xylem_pressure_collar'][root]
-                    else:
-                        p_parent_xylem = props['xylem_pressure_collar'][root]
+
                     # else case is treated bellow
                     p_parent_phloem = props['phloem_pressure_collar'][root]
 
@@ -484,10 +483,16 @@ class RootWaterModel(Model):
                         cn.phloem_pressure_in = n.phloem_pressure_in
 
                 # -Gp_xylem
-                minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
-                                    - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
-                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
-                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
+                if props['water_root_shoot_xylem'][1] is None or v != root:
+                    minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
+                                        - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
+                                        - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
+                                        - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
+                else:
+                    minusG[2 * local_vids[v] - 2] = -(props['water_root_shoot_xylem'][1]
+                                        - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
+                                        - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
+                                        - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
                 # -Gp_phloem
                 minusG[2 * local_vids[v] - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
                                     - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
@@ -561,6 +566,9 @@ class RootWaterModel(Model):
                     if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18 * 100
                     if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18 * 100
 
+        collar = self.g.node(root)
+        print(collar.xylem_pressure_in, props['water_root_shoot_xylem'][1])
+        # print(np.mean(list(self.props["xylem_pressure_in"].values())))
                 # Usefull visual checks
                 # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
                 # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
