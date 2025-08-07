@@ -642,11 +642,13 @@ class RootAnatomy(Model):
 
     @actual
     @state
-    def _kr_symplasmic_water_xylem(self, radius, length):
+    def _kr_symplasmic_water_xylem(self, radius, length, relative_conductance_walls):
         kr_eq = 0
-
+        cumulated_parietal_resistance = 0
         for layer in self.cell_layers:
-            kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length)
+            if layer.tissue_name != "phloem":
+                kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length, cumulated_parietal_resistance)
+                cumulated_parietal_resistance += layer.R_apoplasmic_water(radius, length, self.cell_wall_conductivity * relative_conductance_walls)
 
         return kr_eq
     
@@ -659,14 +661,17 @@ class RootAnatomy(Model):
 
     @actual
     @state
-    def _kr_symplasmic_water_phloem(self, radius, length):
+    def _kr_symplasmic_water_phloem(self, radius, length, relative_conductance_walls):
         kr_eq = 0
-
+        
         for layer in self.cell_layers:
             if layer.tissue_name == "phloem":
-                kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length)
+                # Estimate apoplastic resistance between xylem and phloem vessels as that of the stele, approximation
+                stele_parietal_resistance = sum([layer.R_apoplasmic_water(radius, length, self.cell_wall_conductivity * relative_conductance_walls) 
+                                                        for layer in self.cell_layers if layer.tissue_name == "stele"])
+                kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length, stele_parietal_resistance)
 
-        return kr_eq
+        return kr_eq / 10 # TODO / 10 Probably aquaporin density is not the same + parietal resistance was not accounted for, or just numerical compensation?
     
     @totalstate
     def _total_phloem_volume(self, radius, length):
@@ -697,7 +702,7 @@ class RootCellLayer:
         return self.layer_cross_sectional_surface_toRR * (radius ** 2) * length * (1 - self.cell_line_frequency * self.cell_wall_thickness)
     
 
-    def kr_symplasmic_water(self, k_symplasmic_eq, radius, length):
+    def kr_symplasmic_water(self, k_symplasmic_eq, radius, length, cumulated_apoplastic_resistance):
         layer_surface = self.cell_surface(radius, length)
         r_transmembrane = 1 / (self.transmembrane_conductance * layer_surface + k_symplasmic_eq)
         if self.wall_connectivity_with_inner_neighbor == 0:
@@ -705,8 +710,8 @@ class RootCellLayer:
 
         else:
             R_plasmodesmata = 1 / (self.plasmodesmata_conductance * layer_surface * self.wall_connectivity_with_inner_neighbor)
-
-        return 1 / (r_transmembrane + R_plasmodesmata)
+        
+        return 1 / (r_transmembrane + cumulated_apoplastic_resistance + R_plasmodesmata)
     
 
     def R_apoplasmic_water(self, radius, length, cell_wall_conductivity):

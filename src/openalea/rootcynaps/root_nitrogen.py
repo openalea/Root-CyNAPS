@@ -1021,6 +1021,7 @@ class RootNitrogenModel(Model):
                             if water_flux < 0:
                                 buf["boundary_solute_flux_from_shoot"] = - water_flux * cfg["boundary_shoot_solute_concentration"](props)
                             else:
+                                print(name, water_flux, solute_volumic_concentration)
                                 buf["boundary_solute_flux_from_shoot"] = - water_flux * solute_volumic_concentration
                             # else condition to write only if bellow for system mass adjustment is replaced
                     else:

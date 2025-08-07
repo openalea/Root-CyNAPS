@@ -75,7 +75,7 @@ class RootWaterModel(Model):
     xylem_pressure_collar: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="Xylem water pressure at collar", 
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    phloem_pressure_collar: float = declare(default=2e6, unit="Pa", unit_comment="", description="Phloem water potential at collar", 
+    phloem_pressure_collar: float = declare(default=1e6, unit="Pa", unit_comment="", description="Phloem water potential at collar", 
                                             min_value="", max_value="", value_comment="", references="Dinant et al. 2010 for Barley", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     
@@ -98,10 +98,10 @@ class RootWaterModel(Model):
     phloem_water: float = declare(default=0, unit="m3", unit_comment="of water", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    xylem_pressure_in: float = declare(default=-0.01e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
+    xylem_pressure_in: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    xylem_pressure_out: float = declare(default=-0.01e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
+    xylem_pressure_out: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     phloem_pressure_in: float = declare(default=1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance", 
@@ -345,6 +345,7 @@ class RootWaterModel(Model):
     def water_transport_munch(self):
         """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
         is solved by LU decomposition.
+        NOTE : the convention is that IN corresponds to children, young end of a given segment, and OUT refers to parent, old end of a given segment
         """
         # print("water build matrix")
         g = self.g # To prevent repeated MTG lookups
@@ -391,6 +392,10 @@ class RootWaterModel(Model):
                     # If no transpiration flux is provided, we take the boundary water potential that is provided
                     if props['water_root_shoot_xylem'][1] is None:
                         p_parent_xylem = props['xylem_pressure_collar'][root]
+                    else:
+                        shoot_buffering_factor = 0.
+                        redistribution_threshold = 3e-13
+                        p_parent_xylem = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
 
                     # else case is treated bellow
                     p_parent_phloem = props['phloem_pressure_collar'][root]
@@ -483,17 +488,11 @@ class RootWaterModel(Model):
                         cn.phloem_pressure_in = n.phloem_pressure_in
 
                 # -Gp_xylem
-                if props['water_root_shoot_xylem'][1] is None or v != root:
-                    minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
-                                        - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
-                                        - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
-                                        - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
-                else:
-                    minusG[2 * local_vids[v] - 2] = -(props['water_root_shoot_xylem'][1]
-                                        - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
-                                        - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
-                                        - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
-                # -Gp_phloem
+                # if props['water_root_shoot_xylem'][1] is None or v != root:
+                minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem) 
+                                    - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()]) 
+                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
+                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
                 minusG[2 * local_vids[v] - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem) 
                                     - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()]) 
                                     + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
@@ -533,8 +532,16 @@ class RootWaterModel(Model):
                     print("WARNING static phloem pressure")
 
                 if v == root:
-                    n.xylem_pressure_out = props['xylem_pressure_collar'][root]
+                    # Computed twice but cheap
+                    if props['water_root_shoot_xylem'][1] is None:
+                        n.xylem_pressure_out = props['xylem_pressure_collar'][root]
+                    else:
+                        shoot_buffering_factor = 0.
+                        redistribution_threshold = 3e-13
+                        n.xylem_pressure_out = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
+                        
                     n.phloem_pressure_out = props['phloem_pressure_collar'][root]
+
                 else:
                     if v in self.collar_children:
                         p = g.node(root)
@@ -565,10 +572,8 @@ class RootWaterModel(Model):
                     # print(np.abs(n.axial_import_water_down_xylem), np.abs(n.axial_import_water_down_phloem))
                     if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18 * 100
                     if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18 * 100
-
-        collar = self.g.node(root)
-        print(collar.xylem_pressure_in, props['water_root_shoot_xylem'][1])
-        # print(np.mean(list(self.props["xylem_pressure_in"].values())))
+        
+        # print(self.props["xylem_pressure_in"].values())
                 # Usefull visual checks
                 # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
                 # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
