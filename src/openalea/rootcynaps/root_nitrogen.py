@@ -1021,7 +1021,6 @@ class RootNitrogenModel(Model):
                             if water_flux < 0:
                                 buf["boundary_solute_flux_from_shoot"] = - water_flux * cfg["boundary_shoot_solute_concentration"](props)
                             else:
-                                print(name, water_flux, solute_volumic_concentration)
                                 buf["boundary_solute_flux_from_shoot"] = - water_flux * solute_volumic_concentration
                             # else condition to write only if bellow for system mass adjustment is replaced
                     else:
@@ -1267,9 +1266,12 @@ class RootNitrogenModel(Model):
                                                                                             A=self.active_processes_A,
                                                                                             B=self.active_processes_B,
                                                                                             C=self.active_processes_C)
+        C_massic_concentration = C_hexose_average[1] / 6
+        Ni_massic_concentration = C_Nm_average[1]
+
         return total_living_struct_mass[1] * smax_cytok * (
-                C_hexose_average[1] / (C_hexose_average[1] + self.Km_C_cytok)) * (
-                C_Nm_average[1] / (C_Nm_average[1] + self.Km_N_cytok))
+                (C_massic_concentration ** 3) / ((C_massic_concentration ** 3) + (self.Km_C_cytok ** 3))) * (
+                Ni_massic_concentration / (Ni_massic_concentration + self.Km_N_cytok))
 
 
     # @note CONCENTRATIONS UPDATE

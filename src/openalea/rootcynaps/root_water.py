@@ -72,7 +72,7 @@ class RootWaterModel(Model):
     water_root_shoot_xylem: float = declare(default=None, unit="m3.s-1", unit_comment="of water", description="Transpiration related flux at collar", 
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    xylem_pressure_collar: float = declare(default=-0.1e6, unit="Pa", unit_comment="", description="Xylem water pressure at collar", 
+    xylem_pressure_collar: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="Xylem water pressure at collar", 
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     phloem_pressure_collar: float = declare(default=1e6, unit="Pa", unit_comment="", description="Phloem water potential at collar", 
@@ -394,7 +394,8 @@ class RootWaterModel(Model):
                         p_parent_xylem = props['xylem_pressure_collar'][root]
                     else:
                         shoot_buffering_factor = 0.
-                        redistribution_threshold = 3e-13
+                        # redistribution_threshold = 3e-13
+                        redistribution_threshold = 0
                         p_parent_xylem = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
 
                     # else case is treated bellow
@@ -537,7 +538,8 @@ class RootWaterModel(Model):
                         n.xylem_pressure_out = props['xylem_pressure_collar'][root]
                     else:
                         shoot_buffering_factor = 0.
-                        redistribution_threshold = 3e-13
+                        # redistribution_threshold = 3e-13
+                        redistribution_threshold = 0
                         n.xylem_pressure_out = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
                         
                     n.phloem_pressure_out = props['phloem_pressure_collar'][root]
