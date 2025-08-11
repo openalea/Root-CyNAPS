@@ -337,8 +337,8 @@ class RootNitrogenModel(Model):
     C_hexose_average: float =               declare(default=0., unit="mol.g-1", unit_comment="of hexose", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    total_cytokinins: float =           declare(default=250, unit="UA", unit_comment="of cytokinins", description="",
-                                                min_value="", max_value="", value_comment="", references="", DOI="",
+    total_cytokinins: float =           declare(default=8.6, unit="UA", unit_comment="of cytokinins", description="",
+                                                min_value="", max_value="", value_comment="", references="CN-Wheat", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     C_xylem_Nm_average: float =             declare(default=0., unit="mol", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
