@@ -166,6 +166,53 @@ class RootWaterModel(Model):
                                    min_value="", max_value="", value_comment="taken same as xylem", references="Miller, 1985a; Bauget et al., 2023", DOI="",
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
 
+    # Helpers to keep labels intergers
+    label_Segment: int = declare(default=1, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    label_Apex: int = declare(default=2, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    
+    
+    # Helpers to keep types intergers
+    type_Base_of_the_root_system: int = declare(default=1, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Support_for_seminal_root: int = declare(default=2, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Seminal_root_before_emergence: int = declare(default=3, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Support_for_adventitious_root: int = declare(default=4, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Adventitious_root_before_emergence: int = declare(default=5, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Normal_root_before_emergence: int = declare(default=6, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Normal_root_after_emergence: int = declare(default=7, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Stopped: int = declare(default=8, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Just_stopped: int = declare(default=9, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Dead: int = declare(default=10, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Just_dead: int = declare(default=11, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    type_Root_nodule: int = declare(default=12, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
+    
 
     def __init__(self, g, time_step, **scenario):
         """
@@ -195,9 +242,9 @@ class RootWaterModel(Model):
         self.collar_children, self.collar_skip = [], []
         for vid in self.vertices:
             children = self.g.children(vid)
-            if self.type[vid] in ('Support_for_seminal_root', 'Support_for_adventitious_root') and children:
+            if self.type[vid] in (self.type_Support_for_seminal_root, self.type_Support_for_adventitious_root) and children:
                 self.collar_skip += [vid]
-                self.collar_children += [k for k in children if self.type[k] not in ('Support_for_seminal_root', 'Support_for_adventitious_root')]
+                self.collar_children += [k for k in children if self.type[k] not in (self.type_Support_for_seminal_root, self.type_Support_for_adventitious_root)]
 
     @potential
     @rate

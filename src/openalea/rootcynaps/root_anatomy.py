@@ -75,10 +75,10 @@ class RootAnatomy(Model):
                             variable_type="plant_scale_state", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
     xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
                                              min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variables", by="model_anatomy", state_variable_type="descriptor", edit_by="user")
+                                             variable_type="state_variable", by="model_anatomy", state_variable_type="descriptor", edit_by="user")
     phloem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
                                              min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variables", by="model_anatomy", state_variable_type="descriptor", edit_by="user")
+                                             variable_type="state_variable", by="model_anatomy", state_variable_type="descriptor", edit_by="user")
 
     # Differentiation factors
     relative_conductance_walls: float = declare(default=1., unit="dimensionless", unit_comment="", description="The cell wall conductivity factor for apex special case", 
@@ -266,6 +266,53 @@ class RootAnatomy(Model):
                                                     (1370,)), # Not seen on the images, so set to equal frequency of metaxylem as it is also a vessel of similar radius 
                                                 unit=".m-1", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+
+    # Helpers to keep labels intergers
+    label_Segment: int = declare(default=1, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    label_Apex: int = declare(default=2, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    
+    
+    # Helpers to keep types intergers
+    type_Base_of_the_root_system: int = declare(default=1, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Support_for_seminal_root: int = declare(default=2, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Seminal_root_before_emergence: int = declare(default=3, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Support_for_adventitious_root: int = declare(default=4, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Adventitious_root_before_emergence: int = declare(default=5, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Normal_root_before_emergence: int = declare(default=6, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Normal_root_after_emergence: int = declare(default=7, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Stopped: int = declare(default=8, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Just_stopped: int = declare(default=9, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Dead: int = declare(default=10, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Just_dead: int = declare(default=11, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+    type_Root_nodule: int = declare(default=12, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
 
 
     def __init__(self, g, time_step_in_seconds: int, **scenario: dict):

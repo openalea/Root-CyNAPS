@@ -15,6 +15,7 @@ Methods' names are systematic through all class for ease of use :
 # Imports
 import numpy as np
 from dataclasses import dataclass
+import time
 
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *
@@ -118,7 +119,7 @@ class RootNitrogenModel(Model):
                                                 variable_type="input", by="model_water", state_variable_type="", edit_by="user")
 
     # FROM GROWTH MODEL
-    type: str = declare(default="Normal_root_after_emergence", unit="", unit_comment="", description="Example segment type provided by root growth model", 
+    type: int = declare(default=1, unit="", unit_comment="", description="Example segment type provided by root growth model", 
                        min_value="", max_value="", value_comment="", references="", DOI="",
                         variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     length: float =                     declare(default=0, unit="m", unit_comment="of root segment", description="", 
@@ -589,6 +590,53 @@ class RootNitrogenModel(Model):
                                                     min_value="", max_value="", value_comment="", references="We assume that the structural mass contains 1.5% of N. (Barillot et al. 2016)", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
     
+    # Helpers to keep labels intergers
+    label_Segment: int = declare(default=1, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    label_Apex: int = declare(default=2, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    
+    
+    # Helpers to keep types intergers
+    type_Base_of_the_root_system: int = declare(default=1, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Support_for_seminal_root: int = declare(default=2, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Seminal_root_before_emergence: int = declare(default=3, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Support_for_adventitious_root: int = declare(default=4, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Adventitious_root_before_emergence: int = declare(default=5, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Normal_root_before_emergence: int = declare(default=6, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Normal_root_after_emergence: int = declare(default=7, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Stopped: int = declare(default=8, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Just_stopped: int = declare(default=9, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Dead: int = declare(default=10, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Just_dead: int = declare(default=11, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    type_Root_nodule: int = declare(default=12, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+
     # DEFINE WHICH SOLUTES WILL BE TRANSPORTED IN CONDUCTIVE ELEMENTS
     solute_configs = {
     "xylem_Nm": {
@@ -947,6 +995,7 @@ class RootNitrogenModel(Model):
         Transient resolution of solute advection
         Rewoked to rely on external definition of solutes and related properties, so we ensure it is easily appended
         """
+        t1 = time.time()
         g = self.g
         props = g.properties()
         struct_mass = g.property('struct_mass')
@@ -1135,6 +1184,9 @@ class RootNitrogenModel(Model):
             assert not np.any(Cm_sol < 0)
             props[cfg["solute_massic_concentration_prop"]].update(dict(zip(local_vids.keys(), Cm_sol)))
 
+        t2 = time.time()
+        print("axial time", t2 - t1)
+
 
     # METABOLIC PROCESSES
     @rate
@@ -1186,7 +1238,7 @@ class RootNitrogenModel(Model):
 
     @rate
     def _nitrogenase_fixation(self, type, living_struct_mass, C_hexose_root, Nm, soil_temperature):
-        if type == "Root_nodule":
+        if type == self.type_Root_nodule:
             # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
             vmax_bnf = (self.vmax_bnf / (1 + (Nm / self.K_bnf_Nm_inibition))) * self.temperature_modification(soil_temperature=soil_temperature,
                                                                                                             T_ref=self.active_processes_T_ref,
