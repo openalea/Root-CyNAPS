@@ -681,14 +681,16 @@ class RootNitrogenModel(Model):
         Parameters
         :param g: MTG
         """
+        # Before any other operation, we apply the provided scenario by changing default parameters and initialization
+        self.apply_scenario(**scenario)
+        
+
         self.g = g
         self.props = self.g.properties()
         self.time_step = time_step
         self.choregrapher.add_time_and_data(instance=self, sub_time_step=self.time_step, data=self.props)
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
-        # Before any other operation, we apply the provided scenario by changing default parameters and initialization
-        self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
 
@@ -738,7 +740,7 @@ class RootNitrogenModel(Model):
 
         # Then we account for low affinity transporters which account for a large part of the uptake in high concentration domains
         # Km_LATS_Nm_root = self.Km_Nm_root_LATS * self.Km_LATS_Nm_slope_modifier * np.exp( - self.Km_LATS_Nm_regulation_speed * Nm) # TODO : Ask Romain if also chosen out of Siddiqi et al. 1990
-        Km_LATS_Nm_root = max(0, self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
+        Km_LATS_Nm_root = np.maximum(0., self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
         
         import_Nm_LATS = Km_LATS_Nm_root * soil_Nm
 
@@ -784,7 +786,7 @@ class RootNitrogenModel(Model):
         
         # Then we account for low affinity transporters which account for a large part of the uptake in high concentration domains
         # Km_LATS_Nm_root = self.Km_Nm_root_LATS * self.Km_LATS_Nm_slope_modifier * np.exp( - self.Km_LATS_Nm_regulation_speed * Nm) # TODO : Ask Romain if also chosen out of Siddiqi et al. 1990
-        Km_LATS_Nm_root = max(0, self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
+        Km_LATS_Nm_root = np.maximum(0., self.Km_LATS_Nm_decrease_slope * Nm + self.Km_LATS_Nm_origin) #: Rate constant for nitrates influx at High soil N concentration; LATS linear phase
         
         import_Nm_LATS = Km_LATS_Nm_root * soil_Nm
 
@@ -802,26 +804,23 @@ class RootNitrogenModel(Model):
 
     def root_nitrate_lognorm_regulation(self, x, A, mu, sigma):
         result = A / (x * sigma * np.sqrt(2 * np.pi)) * np.exp(-(np.log(x) - mu)**2 / (2 * sigma**2))
-        if np.isnan(result) or np.isinf(result):
-            return 0
-        else:
-            return max(result, 0.)
+        return np.where((np.isnan(result)) | (np.isinf(result)), 0., np.maximum(result, 0.))
         
 
     @rate
     def _diffusion_Nm_soil(self, Nm, soil_Nm, root_exchange_surface, living_struct_mass, symplasmic_volume, soil_temperature):
-        if symplasmic_volume <= 0:
-            return 0.
-        else:
-            # Passive radial diffusion between soil and cortex.
-            # It happens only through root segment external surface.
-            # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
-            diffusion_soil = self.diffusion_soil * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.passive_processes_T_ref,
-                                                                     A=self.passive_processes_A,
-                                                                     B=self.passive_processes_B,
-                                                                     C=self.passive_processes_C)
-            return (diffusion_soil * ((Nm * living_struct_mass / symplasmic_volume) - soil_Nm) * root_exchange_surface)
+        
+        # Passive radial diffusion between soil and cortex.
+        # It happens only through root segment external surface.
+        # We summarize apoplasm-soil and cortex-soil diffusion in 1 flow.
+        diffusion_soil = self.diffusion_soil * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.passive_processes_T_ref,
+                                                                    A=self.passive_processes_A,
+                                                                    B=self.passive_processes_B,
+                                                                    C=self.passive_processes_C)
+        
+        return np.where(symplasmic_volume <= 0., 0.,
+                        (diffusion_soil * ((Nm * living_struct_mass / np.where(symplasmic_volume <= 0., 1., symplasmic_volume)) - soil_Nm) * root_exchange_surface)) # Nested where to safegard from / 0 , does not yield in results
 
     @rate
     def _export_Nm(self, Nm, xylem_exchange_surface, soil_temperature, C_hexose_root=1e-4):
@@ -849,34 +848,22 @@ class RootNitrogenModel(Model):
 
     @rate
     def _apoplastic_Nm_soil_xylem(self, import_Nm, diffusion_Nm_soil, soil_Nm, xylem_Nm, radius, radial_import_water_xylem_apoplastic, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
-        if xylem_volume <= 0.:
-            return 0.
-        else:
-            if endodermis_conductance_factor != 0:
-                # If water is imported from the soil
-                if radial_import_water_xylem_apoplastic > 0:
-                    advection_process = - soil_Nm * radial_import_water_xylem_apoplastic # Here we compure a flux leaving the segment, but here it enters
-
-                # this is an outflow
-                else:
-                    advection_process = 0 # Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
-                    # advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
                 
-                # advection_process = min(0, advection_process)
+        # advection_process = - (xylem_Nm * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
+        advection_process = np.where(radial_import_water_xylem_apoplastic > 0, - soil_Nm * radial_import_water_xylem_apoplastic, # Here we compure a flux leaving the segment, but here it enters
+                                     0.)# Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
+        
+        # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+        # Here, surface is not really representative of a structure as everything is apoplasmic
+        diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                T_ref=self.passive_processes_T_ref,
+                                                                A=self.passive_processes_A,
+                                                                B=self.passive_processes_B,
+                                                                C=self.passive_processes_C)
+        diffusion_process = diffusion_apoplasm * (xylem_Nm * living_struct_mass / np.where(xylem_volume <=0, 1., xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
-                # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-                # Here, surface is not really representative of a structure as everything is apoplasmic
-                diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                        T_ref=self.passive_processes_T_ref,
-                                                                        A=self.passive_processes_A,
-                                                                        B=self.passive_processes_B,
-                                                                        C=self.passive_processes_C)
-                diffusion_process = diffusion_apoplasm * (xylem_Nm * living_struct_mass / xylem_volume - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
-                # print(advection_process, diffusion_process)
-                return advection_process + diffusion_process
-
-            else:
-                return 0.
+        return np.where((xylem_volume <= 0.) | (endodermis_conductance_factor == 0), 0.,
+                        advection_process + diffusion_process)
 
 
     # AMINO ACID TRANSPORT
@@ -893,16 +880,17 @@ class RootNitrogenModel(Model):
 
     @rate
     def _diffusion_AA_soil(self, AA, soil_AA, root_exchange_surface, living_struct_mass, symplasmic_volume, soil_temperature):
-        if symplasmic_volume <= 0:
-            return 0.
-        else:
-            # We define amino acid passive diffusion to soil
-            diffusion_soil = self.diffusion_soil * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.passive_processes_T_ref,
-                                                                     A=self.passive_processes_A,
-                                                                     B=self.passive_processes_B,
-                                                                     C=self.passive_processes_C)
-            return (diffusion_soil * ((AA * living_struct_mass / symplasmic_volume) - soil_AA) * root_exchange_surface )
+
+        # We define amino acid passive diffusion to soil
+        diffusion_soil = self.diffusion_soil * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.passive_processes_T_ref,
+                                                                    A=self.passive_processes_A,
+                                                                    B=self.passive_processes_B,
+                                                                    C=self.passive_processes_C)
+        
+        return np.where(symplasmic_volume <= 0., 0.,
+                        (diffusion_soil * ((AA * living_struct_mass / np.where(symplasmic_volume <= 0., 1., symplasmic_volume)) - soil_AA) * root_exchange_surface ))        
+
 
     @rate
     def _export_AA(self, AA, xylem_exchange_surface, soil_temperature, C_hexose_root=1e-4):
@@ -919,55 +907,43 @@ class RootNitrogenModel(Model):
 
     @rate
     def _apoplastic_AA_soil_xylem(self, import_AA, diffusion_AA_soil, soil_AA, xylem_AA, radius, length, radial_import_water_xylem_apoplastic, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
-        if xylem_volume <= 0:
-            return 0.
-        else:
-            if endodermis_conductance_factor != 0:
-                # If water is imported from the soil
-                if radial_import_water_xylem_apoplastic > 0:
-                    advection_process = - soil_AA * radial_import_water_xylem_apoplastic # Here we compure a flux leaving the segment, but here it enters
-                    # A corrective depending on what was actively uptaken along the way was also applied
-                # this is an outflow
-                else:
-                    advection_process = 0 # Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
-                    # advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
 
-                # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-                diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                        T_ref=self.passive_processes_T_ref,
-                                                                        A=self.passive_processes_A,
-                                                                        B=self.passive_processes_B,
-                                                                        C=self.passive_processes_C)
-                diffusion_process = diffusion_apoplasm * (xylem_AA * living_struct_mass / xylem_volume - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+        # If water is imported from the soil
+        advection_process = np.where(radial_import_water_xylem_apoplastic > 0, - soil_AA * radial_import_water_xylem_apoplastic, # Here we compure a flux leaving the segment, but here it enters
+                                     0.) # Since we don't account for apoplasm, in this situation instead of a direct outflow to soil, we expect that this would be reuptaken by the root
+        # advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
 
-                return advection_process + diffusion_process
+        # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
+        diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                T_ref=self.passive_processes_T_ref,
+                                                                A=self.passive_processes_A,
+                                                                B=self.passive_processes_B,
+                                                                C=self.passive_processes_C)
+        diffusion_process = diffusion_apoplasm * (xylem_AA * living_struct_mass / np.where(xylem_volume <= 0., 1., xylem_volume) - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
-            else:
-                return 0.
+        return np.where((xylem_volume <= 0) | (endodermis_conductance_factor == 0), 0.,
+                        advection_process + diffusion_process)
             
             
     @rate
     def _diffusion_AA_phloem(self, hexose_consumption_by_growth, AA, phloem_AA, phloem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, phloem_volume):
         """ Passive radial diffusion between phloem and cortex through plasmodesmata """
-        Cv_AA_phloem = (phloem_AA * living_struct_mass) / phloem_volume
-        
-        if Cv_AA_phloem <= (AA * living_struct_mass) / symplasmic_volume / 2.:
-                return 0
-    
-        else:
+        Cv_AA_phloem = (phloem_AA * living_struct_mass) / np.where(phloem_volume <=0., 1., phloem_volume)
 
-            AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
+        AA_consumption_by_growth = (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA
 
-            diffusion_phloem = self.diffusion_phloem * (1 + (AA_consumption_by_growth / living_struct_mass) / self.reference_rate_of_AA_consumption_by_growth)
+        diffusion_phloem = self.diffusion_phloem * (1 + (AA_consumption_by_growth / living_struct_mass) / self.reference_rate_of_AA_consumption_by_growth)
 
-            diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
-                                                                        T_ref=self.passive_processes_T_ref,
-                                                                        A=self.passive_processes_A,
-                                                                        B=self.passive_processes_B,
-                                                                        C=self.passive_processes_C)
+        diffusion_phloem *= self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.passive_processes_T_ref,
+                                                                    A=self.passive_processes_A,
+                                                                    B=self.passive_processes_B,
+                                                                    C=self.passive_processes_C)
 
-            return diffusion_phloem * (max(0, (phloem_AA * living_struct_mass) / phloem_volume) - max(0, (AA * living_struct_mass) / symplasmic_volume)) * phloem_exchange_surface
-        
+        return np.where((phloem_volume <= 0.) | (symplasmic_volume <= 0.) | (Cv_AA_phloem <= (AA * living_struct_mass) / symplasmic_volume / 2.), 0.,
+                        diffusion_phloem * (np.maximum(0, (phloem_AA * living_struct_mass) / np.where(phloem_volume <= 0., 1., phloem_volume)) 
+                                            - np.maximum(0, (AA * living_struct_mass) / np.where(symplasmic_volume <= 0., 1., symplasmic_volume))) * phloem_exchange_surface)
+
 
     @rate
     def _unloading_AA_phloem(self, phloem_AA, hexose_consumption_by_growth, phloem_exchange_surface, soil_temperature, living_struct_mass, phloem_volume, symplasmic_volume):
@@ -984,7 +960,7 @@ class RootNitrogenModel(Model):
                                                             B=self.active_processes_B,
                                                             C=self.active_processes_C)
         
-        return min(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+        return np.minimum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
                     self.km_unloading_AA_phloem + phloem_AA), phloem_AA * living_struct_mass / 2)
 
 
@@ -995,7 +971,7 @@ class RootNitrogenModel(Model):
         Transient resolution of solute advection
         Rewoked to rely on external definition of solutes and related properties, so we ensure it is easily appended
         """
-        t1 = time.time()
+        # t1 = time.time()
         g = self.g
         props = g.properties()
         struct_mass = g.property('struct_mass')
@@ -1184,25 +1160,25 @@ class RootNitrogenModel(Model):
             assert not np.any(Cm_sol < 0)
             props[cfg["solute_massic_concentration_prop"]].update(dict(zip(local_vids.keys(), Cm_sol)))
 
-        t2 = time.time()
-        print("axial time", t2 - t1)
+        # t2 = time.time()
+        # print("axial time", t2 - t1)
 
 
     # METABOLIC PROCESSES
     @rate
     def _AA_synthesis(self, living_struct_mass, Nm, soil_temperature, C_hexose_root=1e-4):
         # amino acid synthesis
-        if C_hexose_root > 0 and Nm > 0:
-            smax_AA = self.smax_AA * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.active_processes_T_ref,
-                                                                     A=self.active_processes_A,
-                                                                     B=self.active_processes_B,
-                                                                     C=self.active_processes_C)
-            return living_struct_mass * smax_AA / (
-                    ((1 + self.Km_Nm_AA) / Nm) + ((1 + self.Km_C_AA) / C_hexose_root))
-        else:
-            return 0
+        smax_AA = self.smax_AA * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                    T_ref=self.active_processes_T_ref,
+                                                                    A=self.active_processes_A,
+                                                                    B=self.active_processes_B,
+                                                                    C=self.active_processes_C)
+
+        return np.where((C_hexose_root <= 0) | (Nm <= 0), 0.,
+                        living_struct_mass * smax_AA / (
+                    ((1 + self.Km_Nm_AA) / np.where(Nm <= 0., 1., Nm)) + ((1 + self.Km_C_AA) / np.where(C_hexose_root <= 0., 1., C_hexose_root))))
         
+
     @rate
     def _storage_synthesis(self, living_struct_mass, AA, soil_temperature):
         # Organic storage synthesis (Michaelis-Menten kinetic)
@@ -1212,6 +1188,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         return living_struct_mass * (smax_stor * AA / (self.Km_AA_stor + AA))
+
 
     @rate
     def _storage_catabolism(self, living_struct_mass, storage_protein, soil_temperature, C_hexose_root=1e-4):
@@ -1223,6 +1200,7 @@ class RootNitrogenModel(Model):
                                                                      B=self.active_processes_B,
                                                                      C=self.active_processes_C)
         return living_struct_mass * cmax_stor * storage_protein / (Km_stor_root + storage_protein)
+
 
     @rate
     def _AA_catabolism(self, living_struct_mass, AA, soil_temperature, C_hexose_root=1e-4):
@@ -1238,19 +1216,19 @@ class RootNitrogenModel(Model):
 
     @rate
     def _nitrogenase_fixation(self, type, living_struct_mass, C_hexose_root, Nm, soil_temperature):
-        if type == self.type_Root_nodule:
-            # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
-            vmax_bnf = (self.vmax_bnf / (1 + (Nm / self.K_bnf_Nm_inibition))) * self.temperature_modification(soil_temperature=soil_temperature,
-                                                                                                            T_ref=self.active_processes_T_ref,
-                                                                                                            A=self.active_processes_A,
-                                                                                                            B=self.active_processes_B,
-                                                                                                            C=self.active_processes_C)
-            # Michaelis-Menten formalism
-            return living_struct_mass * vmax_bnf * C_hexose_root / (self.Km_hexose_bnf + C_hexose_root)
-        else:
-            return 0.
+
+        # We model nitrogenase expression repression by higher nitrogen availability through an inibition law
+        vmax_bnf = (self.vmax_bnf / (1 + (Nm / self.K_bnf_Nm_inibition))) * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                                                        T_ref=self.active_processes_T_ref,
+                                                                                                        A=self.active_processes_A,
+                                                                                                        B=self.active_processes_B,
+                                                                                                        C=self.active_processes_C)
+        # Michaelis-Menten formalism
+        return np.where(type != self.type_Root_nodule, 0., 
+                        living_struct_mass * vmax_bnf * C_hexose_root / (self.Km_hexose_bnf + C_hexose_root))
         
-    @state
+
+    # @state
     def _mycorrhiza_infected_length(self, vertex_index, mycorrhiza_infected_length, distance_from_tip, struct_mass_fungus, length):
         """
         From Scnepf et al 2016, modified with distance from tip here to avoid not computed root age
@@ -1260,7 +1238,7 @@ class RootNitrogenModel(Model):
 
         if mycorrhiza_infected_length < length:
             # If a progress of infection is still possible
-            local_infection_probability = max(1 - distance_from_tip / self.mycorrhiza_max_distance_from_tip, 0.) * (
+            local_infection_probability = np.maximum(1 - distance_from_tip / self.mycorrhiza_max_distance_from_tip, 0.) * (
                 self.mycorrhiza_infection_probability * struct_mass_fungus * length * self.time_step)
             
             if (np.random.random() < local_infection_probability and mycorrhiza_infected_length + (2 * self.mycorrhiza_internal_infection_speed * self.time_step) < length) or (
@@ -1330,78 +1308,56 @@ class RootNitrogenModel(Model):
 
     @state
     # UPDATE NITROGEN POOLS
-    def _Nm(self, vertex_index, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm):
-        if living_struct_mass > 0:
-            balance = Nm + (self.time_step / living_struct_mass) * (
-                    import_Nm
-                    + mycorrhizal_mediated_import_Nm
-                    - diffusion_Nm_soil
-                    + diffusion_Nm_xylem
-                    - export_Nm
-                    - AA_synthesis * self.r_Nm_AA
-                    + AA_catabolism / self.r_Nm_AA
-                    + nitrogenase_fixation
-                    - deficit_Nm)
+    def _Nm(self, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, 
+            export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm) -> tuple[float, str, float]:
+    
+        balance = Nm + (self.time_step / living_struct_mass) * (
+                import_Nm
+                + mycorrhizal_mediated_import_Nm
+                - diffusion_Nm_soil
+                + diffusion_Nm_xylem
+                - export_Nm
+                - AA_synthesis * self.r_Nm_AA
+                + AA_catabolism / self.r_Nm_AA
+                + nitrogenase_fixation
+                - deficit_Nm)
             
-            # if debug: print(vertex_index, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm)
-            
-            if balance < 0.:
-                if debug: print("Deficit Nm for", vertex_index)
-                if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
-                deficit = - balance * (living_struct_mass) / self.time_step
-                self.props["deficit_Nm"][vertex_index] = deficit if deficit > 1e-20 else 0.
-                return 0.
-            else:
-                self.props["deficit_Nm"][vertex_index] = 0.
-                return balance
-        else:
-            return 0
+        deficit = - balance * living_struct_mass / self.time_step
+        deficit = np.where(deficit > 1e-20, deficit, 0.)
+        balance = np.maximum(balance, 0.)
+
+        return balance, 'deficit_Nm', deficit
 
 
     @state
-    def _AA(self, vertex_index, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
-                  hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA):
+    def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+                  hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
-        if living_struct_mass > 0:
-            balance =  AA + (self.time_step / living_struct_mass) * (
-                    diffusion_AA_phloem
-                    + unloading_AA_phloem
-                    + import_AA
-                    - diffusion_AA_soil
-                    - export_AA
-                    + AA_synthesis
-                    - (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA # replaces amino_acids_consumption_by_growth
-                    - storage_synthesis * self.r_AA_stor
-                    + storage_catabolism / self.r_AA_stor
-                    - AA_catabolism
-                    - deficit_AA)
-            
-            # if hexose_consumption_by_growth > 0:
-            #     if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
+        balance =  AA + (self.time_step / living_struct_mass) * (
+                diffusion_AA_phloem
+                + unloading_AA_phloem
+                + import_AA
+                - diffusion_AA_soil
+                - export_AA
+                + AA_synthesis
+                - (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA # replaces amino_acids_consumption_by_growth
+                - storage_synthesis * self.r_AA_stor
+                + storage_catabolism / self.r_AA_stor
+                - AA_catabolism
+                - deficit_AA)
 
-            if balance < 0.:
-                if debug: print("Deficit AA for", vertex_index)
-                if debug: print(', '.join(f"{k}: {v}" for k, v in locals().items() if k != 'self'))
-                deficit = - balance * (living_struct_mass) / self.time_step
-                self.props["deficit_AA"][vertex_index] = deficit if deficit > 1e-20 else 0.
-                return 0.
-            else:
-                self.props["deficit_AA"][vertex_index] = 0.
-                return balance
+        deficit = - balance * living_struct_mass / self.time_step
+        deficit = np.where(deficit > 1e-20, deficit, 0.)
+        balance = np.maximum(balance, 0.)
 
-        else:
-            return 0
+        return balance, 'deficit_AA', deficit
 
 
     @state
     def _storage_protein(self, storage_protein, living_struct_mass, storage_synthesis, storage_catabolism):
-        if living_struct_mass > 0:
-            return storage_protein + (self.time_step / living_struct_mass) * (
-                    storage_synthesis
-                    - storage_catabolism
-            )
-        else:
-            return 0
+        return storage_protein + (self.time_step / living_struct_mass) * (
+                storage_synthesis
+                - storage_catabolism)
 
 
     @state

@@ -222,14 +222,15 @@ class RootWaterModel(Model):
         Hypothesis :
         Accounting for heterogeneous water flows would improbe the overall nutrient balance for root hydromineral uptake.
         """
+        # Before any other operation, we apply the provided scenario by changing default parameters and initialization
+        self.apply_scenario(**scenario)
+
         self.g = g
         self.props = self.g.properties()
         self.time_step = time_step
         self.choregrapher.add_time_and_data(instance=self, sub_time_step=self.time_step, data=self.props)
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
-        # Before any other operation, we apply the provided scenario by changing default parameters and initialization
-        self.apply_scenario(**scenario)
         self.link_self_to_mtg()
 
 
@@ -273,7 +274,7 @@ class RootWaterModel(Model):
         # print("frac",  C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
         # print(sap_viscosity)
-        return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
+        return np.sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
 
 
     def phloem_sap_viscosity(self, solute_volumetric_fraction, soil_temperature_Kelvin):
@@ -328,7 +329,7 @@ class RootWaterModel(Model):
         # Equivalent conductance computation from tip to collar
         for v in post_order2(g, root):
             n = g.node(v)
-            if n.living_struct_mass > 0.:
+            if n.struct_mass > 0.:
                 if v == root:
                     children = self.collar_children
                 else:
