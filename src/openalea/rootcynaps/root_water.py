@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
 from openalea.mtg.traversal import post_order2, pre_order2
@@ -388,13 +389,14 @@ class RootWaterModel(Model):
                     n.axial_import_water_down_xylem = 0
 
 
-    @actual
-    @rate
+    # @actual
+    # @rate
     def water_transport_munch(self):
         """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
         is solved by LU decomposition.
         NOTE : the convention is that IN corresponds to children, young end of a given segment, and OUT refers to parent, old end of a given segment
         """
+        t1 = time.time()
         # print("water build matrix")
         g = self.g # To prevent repeated MTG lookups
         props = self.props
@@ -557,10 +559,12 @@ class RootWaterModel(Model):
         if debug: assert len(row) == 8 * elt_number - 4
 
         # Solving the system using sparse LU
+        t2 = time.time()
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
         # print("water solve")
         solve = linalg.splu(J)
         dY = solve.solve(minusG)
+        t3 = time.time()
 
         # print("water applies")
         # We apply results from collar to tips
@@ -627,13 +631,230 @@ class RootWaterModel(Model):
                 # Usefull visual checks
                 # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
                 # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
+        t4 = time.time()
+        print("solve : ", t3 - t2, "% :", (t3 - t2)/ (t4 - t1), "total : ", t4 - t1, t2 - t1, t4 - t3)
         # print("finished")
+
+
+    @actual
+    @rate
+    def water_transport_munch_arrays(self):
+        """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
+        is solved by LU decomposition.
+        NOTE : the convention is that IN corresponds to children, young end of a given segment, and OUT refers to parent, old end of a given segment
+        """
+
+        g = self.g
+        props = self.props
+        vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
+        root_vid = 1
+        root = 0
+
+        # 1) Focus set: vertex IDs and their global indices
+        focus_vids  = np.asarray(props["focus_elements"], dtype=np.int64)        # (n,)
+        focus_glob_idx  = vertex_index.indices_of(props["focus_elements"])                 # (n,)
+
+        n = focus_vids.size
+
+        # 2) Global→Local map: from global *index* to local [0..n-1]
+        global2local = np.full(vertex_index.size, -1, dtype=np.int64)    # -1 means “not in focus set”
+        global2local[focus_glob_idx] = np.arange(n, dtype=np.int64)
+
+        # 3) Parent ids (global vertex IDs), aligned to *global* order
+        parent_vid_focus = props["parent_id"].values_array() # NOTE : Not global, already computed just for focus elements, use bellow when properly initialized by -1
+
+        # For focus only: parent vids aligned to local order
+        # parent_vid_focus  = parent_vid_global[focus_glob_idx]                        # (n,)
+        has_parent = parent_vid_focus >= 0                                # (n,) bool
+
+        # 4) Compute local parent indices for the focus set
+        parent_idx = np.full(n, -1, dtype=np.int64)                              # default: -1 (root/boundary)
+
+        # Map those parent vids → global indices → local indices
+        parent_glob_idx = vertex_index.indices_of(parent_vid_focus[has_parent]).astype(np.int64)  # (m,)
+        parent_loc  = global2local[parent_glob_idx]                                              # (m,) may be -1 if parent outside focus
+        child_loc   = np.flatnonzero(has_parent)                                    # (m,)
+
+        # Keep only edges whose parent is also in the focus set
+        valid = parent_loc >= 0
+        parent_idx[child_loc[valid]] = parent_loc[valid]
+
+        # 5) Edge arrays (purely local, no negatives)
+        children = np.flatnonzero(parent_idx >= 0).astype(np.int64)              # (m_edges,)
+        parents  = parent_idx[children]                                          # (m_edges,)
+        
+        # Pull arrays fast (aligned with local vids)
+        K_xylem = props['K_xylem'].values_array()[focus_glob_idx]
+        K_phloem = props['K_phloem'].values_array()[focus_glob_idx]
+        kr_symplasmic_water_xylem = props['kr_symplasmic_water_xylem'].values_array()[focus_glob_idx]
+        kr_apoplastic_water_xylem = props['kr_apoplastic_water_xylem'].values_array()[focus_glob_idx]
+        kr_symplasmic_water_phloem = props['kr_symplasmic_water_phloem'].values_array()[focus_glob_idx]
+        xylem_pressure_in = props['xylem_pressure_in'].values_array()[focus_glob_idx]
+        phloem_pressure_in = props['phloem_pressure_in'].values_array()[focus_glob_idx]
+        soil_water_pressure = props['soil_water_pressure'].values_array()[focus_glob_idx]
+        soil_temperature = props['soil_temperature'].values_array()[focus_glob_idx]
+        Cv_solutes_soil = props['Cv_solutes_soil'].values_array()[focus_glob_idx]
+        xylem_volume = props['xylem_volume'].values_array()
+        Cv_solutes_xylem = np.where(xylem_volume > 0., props['C_solutes_xylem'].values_array() * props['living_struct_mass'].values_array()
+                / np.where(xylem_volume > 0., xylem_volume, 1.), 0.)[focus_glob_idx]
+        phloem_volume = props['phloem_volume'].values_array()
+        Cv_solutes_phloem = np.where(phloem_volume > 0., props['C_solutes_phloem'].values_array() * props['living_struct_mass'].values_array()
+                / np.where(phloem_volume > 0, phloem_volume, 1.), 0.)[focus_glob_idx]
+
+
+        # Pattern (build once per topology / time step when growing)
+        i = np.arange(n, dtype=np.int64)
+
+        rows = []
+        cols = []
+        slices = {}
+        
+        # PREPARE structure for non zero data, using slices to point arrays with the right size in the resulting "data" array created bellow
+        # diagonal/cross entries per node
+        off = 0
+        rows.append(2*i);   cols.append(2*i);     slices['diag_xylem'] = slice(off, off+n); off += n
+        rows.append(2*i+1); cols.append(2*i+1);   slices['diag_phloem'] = slice(off, off+n); off += n
+        rows.append(2*i);   cols.append(2*i+1);   slices['cross_xylem_over_phloem'] = slice(off, off+n); off += n
+        rows.append(2*i+1); cols.append(2*i);     slices['cross_phloem_over_xylem'] = slice(off, off+n); off += n
+
+        # parent couplings (child row, parent col)
+        m = children.size
+        rows.append(2*children);   cols.append(2*parents);     slices['parent_xylem'] = slice(off, off+m); off += m
+        rows.append(2*children+1); cols.append(2*parents+1);   slices['parent_phloem'] = slice(off, off+m); off += m
+
+        # children couplings (parent row, child col), handles numerous children right
+        rows.append(2*parents);   cols.append(2*children);     slices['children_xylem'] = slice(off, off+m); off += m
+        rows.append(2*parents+1); cols.append(2*children+1);   slices['children_parent'] = slice(off, off+m); off += m
+
+        row = np.concatenate(rows).astype(np.int32, copy=False)
+        col = np.concatenate(cols).astype(np.int32, copy=False)
+
+        # Boundary # TODO uncomplete!
+        # If no transpiration flux is provided, we take the boundary water potential that is provided
+        if props['water_root_shoot_xylem'][1] is None:
+            p_xylem_collar = props['xylem_pressure_collar'][root_vid]
+        else:
+            shoot_buffering_factor = 0.
+            # redistribution_threshold = 3e-13
+            redistribution_threshold = 0
+            p_xylem_collar = props['xylem_pressure_out'][root_vid] - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / props['K_xylem'][root_vid])
+
+        p_phloem_collar = props['phloem_pressure_collar'][root_vid]
+
+        # Using slices to assemble the sparse matrix
+        # useful derived arrays
+        kr_water_xylem = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
+        RT = 8.31415 * (273.15 + soil_temperature)
+
+        # prepare for diagonal values
+        sum_K_children_xylem = np.bincount(parents, weights=K_xylem[children], minlength=n)
+        sum_K_children_phloem = np.bincount(parents, weights=K_phloem[children], minlength=n)
+
+        # prepare for parent/children coupling values (edges)
+        K_xylem_child = K_xylem[children]
+        K_phloem_child = K_phloem[children]
+
+        # ---- assemble data in the fixed order ----
+        data = np.empty(4*n + 4*children.size, dtype=np.float64)
+        data[slices['diag_xylem']] = K_xylem + sum_K_children_xylem + kr_water_xylem + kr_symplasmic_water_phloem   # dGp_xy_i/dP_xy_i
+        data[slices['diag_phloem']] = K_phloem + sum_K_children_phloem + kr_symplasmic_water_phloem                  # dGp_ph_i/dP_ph_i
+        data[slices['cross_xylem_over_phloem']] = - kr_symplasmic_water_phloem                                                 # dGp_xy_i/dP_ph_i
+        data[slices['cross_phloem_over_xylem']] = - kr_symplasmic_water_phloem                                                 # dGp_ph_i/dP_xy_i
+        data[slices['parent_xylem']] = - K_xylem_child                                                                 # dGp_xy_i/dP_xy_p
+        data[slices['parent_phloem']] = - K_phloem_child                                                                # dGp_ph_i/dP_ph_p
+        data[slices['children_xylem']] = - K_xylem_child                                                                 # dGp_xy_i/dP_xy_j
+        data[slices['children_parent']] = - K_phloem_child                                                                # dGp_ph_i/dP_ph_j
+        # Reminder that for parent and children, cross partial derivatives are 0 so not included here
+
+        # ---- build -G (two rows per node) ----
+        # Parents' pressures
+        p_parent_xylem = xylem_pressure_in[parent_idx].copy()
+        p_parent_phloem = phloem_pressure_in[parent_idx].copy()
+        p_parent_xylem[root] = p_xylem_collar                # boundary at root
+        p_parent_phloem[root] = p_phloem_collar
+
+        # child sums: sum_j K_child * (P_child - P_i) aggregated to parent i
+        sum_children_term_xylem = np.bincount(
+            parents,
+            weights=K_xylem_child * (xylem_pressure_in[children] - xylem_pressure_in[parents]),
+            minlength=n
+        )
+        sum_children_term_phloem = np.bincount(
+            parents,
+            weights=K_phloem_child * (phloem_pressure_in[children] - phloem_pressure_in[parents]),
+            minlength=n
+        )
+
+        osmotic_term_xylem = self.reflection_xylem * RT * (Cv_solutes_soil - Cv_solutes_xylem)         # soil – xylem osmotic term
+        osmotic_term_phloem = self.reflection_phloem * RT * (Cv_solutes_phloem - Cv_solutes_xylem)            # phloem – xylem osmotic term
+
+        G_xylem = ( K_xylem * (xylem_pressure_in - p_parent_xylem)
+                    - sum_children_term_xylem
+                    - kr_water_xylem * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
+                    - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem))
+
+        G_phloem = (K_phloem * (phloem_pressure_in - p_parent_phloem)
+                    - sum_children_term_phloem
+                    + kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem))
+
+        minusG = np.empty(2*n, dtype=np.float64)
+        minusG[0::2] = - G_xylem
+        minusG[1::2] = - G_phloem
+
+        # build J and solve
+        J = csc_matrix((data, (row, col)), shape=(2*n, 2*n))
+        dY = linalg.splu(J).solve(minusG)
+
+        # update pressures in arrays
+        xylem_pressure_in = xylem_pressure_in + dY[0::2]
+        phloem_pressure_in = phloem_pressure_in + dY[1::2]
+
+        # out pressures (parent’s in), with root boundary
+        xylem_pressure_out = xylem_pressure_in[parent_idx].copy()
+        phloem_pressure_out = phloem_pressure_in[parent_idx].copy()
+        xylem_pressure_out[root] = p_xylem_collar
+        phloem_pressure_out[root] = p_phloem_collar
+
+        # axial exports
+        axial_export_water_up_xylem = K_xylem * (xylem_pressure_in - xylem_pressure_out)
+        axial_export_water_up_phloem = K_phloem * (phloem_pressure_in - phloem_pressure_out)
+
+        # radial terms
+        osmotic_term_xylem = self.reflection_xylem * RT * (Cv_solutes_soil - Cv_solutes_xylem)
+        osmotic_term_phloem = self.reflection_phloem * RT * (Cv_solutes_phloem - Cv_solutes_xylem)
+
+        radial_import_water_xylem = (kr_symplasmic_water_xylem + kr_apoplastic_water_xylem) * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
+        radial_import_water_xylem_apoplastic = kr_apoplastic_water_xylem * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
+        # For phleom, minus the orientation defined for G 
+        # NOTE: Very important to keep this convention for vessel flux advection
+        radial_import_water_phloem = - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem)
+
+        # “down” imports
+        axial_import_water_down_xylem = axial_export_water_up_xylem - radial_import_water_xylem + radial_import_water_phloem
+        axial_import_water_down_phloem = axial_export_water_up_phloem - radial_import_water_phloem
+        if debug: assert np.all(np.abs(n.axial_export_water_up_xylem + n.radial_import_water_phloem - n.axial_import_water_down_xylem - n.radial_import_water_xylem) < 1e-18)
+        if debug: assert np.all(np.abs(n.axial_export_water_up_phloem - n.axial_import_water_down_phloem - n.radial_import_water_phloem) < 1e-18)
+
+        # Push to array dict (one shot each)
+        props['xylem_pressure_in'].assign_at(focus_glob_idx, xylem_pressure_in)
+        props['phloem_pressure_in'].assign_at(focus_glob_idx, phloem_pressure_in)
+        props['xylem_pressure_out'].assign_at(focus_glob_idx, xylem_pressure_out)
+        props['phloem_pressure_out'].assign_at(focus_glob_idx, phloem_pressure_out)
+        props['axial_export_water_up_xylem'].assign_at(focus_glob_idx, axial_export_water_up_xylem)
+        props['axial_export_water_up_phloem'].assign_at(focus_glob_idx, axial_export_water_up_phloem)
+        props['radial_import_water_xylem'].assign_at(focus_glob_idx, radial_import_water_xylem)
+        props['radial_import_water_xylem_apoplastic'].assign_at(focus_glob_idx, radial_import_water_xylem_apoplastic)
+        props['radial_import_water_phloem'].assign_at(focus_glob_idx, radial_import_water_phloem)
+        props['axial_import_water_down_xylem'].assign_at(focus_glob_idx, axial_import_water_down_xylem)
+        props['axial_import_water_down_phloem'].assign_at(focus_glob_idx, axial_import_water_down_phloem)
+
 
     @state
     def _xylem_water(self, xylem_volume):
         # return xylem_volume * 1e6 / 18
         return xylem_volume
     
+
     @state
     def _phloem_water(self, phloem_volume):
         # return xylem_volume * 1e6 / 18

@@ -148,7 +148,7 @@ class RootNitrogenModel(Model):
                                        variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     vertex_index: int = declare(default=1, unit="adim", unit_comment="", description="Unique vertex identifier stored for ease of value access", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
-                                                    variable_type="input", by="model_growth", state_variable_type="extensive", edit_by="user")
+                                                    variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     hexose_diffusion_from_phloem_rate: float = declare(default=0., unit="mol.s-1", unit_comment="", description="Hexose unloading rate from phloem", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="input", by="model_carbon", state_variable_type="", edit_by="user")
