@@ -396,7 +396,6 @@ class RootWaterModel(Model):
         is solved by LU decomposition.
         NOTE : the convention is that IN corresponds to children, young end of a given segment, and OUT refers to parent, old end of a given segment
         """
-        t1 = time.time()
         # print("water build matrix")
         g = self.g # To prevent repeated MTG lookups
         props = self.props
@@ -559,12 +558,10 @@ class RootWaterModel(Model):
         if debug: assert len(row) == 8 * elt_number - 4
 
         # Solving the system using sparse LU
-        t2 = time.time()
         J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
         # print("water solve")
         solve = linalg.splu(J)
         dY = solve.solve(minusG)
-        t3 = time.time()
 
         # print("water applies")
         # We apply results from collar to tips
@@ -631,8 +628,7 @@ class RootWaterModel(Model):
                 # Usefull visual checks
                 # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
                 # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
-        t4 = time.time()
-        print("solve : ", t3 - t2, "% :", (t3 - t2)/ (t4 - t1), "total : ", t4 - t1, t2 - t1, t4 - t3)
+        
         # print("finished")
 
 
@@ -661,10 +657,10 @@ class RootWaterModel(Model):
         global2local[focus_glob_idx] = np.arange(n, dtype=np.int64)
 
         # 3) Parent ids (global vertex IDs), aligned to *global* order
-        parent_vid_focus = props["parent_id"].values_array() # NOTE : Not global, already computed just for focus elements, use bellow when properly initialized by -1
+        parent_vid_global = props["parent_id"].values_array()
 
         # For focus only: parent vids aligned to local order
-        # parent_vid_focus  = parent_vid_global[focus_glob_idx]                        # (n,)
+        parent_vid_focus  = parent_vid_global[focus_glob_idx]                        # (n,)
         has_parent = parent_vid_focus >= 0                                # (n,) bool
 
         # 4) Compute local parent indices for the focus set
@@ -832,8 +828,8 @@ class RootWaterModel(Model):
         # “down” imports
         axial_import_water_down_xylem = axial_export_water_up_xylem - radial_import_water_xylem + radial_import_water_phloem
         axial_import_water_down_phloem = axial_export_water_up_phloem - radial_import_water_phloem
-        if debug: assert np.all(np.abs(n.axial_export_water_up_xylem + n.radial_import_water_phloem - n.axial_import_water_down_xylem - n.radial_import_water_xylem) < 1e-18)
-        if debug: assert np.all(np.abs(n.axial_export_water_up_phloem - n.axial_import_water_down_phloem - n.radial_import_water_phloem) < 1e-18)
+        if debug: assert np.all(np.abs(axial_export_water_up_xylem + radial_import_water_phloem - axial_import_water_down_xylem - radial_import_water_xylem) < 1e-18)
+        if debug: assert np.all(np.abs(axial_export_water_up_phloem - axial_import_water_down_phloem - radial_import_water_phloem) < 1e-18)
 
         # Push to array dict (one shot each)
         props['xylem_pressure_in'].assign_at(focus_glob_idx, xylem_pressure_in)
