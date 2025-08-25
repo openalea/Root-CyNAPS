@@ -958,8 +958,9 @@ class RootNitrogenModel(Model):
                                                             B=self.active_processes_B,
                                                             C=self.active_processes_C)
         
-        return np.minimum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
-                    self.km_unloading_AA_phloem + phloem_AA), phloem_AA * living_struct_mass / 2)
+        return np.where(vmax_unloading_AA_phloem > 0., np.minimum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
+                    self.km_unloading_AA_phloem + phloem_AA), phloem_AA * living_struct_mass / 2),
+                    0.)
 
 
     # @axial
@@ -1230,8 +1231,21 @@ class RootNitrogenModel(Model):
         parents  = parent_idx[children]                                          # (m_edges,)
         m = children.size
 
+        # Build CSR-like parent -> children adjacency for traversal attribution of collar fluxes in the loop bellow
+        # parents/children are already local indices; we group edges by parent.
+        # 'order' groups edges, 'adj' holds children in parent-grouped order,
+        # 'edge_parent' maps per-parent quantities to each edge quickly,
+        # 'offsets' marks start/end of each parent's children in 'adj'.
+        counts = np.bincount(parents, minlength=n).astype(np.int32)
+        offsets = np.empty(n + 1, dtype=np.int32)
+        offsets[0] = 0
+        np.cumsum(counts, out=offsets[1:])
+        order = np.argsort(parents, kind="stable")
+        adj = children[order]                  # (m,) children grouped by parent
+        edge_parent = parents[order]           # (m,) parent index for each edge
+
         # ---------------------------
-        # 2) Fixed sparse pattern (once per call)
+        # Fixed sparse pattern (once per call)
         #    Blocks: diag (n), off_ip (child,row ; parent,col), off_pi (parent,row ; child,col)
         # ---------------------------
         i = np.arange(n, dtype=np.int64)
@@ -1279,12 +1293,84 @@ class RootNitrogenModel(Model):
                 else:
                     B = - water_flux_root * solute_amount[root] / conductive_element_volume[root]
 
+            # CRITICAL SECTION FOR COLLAR FLOW ATTRIBUTION TO ELEMENTS REACHED BY THE SAP MOVEMENT FRONT DURING THE TIME STEP
             # Distribute B over impacted nodes exactly like your BFS logic
             boundary = np.zeros(n, dtype=np.float64)
             
-            if root >= 0 and B != 0.0:
-                # impacted_volume = np.abs(water_flux[root]) * dt
-                boundary[collar_children_idx] = B *np.abs(water_flux[collar_children_idx]) / np.abs(water_flux[collar_children_idx]).sum()
+            if B != 0.0:
+                # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
+                sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
+                Q_down = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)  # (n,) >= 0
+
+                # Initial water volume budget at the collar for this step
+                vol_budget0 = np.abs(water_flux[root]) * dt
+
+                # Only flux with the same sign as collar contributes to splitting, reversed flux is opposite to the advection front.
+                Q_child_edge = Q_down[adj]                                # (m,)
+                m_edges = Q_child_edge.size
+                prefix = np.empty(m_edges + 1, dtype=np.float64)             # size m+1
+                prefix[0] = 0.0
+                np.cumsum(Q_child_edge, out=prefix[1:])                      # prefix[k] = sum(Q_child_edge[:k])
+                # Sum per parent i is prefix[offsets[i+1]] - prefix[offsets[i]]
+                sum_child_Q = prefix[offsets[1:]] - prefix[offsets[:-1]]     # (n,)
+
+                # in_budget[i]  = how much volume arrives *at the entrance* of node i
+                # adv_vol[i]    = how much volume actually *passes through* node i (<= V_eff[i])
+                # out_budget[i] = leftover volume after filling node i that goes to its children
+                in_budget = np.zeros(n, dtype=np.float64)
+                in_budget[root] = vol_budget0
+                adv_vol = np.zeros(n, dtype=np.float64)
+
+                # We iterate while some nodes still have incoming budget to push further.
+                # Each iteration touches all edges vectorially (masked to active parents).
+                # Depth is bounded by the tree height or until the budget is exhausted.
+                ct = 0
+                while True:
+                    active_parents = np.flatnonzero(in_budget > 0.0)
+                    if active_parents.size == 0:
+                        break
+
+                    # 1) Consume budget inside active parents
+                    adv_here = np.minimum(in_budget[active_parents], conductive_element_volume[active_parents])  # (k,)
+                    adv_vol[active_parents] += adv_here
+                    out_here = in_budget[active_parents] - adv_here                          # (k,) >= 0
+
+                    # 2) Prepare per-parent arrays expanded to all parents (for edge mapping)
+                    out_full = np.zeros(n, dtype=np.float64)
+                    out_full[active_parents] = out_here
+                    parent_is_active = np.zeros(n, dtype=bool)
+                    parent_is_active[active_parents] = True
+
+                    # 3) Compute child incoming budgets on *edges* (vectorized)
+                    # For edges whose parent is active and has downstream children, split
+                    # the parent's leftover volume proportionally to Q_child_edge.
+                    out_edge   = out_full[edge_parent]       # (m,)
+                    sumQ_edge  = sum_child_Q[edge_parent]    # (m,)
+                    # Edge is eligible if its parent is active, its child has Q>0, and the parent's sumQ>0.
+                    edge_ok = parent_is_active[edge_parent] & (Q_child_edge > 0.0) & (sumQ_edge > 0.0) & (out_edge > 0.0)
+
+                    child_in_edge = np.zeros_like(out_edge)
+                    # child_in_edge = out_parent * (Q_child / sum_Q_children_of_parent)
+                    child_in_edge[edge_ok] = out_edge[edge_ok] * (Q_child_edge[edge_ok] / sumQ_edge[edge_ok])
+
+                    # 4) Accumulate edge contributions to each child node’s *incoming* budget for next level
+                    next_in_budget = np.zeros(n, dtype=np.float64)
+                    np.add.at(next_in_budget, adj, child_in_edge)  # sum contributions per child
+
+                    # 5) Advance to next level
+                    in_budget = next_in_budget
+                    ct += 1
+
+                # ---- Convert advected volumes to boundary molar flux weights ----
+                denom = adv_vol.sum()
+                if denom > 0.0:
+                    print(name, vol_budget0, ct, conductive_element_volume[0], water_flux[root], water_flux[collar_children_idx])
+                    # adv_vol is in m^3; B is in mol/s applied at the RHS as dt*B.
+                    # We want boundary in mol/s per node, summing to B.
+                    boundary = (B * adv_vol) / denom
+                else:
+                    boundary[root] = B
+                
 
             # Record applied flux (mol/s) to the shoot
             props[cfg["solute_flux_to_shoot"]][1] = - boundary.sum()
