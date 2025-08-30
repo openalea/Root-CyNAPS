@@ -417,7 +417,6 @@ class RootAnatomy(Model):
 
                 # Commented here is Tristan's attempts to make parameters more explicit regarding experimental results
                 p = 0.01
-
                 gompertz_start_endodermis = - np.log(p) * np.exp(self.endodermis_rate * self.endodermis_delay)
                 endodermis_conductance_factor = (100 - self.endodermis_max * np.exp(- gompertz_start_endodermis * np.exp( - self.endodermis_rate * age))) / 100.
                 # endodermis_conductance_factor = (100 - self.endodermis_max * np.exp(-np.exp(self.endodermis_delay / (60. * 60. * 24.) - self.endodermis_rate * age))) / 100.

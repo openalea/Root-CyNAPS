@@ -750,8 +750,10 @@ class RootWaterModel(Model):
             xylem_using_flow_not_pressure = False
         else:
             shoot_buffering_factor = 0.
-            xylem_estimated_flux_to_shoot = (1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1]
+            xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1], 1e-13) # NOTE : Minimal levels at night for pressure stability for now
             xylem_using_flow_not_pressure = True
+            # Manual override
+            p_xylem_collar = props['xylem_pressure_out'][root_vid] - (xylem_estimated_flux_to_shoot / props['K_xylem'][root_vid])
 
         # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
         if props['sucrose_input_rate'][1] is None:
@@ -760,6 +762,7 @@ class RootWaterModel(Model):
             phloem_using_flow_not_pressure = False
         else:
             # NOTE: We keep the same flux direction as xylem for consistency, even though this is usually reversed
+            # NOTE: This was a very important addition for the consistency of axial phloem transport of both water and solutes in the phloem
             if props['sucrose_input_rate'][1] > 0.:
                 phloem_estimated_flux_to_shoot = - props['sucrose_input_rate'][1] / props['Cv_sucrose_phloem_collar'][1]
             else:

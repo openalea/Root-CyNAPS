@@ -13,7 +13,7 @@ where = ["src"]
 include-package-data = true # force explicit declaration of data (disable automatic inclusion)
 
 [tool.setuptools.package-data]
-"openalea.rootcynap" = ["*.yaml"]
+"openalea.rootcynaps" = ["*.yaml"]
 
 # enable dynamic version based on git tags
 [tool.setuptools_scm]
@@ -22,7 +22,7 @@ include-package-data = true # force explicit declaration of data (disable automa
 name = "openalea.root-cynaps"
 authors = [
   { name = "Tristan Gérault", email = "tristan.gerault@inrae.fr" },
-  { name = "Christophe Pradal", email = "christophe.pradal@fnria.fr" }
+  { name = "Christophe Pradal", email = "christophe.pradal@inria.fr" }
 ]
 description = "Root-CyNAPS is a 3D root nitrogen, water and anatomy FSPM in OpenAlea"
 readme = "README.md"
@@ -88,4 +88,4 @@ doc = [
 Repository = "https://github.com/openalea/root-cynaps"
 
 [project.entry-points."wralea"]
-"my_pkg" = "openalea.metafspm_wralea"
+"my_pkg" = "openalea.rootcynaps_wralea"
