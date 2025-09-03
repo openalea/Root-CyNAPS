@@ -228,6 +228,9 @@ class RootNitrogenModel(Model):
     diffusion_Nm_xylem: float =             declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="",
                                                     min_value="", max_value="", value_comment="", references="", DOI="", 
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    diffusion_AA_xylem: float =             declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="",
+                                                    min_value="", max_value="", value_comment="", references="", DOI="", 
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     apoplastic_Nm_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -437,7 +440,10 @@ class RootNitrogenModel(Model):
     diffusion_soil: float =             declare(default=2.5e-12, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    diffusion_xylem: float =            declare(default=1e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
+    diffusion_xylem_Nm_P: float =            declare(default=1e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
+                                                min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    diffusion_xylem_AA_P: float =            declare(default=1e-10, unit="g.s-1.m-2", unit_comment="of solute", description="",
                                                 min_value="", max_value="", value_comment="from 1e-8, lowered to avoid crazy segment loading bugs", references="", DOI="", 
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     diffusion_phloem: float =           declare(default=1.2e-10 / 10000, unit="g.s-1.m-2", unit_comment="of solute", description="",
@@ -651,7 +657,7 @@ class RootNitrogenModel(Model):
         "solute_massic_concentration_prop": "xylem_AA",
         "conductive_element_volume_prop": "xylem_volume",
         "water_flux_prop": "axial_export_water_up_xylem",
-        "radial_solute_flux": lambda export_AA, apoplastic_AA_soil_xylem: export_AA - apoplastic_AA_soil_xylem,
+        "radial_solute_flux": lambda export_AA, apoplastic_AA_soil_xylem, diffusion_AA_xylem: export_AA - apoplastic_AA_soil_xylem - diffusion_AA_xylem,
         "flux_shoot_boundary": lambda props: props["AA_input_rate_xylem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_AA_xylem_collar"][1],
         "solute_flux_to_shoot": "AA_root_to_shoot_xylem",
@@ -835,14 +841,28 @@ class RootNitrogenModel(Model):
     @rate
     def _diffusion_Nm_xylem(self, xylem_Nm, Nm, xylem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, xylem_volume):
         # Passive radial diffusion between xylem and cortex through plasmalema
-        diffusion_xylem = self.diffusion_xylem * self.temperature_modification(soil_temperature=soil_temperature,
+        diffusion_xylem_Nm_P = self.diffusion_xylem_Nm_P * self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.passive_processes_T_ref,
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
 
         # if debug: print((xylem_Nm * living_struct_mass / xylem_volume), (Nm * living_struct_mass / symplasmic_volume))
-        return diffusion_xylem * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * xylem_exchange_surface
+        return diffusion_xylem_Nm_P * ((xylem_Nm * living_struct_mass / xylem_volume) - (Nm * living_struct_mass / symplasmic_volume)) * xylem_exchange_surface
+    
+
+    @rate
+    def _diffusion_AA_xylem(self, xylem_AA, AA, xylem_exchange_surface, soil_temperature, living_struct_mass, symplasmic_volume, xylem_volume):
+        # Passive radial diffusion between xylem and cortex through plasmalema
+        diffusion_xylem_AA_P = self.diffusion_xylem_AA_P * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                     T_ref=self.passive_processes_T_ref,
+                                                                     A=self.passive_processes_A,
+                                                                     B=self.passive_processes_B,
+                                                                     C=self.passive_processes_C)
+
+        # if debug: print((xylem_Nm * living_struct_mass / xylem_volume), (Nm * living_struct_mass / symplasmic_volume))
+        return diffusion_xylem_AA_P * ((xylem_AA * living_struct_mass / xylem_volume) - (AA * living_struct_mass / symplasmic_volume)) * xylem_exchange_surface
+    
 
     @rate
     def _apoplastic_Nm_soil_xylem(self, import_Nm, diffusion_Nm_soil, soil_Nm, xylem_Nm, radius, radial_import_water_xylem_apoplastic, length, xylem_differentiation_factor, endodermis_conductance_factor, living_struct_mass, xylem_volume, soil_temperature):
@@ -1599,7 +1619,7 @@ class RootNitrogenModel(Model):
                                                                                             A=self.active_processes_A,
                                                                                             B=self.active_processes_B,
                                                                                             C=self.active_processes_C)
-        C_massic_concentration = C_hexose_average[1] / 6
+        C_massic_concentration = C_hexose_average[1] * 6
         Ni_massic_concentration = C_Nm_average[1]
 
         return total_living_struct_mass[1] * smax_cytok * (
@@ -1633,7 +1653,7 @@ class RootNitrogenModel(Model):
 
 
     @state
-    def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, export_AA, AA_synthesis,
+    def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
                   hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
         balance =  AA + (self.time_step / living_struct_mass) * (
@@ -1641,6 +1661,7 @@ class RootNitrogenModel(Model):
                 + unloading_AA_phloem
                 + import_AA
                 - diffusion_AA_soil
+                + diffusion_AA_xylem
                 - export_AA
                 + AA_synthesis
                 - (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA # replaces amino_acids_consumption_by_growth
