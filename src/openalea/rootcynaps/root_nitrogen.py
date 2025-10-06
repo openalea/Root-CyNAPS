@@ -23,7 +23,10 @@ from openalea.metafspm.component_factory import *
 from scipy.sparse import csc_matrix, identity, linalg, diags
 import inspect as ins
 
+import logging
+
 debug = True
+logger_output = logging.getLogger("Simulation_Logger")
 
 @dataclass
 class RootNitrogenModel(Model):
@@ -213,6 +216,13 @@ class RootNitrogenModel(Model):
     import_Nm_LATS: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
                                                     min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    vmax_HATS_Nm_root: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+                                                    min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialIntensive", edit_by="user")
+    Km_HATS_Nm_root: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
+                                                    min_value=1e-11, max_value=1e-9, value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialIntensive", edit_by="user")
+    
     import_AA: float =                      declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -544,10 +554,10 @@ class RootNitrogenModel(Model):
     smax_cytok: float =                 declare(default=9e-4, unit="UA.s-1.g-1", unit_comment="of cytokinins", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_C_cytok: float =                 declare(default=1.2e-3, unit="UA.g-1", unit_comment="of hexose", description="",
+    Km_C_cytok: float =                 declare(default=1.2e-3 / 10, unit="mol.g-1", unit_comment="of hexose", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_N_cytok: float =                 declare(default=5.0e-5, unit="mol.g-1", unit_comment="of nitrates", description="",
+    Km_N_cytok: float =                 declare(default=5.0e-5 / 8, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
@@ -732,9 +742,15 @@ class RootNitrogenModel(Model):
         
         # Log normal dependancy is used to account for observation of inducted HATS (iHATS) in addition to consititutive HATS (cHATS) already present
         # With a shift for HATS in the low concentration domain from high affinity-low vmax to low affinity-high vmax
-        vmax_HATS_Nm_root = self.root_nitrate_lognorm_regulation(Nm, self.vmax_HATS_Nm_amplitude,
+
+        max_vmax_Nm = np.exp(self.vmax_HATS_Nm_centering - (self.vmax_HATS_Nm_spread**2))
+        max_vmax = self.root_nitrate_lognorm_regulation(max_vmax_Nm, self.vmax_HATS_Nm_amplitude,
                                                                       self.vmax_HATS_Nm_centering,
                                                                       self.vmax_HATS_Nm_spread)
+        
+        vmax_HATS_Nm_root = np.where(Nm < max_vmax_Nm, max_vmax, self.root_nitrate_lognorm_regulation(Nm, self.vmax_HATS_Nm_amplitude,
+                                                                      self.vmax_HATS_Nm_centering,
+                                                                      self.vmax_HATS_Nm_spread))
         
         Km_HATS_Nm_root = self.root_nitrate_lognorm_regulation(Nm, self.Km_HATS_Nm_amplitude,
                                                                       self.Km_HATS_Nm_centering,
@@ -758,6 +774,18 @@ class RootNitrogenModel(Model):
         carbon_regulation = (C_hexose_root / (C_hexose_root + self.transport_C_regulation))
 
         return (import_Nm_HATS + import_Nm_LATS) * temperature_modification * root_exchange_surface * carbon_regulation
+
+    @rate
+    def _vmax_HATS_Nm_root(self,  Nm):
+        return np.maximum(5e-9, self.root_nitrate_lognorm_regulation(Nm, self.vmax_HATS_Nm_amplitude,
+                                                                      self.vmax_HATS_Nm_centering,
+                                                                      self.vmax_HATS_Nm_spread))
+    
+    @rate
+    def _Km_HATS_Nm_root(self,  Nm):
+        return self.root_nitrate_lognorm_regulation(Nm, self.Km_HATS_Nm_amplitude,
+                                                                      self.Km_HATS_Nm_centering,
+                                                                      self.Km_HATS_Nm_spread)
     
 
     @rate
@@ -1472,14 +1500,14 @@ class RootNitrogenModel(Model):
                 if tot >= deficit and tot > 0.0:
                     n_sol_clip += (deficit / tot) * free
                 else:
-                    print(name, "Warning: impossible adjustment of concentrations (upper bound)")
+                    logger_output.info(f"{name} Warning: impossible adjustment of concentrations (upper bound)")
             else:
                 free = n_sol_clip - c_min * conductive_element_volume
                 tot = free.sum()
                 if tot >= -deficit and tot > 0.0:
                     n_sol_clip += (deficit / tot) * free
                 else:
-                    print(name, "Warning: impossible adjustment of concentrations (lower bound)")
+                    logger_output.info(f"{name} Warning: impossible adjustment of concentrations (lower bound)")
 
             # Back to massic concentration and push to props in bulk using ArrayDict
             Cm_sol = n_sol_clip / living_struct_mass
@@ -1619,6 +1647,7 @@ class RootNitrogenModel(Model):
                                                                                             A=self.active_processes_A,
                                                                                             B=self.active_processes_B,
                                                                                             C=self.active_processes_C)
+        
         C_massic_concentration = C_hexose_average[1] * 6
         Ni_massic_concentration = C_Nm_average[1]
 
