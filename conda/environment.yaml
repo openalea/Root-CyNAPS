@@ -9,6 +9,7 @@ dependencies:
   - openalea.mtg
   # metafspm
   - pyyaml
+  - numba
   # fspm-utility
   - openpyxl
   - pandas
