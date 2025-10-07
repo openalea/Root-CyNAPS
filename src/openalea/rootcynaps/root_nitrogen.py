@@ -435,7 +435,7 @@ class RootNitrogenModel(Model):
     Km_Nm_xylem: float =                declare(default=1e-3, unit="mol.g-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="adjusted to avoid accumulation in symplasm", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    vmax_AA_root: float =               declare(default=1e-8, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
+    vmax_AA_root: float =               declare(default=1e-8 / 100 / 2, unit="mol.s-1.m-2", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_AA_root: float =                 declare(default=1e-1, unit="mol.m-3", unit_comment="of amino acids", description="", 
@@ -965,10 +965,14 @@ class RootNitrogenModel(Model):
                                                                 A=self.passive_processes_A,
                                                                 B=self.passive_processes_B,
                                                                 C=self.passive_processes_C)
+        net_uptake_in_flux = import_AA - diffusion_AA_soil
         diffusion_process = diffusion_apoplasm * (xylem_AA * living_struct_mass / np.where(xylem_volume <= 0., 1., xylem_volume) - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
 
+        flow = advection_process + diffusion_process
+        flow = np.where(flow < 0., np.minimum(flow + import_AA, 0.), flow)
+
         return np.where((xylem_volume <= 0) | (endodermis_conductance_factor == 0), 0.,
-                        advection_process + diffusion_process)
+                        flow)
             
             
     @rate
@@ -1773,7 +1777,7 @@ class RootNitrogenModel(Model):
         return import_Nm + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - apoplastic_Nm_soil_xylem
 
     # For plotting only
-    #@state
+    @state
     def _net_N_uptake(self, import_Nm, import_AA, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_AA_soil, apoplastic_Nm_soil_xylem, apoplastic_AA_soil_xylem):
         return import_Nm + import_AA + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - diffusion_AA_soil - apoplastic_Nm_soil_xylem - apoplastic_AA_soil_xylem
 
