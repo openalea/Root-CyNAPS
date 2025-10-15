@@ -1203,7 +1203,7 @@ class RootNitrogenModel(Model):
 
             n_sol_clip = np.clip(n_sol, n_min, n_max)
             n_sol_clip = (ns0 + n_sol_clip) / 2 # Average the two resulting concentrations for numerical stability and repartition based on deficit
-            deficit = (ns0 + R_total * dt - n_sol_clip).sum()
+            deficit = (ns0 + R_total * self.time_step - n_sol_clip).sum() # 
             if deficit > 0:
                 free = c_max * V - n_sol_clip
                 if free.sum() < deficit:
@@ -1233,9 +1233,9 @@ class RootNitrogenModel(Model):
         print("prep time", t2 - t1, "solve_time", t3 - t2, "assign time", 4*(t4 - t3))
 
 
-    # @axial
-    # @rate
-    def axial_transport_N_arrays_correction_attempt(self):
+    @axial
+    @rate
+    def axial_transport_N_arrays(self):
         """
         Optimized axial solute transport (transient advection + diffusion) that preserves
         the original equations but avoids Python per-node loops during assembly.
@@ -1253,7 +1253,7 @@ class RootNitrogenModel(Model):
         dt = float(self.time_step)
         root_vid = 1
         root = 0
-        axial_diffusivity = 5e-8  # m^2/s
+        axial_diffusivity = 5e-8 * 1e6 / 10  # m^2/s
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1364,10 +1364,12 @@ class RootNitrogenModel(Model):
             R_diffusion = props[cfg["diffusive_flux_name"]].values_array()[focus_glob_idx] * cfg["diffusive_flux_conversion"]
             arg_names = [p.name for p in ins.signature(cfg["radial_solute_flux"]).parameters.values()]
             R_others = cfg["radial_solute_flux"](*(props[arg].values_array()[focus_glob_idx] for arg in arg_names)) - R_diffusion
+            R_others = 0. * R_others
 
             # Corresponding permeability at this moment
-            k = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
+            k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
 
+            boundary_from_reached_segments = False
             # Boundary flux from shoot B (mol/s)
             if cfg["flux_shoot_boundary"](props) is not None:
                 boundary_from_shoot = cfg["flux_shoot_boundary"](props)
@@ -1381,7 +1383,8 @@ class RootNitrogenModel(Model):
 
             # CRITICAL SECTION FOR COLLAR FLOW ATTRIBUTION TO ELEMENTS REACHED BY THE SAP MOVEMENT FRONT DURING THE TIME STEP
             # Distribute B over impacted nodes exactly like your BFS logic
-            boundary = np.zeros(n, dtype=np.float64)
+            boundary_inflow = np.zeros(n, dtype=np.float64)
+            boundary_outflow = np.zeros(n, dtype=np.float64)
             
             # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
             sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
@@ -1462,38 +1465,48 @@ class RootNitrogenModel(Model):
                 # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
                 # but the boundary is still in mol.s-1
                 if boundary_from_reached_segments:
-                    boundary = np.where(crossing_time > 0., - water_flux * (solute_amount / conductive_element_volume) * crossing_time / dt, # Water flux * concentration * proportion of the time-step during which the segment actually contributed to the volume reaching the shoot
+                    boundary_outflow = np.where(crossing_time > 0., water_flux * crossing_time / dt, # Water flux * proportion of the time-step during which the segment actually contributed to the volume reaching the shoot
                                         0.)
                 # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
                 # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
                 else:
-                    boundary = (boundary_from_shoot * adv_vol) / denom
+                    boundary_inflow = (boundary_from_shoot * adv_vol) / denom
             else:
-                boundary[root] = boundary_from_shoot
-            
+                boundary_inflow[root] = boundary_from_shoot
 
-            # Record applied flux (mol/s) to the shoot
-            props[cfg["solute_flux_to_shoot"]][1] = - boundary.sum()
+            if not boundary_from_reached_segments:
+                assert boundary_inflow.sum() == boundary_from_shoot, "input not consistent"
+
+                # Record applied flux (mol/s) to the shoot
+                props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
+
+            # Considering vessels have a low buffer capacity, if the outflux at collar exceeds maximal diffusion speed, we are sure to deplete
+
+            # assert - boundary.sum() < (solute_massic_concentration_symplasm * living_struct_mass).sum() + solute_amount.sum(), f"{name} not enough solute in system to wistand outflux"
+            # assert - boundary.sum() < (k_diffusion * solute_cv_symplasm).sum(), f"{name} high risks of depletion"
 
             # R_total = R + boundary, but R is split into LHS and RHS
-            R_total = R_others + boundary + k * solute_cv_symplasm
+            R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm
 
             # ---------------------------
             # 5) Vectorized assembly of A (diffusion + advection), then column-scale by inv(V)
             # ---------------------------
             # Per-edge diffusion coefficient D: dx = (len_c + len_p)/2; area = pi*(0.1*(r_c+r_p)/2)^2
             dx   = 0.5 * (length[children] + length[parents])
-            area = np.pi * (0.1 * (radius[children] + radius[parents]) / 2.)**2
-            D    = np.where(dx > 0., axial_diffusivity * area / np.where(dx > 0., dx, 1.), 0.) # Safegarded from just initialized elements
+            area = np.pi * (0.3 * (radius[children] + radius[parents]) / 2.)**2
+            D    = np.where(dx > 0., axial_diffusivity * area / np.where(dx > 0., dx, 0.001), 0.) # Safegarded from just initialized elements
     
             # Advection defined at child node
             F     = water_flux[children]                                              # (m,)
             Fpos  = np.maximum(F, 0.0)                                                # (m,)
             Fneg  = np.minimum(F, 0.0)                                                # (m,) <= 0
+            print(name, "D", D.min(), D.mean(), D.max())
+            print(name, "F", np.abs(F).min(), np.abs(F).mean(), np.abs(F).max())
 
             # Diagonal contributions gathered per node
             diag = np.zeros(n, dtype=np.float64)
-            diag += -k
+            diag += -k_diffusion
+            diag += -boundary_outflow
             # diffusion: -D at child and parent diags
             np.add.at(diag, children, -D)
             np.add.at(diag, parents,  -D)
@@ -1518,7 +1531,7 @@ class RootNitrogenModel(Model):
             data_scaled = data * invV_cols # Performed here to avoid a later sparse matricial operation that goes dense
             
 
-            sub_step = 1
+            sub_step = dt
             # LHS = I - dt * (A @ diag(1/V)), RHS = ns0 + dt * R_total
             LHS = identity(n, format='csc') + csc_matrix(((-sub_step) * data_scaled, (row, col)), shape=(n, n))
             solve_BE = linalg.splu(LHS).solve
@@ -1526,69 +1539,41 @@ class RootNitrogenModel(Model):
             sum_R_diffusion_actual = np.zeros_like(n_current)
             for _ in range(int(dt / sub_step)):
                 RHS = n_current + sub_step * R_total
-                # Solve (Backward Euler), clip to [c_min,c_max], redistribute deficit/excess
                 n_current = solve_BE(RHS)
                 Cv_sol = n_current / conductive_element_volume
-                sum_R_diffusion_actual += k * (solute_cv_symplasm - Cv_sol) * sub_step
+                sum_R_diffusion_actual += k_diffusion * (solute_cv_symplasm - Cv_sol) * sub_step
 
             n_sol = n_current
             Cm_sol = n_sol / living_struct_mass
             Cv_sol = n_sol / conductive_element_volume
 
             R_diffusion_actual = sum_R_diffusion_actual / dt
-            R_total_actual = R_others + boundary + R_diffusion_actual
+            R_total_actual = R_others + boundary_inflow + R_diffusion_actual
             props[cfg["diffusive_flux_name"]].assign_at(focus_glob_idx, R_diffusion_actual / cfg["diffusive_flux_conversion"])
 
-            print(Cv_sol.min(), Cv_sol.mean(), Cv_sol.max())
+            print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max())
 
-            M_target = solute_amount.sum() + (dt * R_total_actual).sum()
-            print("conservative", abs(n_sol.sum() - M_target))
+            if boundary_from_reached_segments:
+                # Record applied flux (mol/s) to the shoot, conservative by construction
+                props[cfg["solute_flux_to_shoot"]][1] = solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum()
+            else:
+                # Check the balance is right
+                M_target = solute_amount.sum() + (dt * R_total_actual).sum()
+                print(name, "conservative", abs(n_sol.sum() - M_target))
+                print(name, "% balance error", 100 * abs(n_sol.sum() - M_target) / abs((dt * R_total_actual).sum()))
             
             c_min, c_max = cfg["solute_volumic_concentration_bounds"]
             n_min = c_min * conductive_element_volume
             n_max = c_max * conductive_element_volume
 
-            # # n_sol = project_mass_with_bounds(n_sol, np.zeros_like(n_min), n_max, M_target, conductive_element_volume, minimize_concentration=False, tol=1e-20, maxiter=1000)
-            # print(name, n_sol.sum() - M_target)
-            # n_sol_clip = np.clip(n_sol, n_min, n_max)
-            # # n_sol_clip = (solute_amount + n_sol_clip) / 2 # Average the two resulting concentrations for numerical stability and repartition based on deficit
-
-            # # conserve mass by distributing deficit/excess within bounds
-            # deficit = M_target - n_sol_clip.sum()
-            # if deficit > 0.0:
-            #     free = c_max * conductive_element_volume - n_sol_clip
-            #     tot = free.sum()
-            #     if tot >= deficit and tot > 0.0:
-            #         n_sol_clip += (deficit / tot) * free
-            #     else:
-            #         print(f"{name} Warning: impossible adjustment of concentrations (upper bound)")
-            #         logger_output.info(f"{name} Warning: impossible adjustment of concentrations (upper bound)")
-            #         n_sol_clip = np.clip(n_sol_clip, n_min, n_max)
-            # else:
-            #     free = n_sol_clip - c_min * conductive_element_volume
-            #     tot = free.sum()
-            #     if tot >= -deficit and tot > 0.0:
-            #         n_sol_clip += (deficit / tot) * free
-            #     else:
-            #         print(f"{name} Warning: impossible adjustment of concentrations (upper bound)")
-            #         logger_output.info(f"{name} Warning: impossible adjustment of concentrations (lower bound)")
-            #         n_sol_clip = np.clip(n_sol_clip, n_min, n_max)
-            # n_sol = n_sol_clip
-
-            # NOTE: confirmed with bellow that this step is conservative, remaining is never above 1e-13 %
-            # remaining_deficit = (solute_amount + R_total - n_sol_clip).sum()
-            # print("remaining deficit", remaining_deficit, "%", 100*np.abs(remaining_deficit/n_sol_clip.sum()))
-
-            # Back to massic concentration and push to props in bulk using ArrayDict
-            # Cm_sol = n_sol_clip / living_struct_mass
             Cm_sol = n_sol / living_struct_mass
 
             props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
             
 
-    @axial
-    @rate
-    def axial_transport_N_arrays(self):
+    # @axial
+    # @rate
+    def axial_transport_N_arrays_old(self):
         """
         Optimized axial solute transport (transient advection + diffusion) that preserves
         the original equations but avoids Python per-node loops during assembly.
