@@ -197,7 +197,7 @@ class RootNitrogenModel(Model):
     xylem_AA: float =           declare(default=1e-4 / 100 / 2, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
-    phloem_AA: float =           declare(default=1e-4, unit="mol.g-1", unit_comment="of amino acids", description="", 
+    phloem_AA: float =           declare(default=1e-4 / 10, unit="mol.g-1", unit_comment="of amino acids", description="", 
                                         min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
@@ -373,7 +373,7 @@ class RootNitrogenModel(Model):
     AA_root_to_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    AA_root_to_shoot_phloem: float =       declare(default=0, unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_to_shoot_phloem: float =       declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_AA_rhizodeposition: float =   declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
@@ -1249,11 +1249,24 @@ class RootNitrogenModel(Model):
 
         g = self.g
         props = g.properties()
+        shoot_sucrose = props["sucrose_phloem_shoot"][1]
+        shoot_amino_acids = props["AA_phloem_shoot"][1]
+        shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
+        shoot_phloem_volume = shoot_struct_mass * 1e-7
+        cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
+        cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
+        print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
+
+        phloem_solutes = ["C_sucrose_root", "phloem_AA"]
+        xylem_solutes = ["xylem_Nm", "xylem_AA"]
+
         vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
         dt = float(self.time_step)
         root_vid = 1
         root = 0
-        axial_diffusivity = 5e-8 * 1e6 / 10  # m^2/s
+        xylem_axial_diffusivity = 1e-8# m^2/s Peuke et al. 2001
+        phloem_axial_diffusivity = 1e-9*10  # m^2/s Romero Gomez 2011
+        collar_axial_diffusivity = 1e-9
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1357,14 +1370,15 @@ class RootNitrogenModel(Model):
             solute_cv_symplasm = solute_massic_concentration_symplasm * living_struct_mass / symplasmic_volume
             if "xylem" in name:
                 vessel_exchange_surface = props['xylem_exchange_surface'].values_array()[focus_glob_idx]
+                axial_diffusivity = xylem_axial_diffusivity
             elif "phloem" in name:
                 vessel_exchange_surface = props['phloem_exchange_surface'].values_array()[focus_glob_idx]
+                axial_diffusivity = phloem_axial_diffusivity
 
             # Radial term R (mol/s)
             R_diffusion = props[cfg["diffusive_flux_name"]].values_array()[focus_glob_idx] * cfg["diffusive_flux_conversion"]
             arg_names = [p.name for p in ins.signature(cfg["radial_solute_flux"]).parameters.values()]
             R_others = cfg["radial_solute_flux"](*(props[arg].values_array()[focus_glob_idx] for arg in arg_names)) - R_diffusion
-            R_others = 0. * R_others
 
             # Corresponding permeability at this moment
             k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
@@ -1376,6 +1390,7 @@ class RootNitrogenModel(Model):
             else:
                 water_flux_root = water_flux[root]
                 if water_flux_root < 0.0:
+                    print("EDGE CASE TO ALIGN WITH PHLOEM!")
                     boundary_from_shoot = - water_flux_root * cfg["boundary_shoot_solute_concentration"](props)
                 else:
                     boundary_from_reached_segments = True
@@ -1386,99 +1401,114 @@ class RootNitrogenModel(Model):
             boundary_inflow = np.zeros(n, dtype=np.float64)
             boundary_outflow = np.zeros(n, dtype=np.float64)
             
-            # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
-            sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
-            Q_down = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)  # (n,) >= 0
+            boundary_only_on_root = True
 
-            # Initial water volume budget at the collar for this step
-            vol_budget0 = np.abs(water_flux[root]) * dt
-            parent_crossing_time = dt
+            if boundary_only_on_root and boundary_from_reached_segments:
+                boundary_outflow[root] = water_flux[root]
 
-            # Only flux with the same sign as collar contributes to splitting, reversed flux is opposite to the advection front.
-            Q_child_edge = Q_down[adj]                                # (m,)
-            m_edges = Q_child_edge.size
-            prefix = np.empty(m_edges + 1, dtype=np.float64)             # size m+1
-            prefix[0] = 0.0
-            np.cumsum(Q_child_edge, out=prefix[1:])                      # prefix[k] = sum(Q_child_edge[:k])
-            # Sum per parent i is prefix[offsets[i+1]] - prefix[offsets[i]]
-            sum_child_Q = prefix[offsets[1:]] - prefix[offsets[:-1]]     # (n,)
 
-            # in_budget[i]  = how much volume arrives *at the entrance* of node i
-            # adv_vol[i]    = how much volume actually *passes through* node i (<= V_eff[i])
-            # out_budget[i] = leftover volume after filling node i that goes to its children
-            in_budget = np.zeros(n, dtype=np.float64)
-            in_budget[root] = vol_budget0
-            adv_vol = np.zeros(n, dtype=np.float64)
-            time_remaining_after_parent = np.zeros(n, dtype=np.float64)
-            time_remaining_after_parent[root] = dt
-            crossing_time = np.zeros(n, dtype=np.float64)
+            if name not in phloem_solutes and not boundary_only_on_root:
+                # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
+                sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
+                Q_down = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)  # (n,) >= 0
 
-            # We iterate while some nodes still have incoming budget to push further.
-            # Each iteration touches all edges vectorially (masked to active parents).
-            # Depth is bounded by the tree height or until the budget is exhausted.
-            ct = 0
-            while True:
-                active_parents = np.flatnonzero(in_budget > 0.0)
-                if active_parents.size == 0:
-                    break
+                # Initial water volume budget at the collar for this step
+                vol_budget0 = np.abs(water_flux[root]) * dt
+                parent_crossing_time = dt
 
-                # 1) Consume budget inside active parents
-                adv_here = np.minimum(in_budget[active_parents], conductive_element_volume[active_parents])  # (k,)
-                adv_vol[active_parents] += adv_here
-                crossing_time[active_parents] = np.maximum(time_remaining_after_parent[active_parents] - (0.5 * adv_vol[active_parents] / np.abs(water_flux[active_parents])), 0.)
-                out_here = in_budget[active_parents] - adv_here                          # (k,) >= 0
+                # Only flux with the same sign as collar contributes to splitting, reversed flux is opposite to the advection front.
+                Q_child_edge = Q_down[adj]                                # (m,)
+                m_edges = Q_child_edge.size
+                prefix = np.empty(m_edges + 1, dtype=np.float64)             # size m+1
+                prefix[0] = 0.0
+                np.cumsum(Q_child_edge, out=prefix[1:])                      # prefix[k] = sum(Q_child_edge[:k])
+                # Sum per parent i is prefix[offsets[i+1]] - prefix[offsets[i]]
+                sum_child_Q = prefix[offsets[1:]] - prefix[offsets[:-1]]     # (n,)
 
-                # 2) Prepare per-parent arrays expanded to all parents (for edge mapping)
-                out_full = np.zeros(n, dtype=np.float64)
-                out_full[active_parents] = out_here
-                parent_is_active = np.zeros(n, dtype=bool)
-                parent_is_active[active_parents] = True
+                # in_budget[i]  = how much volume arrives *at the entrance* of node i
+                # adv_vol[i]    = how much volume actually *passes through* node i (<= V_eff[i])
+                # out_budget[i] = leftover volume after filling node i that goes to its children
+                in_budget = np.zeros(n, dtype=np.float64)
+                in_budget[root] = vol_budget0
+                adv_vol = np.zeros(n, dtype=np.float64)
+                time_remaining_after_parent = np.zeros(n, dtype=np.float64)
+                time_remaining_after_parent[root] = dt
+                crossing_time = np.zeros(n, dtype=np.float64)
 
-                # 3) Compute child incoming budgets on *edges* (vectorized)
-                # For edges whose parent is active and has downstream children, split
-                # the parent's leftover volume proportionally to Q_child_edge.
-                out_edge   = out_full[edge_parent]       # (m,)
-                sumQ_edge  = sum_child_Q[edge_parent]    # (m,)
-                # Edge is eligible if its parent is active, its child has Q>0, and the parent's sumQ>0.
-                edge_ok = parent_is_active[edge_parent] & (Q_child_edge > 0.0) & (sumQ_edge > 0.0) & (out_edge > 0.0)
+                # We iterate while some nodes still have incoming budget to push further.
+                # Each iteration touches all edges vectorially (masked to active parents).
+                # Depth is bounded by the tree height or until the budget is exhausted.
+                ct = 0
+                while True:
+                    active_parents = np.flatnonzero(in_budget > 0.0)
+                    if active_parents.size == 0:
+                        break
 
-                child_in_edge = np.zeros_like(out_edge)
-                # child_in_edge = out_parent * (Q_child / sum_Q_children_of_parent)
-                child_in_edge[edge_ok] = out_edge[edge_ok] * (Q_child_edge[edge_ok] / sumQ_edge[edge_ok])
+                    # 1) Consume budget inside active parents
+                    adv_here = np.minimum(in_budget[active_parents], conductive_element_volume[active_parents])  # (k,)
+                    adv_vol[active_parents] += adv_here
+                    crossing_time[active_parents] = np.maximum(time_remaining_after_parent[active_parents] - (0.5 * adv_vol[active_parents] / np.abs(water_flux[active_parents])), 0.)
+                    out_here = in_budget[active_parents] - adv_here                          # (k,) >= 0
 
-                # 4) Accumulate edge contributions to each child node’s *incoming* budget for next level
-                next_in_budget = np.zeros(n, dtype=np.float64)
-                np.add.at(next_in_budget, adj, child_in_edge)  # sum contributions per child
+                    # 2) Prepare per-parent arrays expanded to all parents (for edge mapping)
+                    out_full = np.zeros(n, dtype=np.float64)
+                    out_full[active_parents] = out_here
+                    parent_is_active = np.zeros(n, dtype=bool)
+                    parent_is_active[active_parents] = True
 
-                # 5) Advance to next level
-                in_budget = next_in_budget
-                # Updating time remaining after the parent for the next loop
-                time_remaining_after_parent[in_budget > 0.0] = np.maximum(time_remaining_after_parent[edge_parent[edge_ok]] - (adv_vol[edge_parent[edge_ok]] / np.abs(water_flux[edge_parent[edge_ok]])), 0.)
+                    # 3) Compute child incoming budgets on *edges* (vectorized)
+                    # For edges whose parent is active and has downstream children, split
+                    # the parent's leftover volume proportionally to Q_child_edge.
+                    out_edge   = out_full[edge_parent]       # (m,)
+                    sumQ_edge  = sum_child_Q[edge_parent]    # (m,)
+                    # Edge is eligible if its parent is active, its child has Q>0, and the parent's sumQ>0.
+                    edge_ok = parent_is_active[edge_parent] & (Q_child_edge > 0.0) & (sumQ_edge > 0.0) & (out_edge > 0.0)
 
-                ct += 1
+                    child_in_edge = np.zeros_like(out_edge)
+                    # child_in_edge = out_parent * (Q_child / sum_Q_children_of_parent)
+                    child_in_edge[edge_ok] = out_edge[edge_ok] * (Q_child_edge[edge_ok] / sumQ_edge[edge_ok])
+
+                    # 4) Accumulate edge contributions to each child node’s *incoming* budget for next level
+                    next_in_budget = np.zeros(n, dtype=np.float64)
+                    np.add.at(next_in_budget, adj, child_in_edge)  # sum contributions per child
+
+                    # 5) Advance to next level
+                    in_budget = next_in_budget
+                    # Updating time remaining after the parent for the next loop
+                    time_remaining_after_parent[in_budget > 0.0] = np.maximum(time_remaining_after_parent[edge_parent[edge_ok]] - (adv_vol[edge_parent[edge_ok]] / np.abs(water_flux[edge_parent[edge_ok]])), 0.)
+
+                    ct += 1
             
             
-            # ---- Convert advected volumes to boundary molar flux weights ----
-            denom = adv_vol.sum()
-            if denom > 0.0:
-                # If the root system exports to shoot, the advected solution is not homogeneous and therefore the segments crossed by the advection front 
-                # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
-                # but the boundary is still in mol.s-1
-                if boundary_from_reached_segments:
-                    boundary_outflow = np.where(crossing_time > 0., water_flux * crossing_time / dt, # Water flux * proportion of the time-step during which the segment actually contributed to the volume reaching the shoot
-                                        0.)
-                # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
-                # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
+                # ---- Convert advected volumes to boundary molar flux weights ----
+                denom = adv_vol.sum()
+                if denom > 0.0:
+                    # If the root system exports to shoot, the advected solution is not homogeneous and therefore the segments crossed by the advection front 
+                    # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
+                    # but the boundary is still in mol.s-1
+                    if boundary_from_reached_segments:
+                        boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
+
+                    # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
+                    # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
+                    else:
+                        if boundary_from_shoot >= 0.:
+                            boundary_inflow = (boundary_from_shoot * adv_vol) / denom
+                        else:
+                            w = adv_vol / denom
+                            denomC = (w * solute_cv).sum()
+                            boundary_outflow = (-boundary_from_shoot) * (w / denomC)
                 else:
-                    boundary_inflow = (boundary_from_shoot * adv_vol) / denom
-            else:
-                boundary_inflow[root] = boundary_from_shoot
+                    if boundary_from_shoot >= 0.:
+                        boundary_inflow[root] = boundary_from_shoot
+                    else:
+                        boundary_outflow[root] = - boundary_from_shoot / solute_cv[root]
 
-            if not boundary_from_reached_segments:
-                assert boundary_inflow.sum() == boundary_from_shoot, "input not consistent"
+                if not boundary_from_reached_segments:
+                    # assert np.abs(boundary_inflow.sum() - boundary_from_shoot) < boundary_from_shoot * 1e-9, f"{name} input not consistent: {boundary_inflow.sum()}, {boundary_from_shoot}"
 
-                # Record applied flux (mol/s) to the shoot
-                props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
+                    # Record applied flux (mol/s) to the shoot
+                    props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
 
             # Considering vessels have a low buffer capacity, if the outflux at collar exceeds maximal diffusion speed, we are sure to deplete
 
@@ -1487,6 +1517,15 @@ class RootNitrogenModel(Model):
 
             # R_total = R + boundary, but R is split into LHS and RHS
             R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm
+
+            if name in phloem_solutes:
+                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+                k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
+                k_collar_phloem_diag[root] = k_collar_phloem
+                if name == "C_sucrose_root":
+                    R_total[root] += k_collar_phloem * cv_shoot_sucrose
+                elif name == "phloem_AA":
+                    R_total[root] += k_collar_phloem * cv_shoot_amino_acids
 
             # ---------------------------
             # 5) Vectorized assembly of A (diffusion + advection), then column-scale by inv(V)
@@ -1500,13 +1539,13 @@ class RootNitrogenModel(Model):
             F     = water_flux[children]                                              # (m,)
             Fpos  = np.maximum(F, 0.0)                                                # (m,)
             Fneg  = np.minimum(F, 0.0)                                                # (m,) <= 0
-            print(name, "D", D.min(), D.mean(), D.max())
-            print(name, "F", np.abs(F).min(), np.abs(F).mean(), np.abs(F).max())
 
             # Diagonal contributions gathered per node
             diag = np.zeros(n, dtype=np.float64)
             diag += -k_diffusion
             diag += -boundary_outflow
+            if name in phloem_solutes:
+                diag += -k_collar_phloem_diag
             # diffusion: -D at child and parent diags
             np.add.at(diag, children, -D)
             np.add.at(diag, parents,  -D)
@@ -1531,37 +1570,40 @@ class RootNitrogenModel(Model):
             data_scaled = data * invV_cols # Performed here to avoid a later sparse matricial operation that goes dense
             
 
-            sub_step = dt
             # LHS = I - dt * (A @ diag(1/V)), RHS = ns0 + dt * R_total
-            LHS = identity(n, format='csc') + csc_matrix(((-sub_step) * data_scaled, (row, col)), shape=(n, n))
+            LHS = identity(n, format='csc') + csc_matrix(((-dt) * data_scaled, (row, col)), shape=(n, n))
             solve_BE = linalg.splu(LHS).solve
-            n_current = solute_amount.copy()
-            sum_R_diffusion_actual = np.zeros_like(n_current)
-            for _ in range(int(dt / sub_step)):
-                RHS = n_current + sub_step * R_total
-                n_current = solve_BE(RHS)
-                Cv_sol = n_current / conductive_element_volume
-                sum_R_diffusion_actual += k_diffusion * (solute_cv_symplasm - Cv_sol) * sub_step
+            RHS = solute_amount + dt * R_total
+            n_sol = solve_BE(RHS)
 
-            n_sol = n_current
             Cm_sol = n_sol / living_struct_mass
             Cv_sol = n_sol / conductive_element_volume
 
-            R_diffusion_actual = sum_R_diffusion_actual / dt
+            R_diffusion_actual = k_diffusion * (solute_cv_symplasm - Cv_sol)
             R_total_actual = R_others + boundary_inflow + R_diffusion_actual
+            if name == "C_sucrose_root":
+                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
+                R_total_actual[root] -= R_to_shoot_actual
+                props["sucrose_root_to_shoot_phloem"][1] = R_to_shoot_actual
+            elif name == "phloem_AA":
+                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_amino_acids)
+                R_total_actual[root] -= R_to_shoot_actual
+                props["AA_root_to_shoot_phloem"][1] = R_to_shoot_actual
+
             props[cfg["diffusive_flux_name"]].assign_at(focus_glob_idx, R_diffusion_actual / cfg["diffusive_flux_conversion"])
 
-            print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max())
+            print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
 
             if boundary_from_reached_segments:
                 # Record applied flux (mol/s) to the shoot, conservative by construction
                 props[cfg["solute_flux_to_shoot"]][1] = solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum()
             else:
                 # Check the balance is right
-                M_target = solute_amount.sum() + (dt * R_total_actual).sum()
-                print(name, "conservative", abs(n_sol.sum() - M_target))
-                print(name, "% balance error", 100 * abs(n_sol.sum() - M_target) / abs((dt * R_total_actual).sum()))
-            
+                M_target = solute_amount.sum() + (dt * R_total_actual.sum())
+                p_error = 100 * abs(n_sol.sum() - M_target) / abs(M_target)
+                if p_error > 1.:
+                    print(name, "% balance error", p_error)
+
             c_min, c_max = cfg["solute_volumic_concentration_bounds"]
             n_min = c_min * conductive_element_volume
             n_max = c_max * conductive_element_volume
@@ -1569,6 +1611,8 @@ class RootNitrogenModel(Model):
             Cm_sol = n_sol / living_struct_mass
 
             props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
+        
+        print(props['diffusion_Nm_xylem'].values_array().sum()*3600, props['apoplastic_Nm_soil_xylem'].values_array().sum()*3600, props["Nm_root_to_shoot_xylem"][1])
             
 
     # @axial
