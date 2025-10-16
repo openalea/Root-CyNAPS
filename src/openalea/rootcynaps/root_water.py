@@ -750,7 +750,8 @@ class RootWaterModel(Model):
             xylem_using_flow_not_pressure = False
         else:
             shoot_buffering_factor = 0.
-            xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1], 1e-13) # NOTE : Minimal levels at night for pressure stability for now
+            # xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1], 1e-13) # NOTE : Minimal levels at night for pressure stability for now
+            xylem_estimated_flux_to_shoot = props['water_root_shoot_xylem'][1] # NOTE : Minimal levels at night for pressure stability for now
             xylem_using_flow_not_pressure = True
             # Manual override
             p_xylem_collar = props['xylem_pressure_out'][root_vid] - (xylem_estimated_flux_to_shoot / props['K_xylem'][root_vid])

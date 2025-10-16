@@ -26,6 +26,7 @@ import inspect as ins
 import logging
 
 debug = True
+debug_advection = True
 logger_output = logging.getLogger("Simulation_Logger")
 
 @dataclass
@@ -471,7 +472,7 @@ class RootNitrogenModel(Model):
     reference_rate_of_AA_consumption_by_growth: float = declare(default=6.26159e-14, unit="mol.s-1.g-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
                                                 min_value="", max_value="", value_comment="From RhizoDep parameter, applied 5e-13 * 6 * 12 / 0.44 * 0.015 / 14 / 1.4", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
-    diffusion_apoplasm: float =         declare(default=1e-13, unit="g.s-1.m-2", unit_comment="of solute", description="", 
+    diffusion_apoplasm: float =         declare(default=1e-14, unit="g.s-1.m-2", unit_comment="of solute", description="", 
                                                 min_value="", max_value="", value_comment="while there is no soil model balance", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
@@ -916,15 +917,15 @@ class RootNitrogenModel(Model):
         
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
         # Here, surface is not really representative of a structure as everything is apoplasmic
-        diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+        diffusion_apoplasm = np.where(radial_import_water_xylem_apoplastic > 0., self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
                                                                 T_ref=self.passive_processes_T_ref,
                                                                 A=self.passive_processes_A,
                                                                 B=self.passive_processes_B,
-                                                                C=self.passive_processes_C)
-        diffusion_process = diffusion_apoplasm * (xylem_Nm * living_struct_mass / np.where(xylem_volume <=0, 1., xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+                                                                C=self.passive_processes_C), 0.)
+        diffusion_process = np.minimum(diffusion_apoplasm * (xylem_Nm * living_struct_mass / np.where(xylem_volume <=0, 1., xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor, 0.)
 
         return np.where((xylem_volume <= 0.) | (endodermis_conductance_factor == 0), 0.,
-                        advection_process + diffusion_process)
+                        diffusion_process)
 
 
     # AMINO ACID TRANSPORT
@@ -975,16 +976,16 @@ class RootNitrogenModel(Model):
         # advection_process = - (xylem_AA * living_struct_mass / xylem_volume) * radial_import_water_xylem_apoplastic # accounts for xylem opening and endodermis conductance already
 
         # Direct diffusion between soil and xylem when 1) xylem is apoplastic and 2) endoderm is not differentiated
-        diffusion_apoplasm = self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
+        diffusion_apoplasm = np.where(radial_import_water_xylem_apoplastic > 0., self.diffusion_apoplasm * self.temperature_modification(soil_temperature=soil_temperature,
                                                                 T_ref=self.passive_processes_T_ref,
                                                                 A=self.passive_processes_A,
                                                                 B=self.passive_processes_B,
-                                                                C=self.passive_processes_C)
+                                                                C=self.passive_processes_C), 0.)
         net_uptake_in_flux = import_AA - diffusion_AA_soil
-        diffusion_process = diffusion_apoplasm * (xylem_AA * living_struct_mass / np.where(xylem_volume <= 0., 1., xylem_volume) - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor
+        diffusion_process = np.minimum(diffusion_apoplasm * (xylem_AA * living_struct_mass / np.where(xylem_volume <= 0., 1., xylem_volume) - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor, 0.)
 
-        flow = advection_process + diffusion_process
-        flow = np.where(flow < 0., np.minimum(flow + import_AA, 0.), flow)
+        flow = diffusion_process
+        # flow = np.where(flow < 0., np.minimum(flow + import_AA, 0.), flow)
 
         return np.where((xylem_volume <= 0) | (endodermis_conductance_factor == 0), 0.,
                         flow)
@@ -1255,7 +1256,7 @@ class RootNitrogenModel(Model):
         shoot_phloem_volume = shoot_struct_mass * 1e-7
         cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
         cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
-        print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
+        if debug_advection: print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
 
         phloem_solutes = ["C_sucrose_root", "phloem_AA"]
         xylem_solutes = ["xylem_Nm", "xylem_AA"]
@@ -1263,10 +1264,9 @@ class RootNitrogenModel(Model):
         vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
         dt = float(self.time_step)
         root_vid = 1
-        root = 0
-        xylem_axial_diffusivity = 1e-8# m^2/s Peuke et al. 2001
-        phloem_axial_diffusivity = 1e-9*10  # m^2/s Romero Gomez 2011
-        collar_axial_diffusivity = 1e-9
+        xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
+        phloem_axial_diffusivity = 1e-9 * 0  # m^2/s Romero Gomez 2011 NOTE but canceled to let advection drive
+        collar_axial_diffusivity = 1e-9 / 10 * 2
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1283,7 +1283,8 @@ class RootNitrogenModel(Model):
         # 2) Global→Local map: from global *index* to local [0..n-1]
         global2local = np.full(vertex_index.size, -1, dtype=np.int64)    # -1 means “not in focus set”
         global2local[focus_glob_idx] = np.arange(n, dtype=np.int64)
-
+        root_glob_idx = vertex_index.indices_of([root_vid])[0]
+        root = int(global2local[root_glob_idx])
 
         # 3) Parent ids (global vertex IDs), aligned to *global* order
         parent_vid_global = props["parent_id"].values_array()
@@ -1357,6 +1358,8 @@ class RootNitrogenModel(Model):
                                                                      A=self.passive_processes_A,
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
+        hexose_consumption_by_growth = props['hexose_consumption_by_growth'].values_array()[focus_glob_idx]
+        amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
 
         # Solve solutes sequentially
         for name, cfg in self.solute_configs.items():
@@ -1382,6 +1385,11 @@ class RootNitrogenModel(Model):
 
             # Corresponding permeability at this moment
             k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
+            if name == "C_sucrose_root":
+                k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
+            elif name == "phloem_AA":
+                k_diffusion *= (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
+
 
             boundary_from_reached_segments = False
             # Boundary flux from shoot B (mol/s)
@@ -1401,7 +1409,7 @@ class RootNitrogenModel(Model):
             boundary_inflow = np.zeros(n, dtype=np.float64)
             boundary_outflow = np.zeros(n, dtype=np.float64)
             
-            boundary_only_on_root = True
+            boundary_only_on_root = False
 
             if boundary_only_on_root and boundary_from_reached_segments:
                 boundary_outflow[root] = water_flux[root]
@@ -1482,33 +1490,39 @@ class RootNitrogenModel(Model):
             
                 # ---- Convert advected volumes to boundary molar flux weights ----
                 denom = adv_vol.sum()
-                if denom > 0.0:
-                    # If the root system exports to shoot, the advected solution is not homogeneous and therefore the segments crossed by the advection front 
-                    # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
-                    # but the boundary is still in mol.s-1
-                    if boundary_from_reached_segments:
-                        boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
-
-                    # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
-                    # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
-                    else:
-                        if boundary_from_shoot >= 0.:
-                            boundary_inflow = (boundary_from_shoot * adv_vol) / denom
-                        else:
-                            w = adv_vol / denom
-                            denomC = (w * solute_cv).sum()
-                            boundary_outflow = (-boundary_from_shoot) * (w / denomC)
+                # denom = conductive_element_volume.sum()
+                # adv_vol = conductive_element_volume
+                if denom > 0:
+                    boundary_outflow = (water_flux[root] * adv_vol) / denom
                 else:
-                    if boundary_from_shoot >= 0.:
-                        boundary_inflow[root] = boundary_from_shoot
-                    else:
-                        boundary_outflow[root] = - boundary_from_shoot / solute_cv[root]
+                    boundary_outflow[root] = water_flux[root]
+                # if denom >= 0.0:
+                #     # If the root system exports to shoot, the advected solution is not homogeneous and therefore the segments crossed by the advection front 
+                #     # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
+                #     # but the boundary is still in mol.s-1
+                #     if boundary_from_reached_segments:
+                #         boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
 
-                if not boundary_from_reached_segments:
-                    # assert np.abs(boundary_inflow.sum() - boundary_from_shoot) < boundary_from_shoot * 1e-9, f"{name} input not consistent: {boundary_inflow.sum()}, {boundary_from_shoot}"
+                #     # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
+                #     # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
+                #     else:
+                #         if boundary_from_shoot >= 0.:
+                #             boundary_inflow = (boundary_from_shoot * adv_vol) / denom
+                #         else:
+                #             w = adv_vol / denom
+                #             denomC = (w * solute_cv).sum()
+                #             boundary_outflow = (-boundary_from_shoot) * (w / denomC)
+                # else:
+                #     if boundary_from_shoot >= 0.:
+                #         boundary_inflow[root] = boundary_from_shoot
+                #     else:
+                #         boundary_outflow[root] = - boundary_from_shoot / solute_cv[root]
 
-                    # Record applied flux (mol/s) to the shoot
-                    props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
+                # if not boundary_from_reached_segments:
+                #     # assert np.abs(boundary_inflow.sum() - boundary_from_shoot) < boundary_from_shoot * 1e-9, f"{name} input not consistent: {boundary_inflow.sum()}, {boundary_from_shoot}"
+
+                #     # Record applied flux (mol/s) to the shoot
+                #     props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
 
             # Considering vessels have a low buffer capacity, if the outflux at collar exceeds maximal diffusion speed, we are sure to deplete
 
@@ -1592,11 +1606,11 @@ class RootNitrogenModel(Model):
 
             props[cfg["diffusive_flux_name"]].assign_at(focus_glob_idx, R_diffusion_actual / cfg["diffusive_flux_conversion"])
 
-            print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
+            if debug_advection: print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
 
             if boundary_from_reached_segments:
                 # Record applied flux (mol/s) to the shoot, conservative by construction
-                props[cfg["solute_flux_to_shoot"]][1] = solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum()
+                props[cfg["solute_flux_to_shoot"]][1] = (solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum())/dt
             else:
                 # Check the balance is right
                 M_target = solute_amount.sum() + (dt * R_total_actual.sum())
@@ -1612,7 +1626,7 @@ class RootNitrogenModel(Model):
 
             props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
         
-        print(props['diffusion_Nm_xylem'].values_array().sum()*3600, props['apoplastic_Nm_soil_xylem'].values_array().sum()*3600, props["Nm_root_to_shoot_xylem"][1])
+        if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
             
 
     # @axial
