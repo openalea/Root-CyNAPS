@@ -703,7 +703,7 @@ class RootWaterModel(Model):
         K_phloem = props['K_phloem'].values_array()[focus_glob_idx]
         kr_symplasmic_water_xylem = props['kr_symplasmic_water_xylem'].values_array()[focus_glob_idx]
         kr_apoplastic_water_xylem = props['kr_apoplastic_water_xylem'].values_array()[focus_glob_idx]
-        kr_symplasmic_water_phloem = props['kr_symplasmic_water_phloem'].values_array()[focus_glob_idx]
+        kr_symplasmic_water_phloem = props['kr_symplasmic_water_phloem'].values_array()[focus_glob_idx] / 1000
         xylem_pressure_in = props['xylem_pressure_in'].values_array()[focus_glob_idx]
         phloem_pressure_in = props['phloem_pressure_in'].values_array()[focus_glob_idx]
         soil_water_pressure = props['soil_water_pressure'].values_array()[focus_glob_idx]

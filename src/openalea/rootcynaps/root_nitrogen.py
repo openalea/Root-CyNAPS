@@ -1266,7 +1266,7 @@ class RootNitrogenModel(Model):
         root_vid = 1
         xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
         phloem_axial_diffusivity = 1e-9 * 0  # m^2/s Romero Gomez 2011 NOTE but canceled to let advection drive
-        collar_axial_diffusivity = 1e-9 / 10 * 2
+        collar_axial_diffusivity = 1e-9 * 2 * 2 * 2
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1385,10 +1385,10 @@ class RootNitrogenModel(Model):
 
             # Corresponding permeability at this moment
             k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
-            if name == "C_sucrose_root":
-                k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
-            elif name == "phloem_AA":
-                k_diffusion *= (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
+            # if name == "C_sucrose_root":
+            #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
+            # elif name == "phloem_AA":
+            #     k_diffusion *= (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
 
 
             boundary_from_reached_segments = False
@@ -1489,9 +1489,9 @@ class RootNitrogenModel(Model):
             
             
                 # ---- Convert advected volumes to boundary molar flux weights ----
-                denom = adv_vol.sum()
-                # denom = conductive_element_volume.sum()
-                # adv_vol = conductive_element_volume
+                # denom = adv_vol.sum()
+                denom = conductive_element_volume.sum()
+                adv_vol = conductive_element_volume
                 if denom > 0:
                     boundary_outflow = (water_flux[root] * adv_vol) / denom
                 else:
