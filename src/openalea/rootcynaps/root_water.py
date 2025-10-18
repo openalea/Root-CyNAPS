@@ -277,7 +277,8 @@ class RootWaterModel(Model):
         """
         solute_molar_volume = 160.35 * 1e-6 # m3.mol-1
         # solute_molar_volume = 100 * 1e-6 # m3.mol-1
-        solute_volumetric_fraction = min(0.9, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
+        solute_volumetric_fraction = min(0.07, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
+        # print("fraction", solute_volumetric_fraction)
         # print("frac",  C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
         # print(sap_viscosity)

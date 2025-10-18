@@ -1265,8 +1265,7 @@ class RootNitrogenModel(Model):
         dt = float(self.time_step)
         root_vid = 1
         xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
-        phloem_axial_diffusivity = 1e-9 * 0  # m^2/s Romero Gomez 2011 NOTE but canceled to let advection drive
-        collar_axial_diffusivity = 1e-9 * 2 * 2 * 2
+        phloem_axial_diffusivity = 1e-9 * 1000  # m^2/s Romero Gomez 2011
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1361,6 +1360,16 @@ class RootNitrogenModel(Model):
         hexose_consumption_by_growth = props['hexose_consumption_by_growth'].values_array()[focus_glob_idx]
         amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
 
+        parametrization_mass = 0.0350087941254409
+        initial_sigma = 8e-9
+        exponent = 2/3
+        # exponent = 1
+        # exponent = 4/3
+        collar_axial_diffusivity_sigma = initial_sigma / (parametrization_mass ** (exponent))
+        collar_axial_diffusivity =  collar_axial_diffusivity_sigma * (living_struct_mass.sum() ** (exponent))
+        print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
+        # above parametrized to yield initially : 1e-9 * 2 * 2 * 2
+
         # Solve solutes sequentially
         for name, cfg in self.solute_configs.items():
             # Per-node fields (aligned to vids)
@@ -1385,6 +1394,10 @@ class RootNitrogenModel(Model):
 
             # Corresponding permeability at this moment
             k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
+            if name == "C_sucrose_root":
+                k_diffusion *= (1 + hexose_consumption_by_growth / (self.reference_rate_of_hexose_consumption_by_growth))
+            elif name == "phloem_AA":
+                k_diffusion *= (1 + amino_acids_consumption_by_growth / (self.reference_rate_of_AA_consumption_by_growth))
             # if name == "C_sucrose_root":
             #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
             # elif name == "phloem_AA":
