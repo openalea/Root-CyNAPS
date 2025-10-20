@@ -1253,7 +1253,7 @@ class RootNitrogenModel(Model):
         shoot_sucrose = props["sucrose_phloem_shoot"][1]
         shoot_amino_acids = props["AA_phloem_shoot"][1]
         shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
-        shoot_phloem_volume = shoot_struct_mass * 1e-7
+        shoot_phloem_volume = shoot_struct_mass * 1e-7 * 2
         cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
         cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
         if debug_advection: print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
@@ -1264,8 +1264,8 @@ class RootNitrogenModel(Model):
         vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
         dt = float(self.time_step)
         root_vid = 1
-        xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
-        phloem_axial_diffusivity = 1e-9 * 1000  # m^2/s Romero Gomez 2011
+        xylem_axial_diffusivity = 1e-8 * 0. # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
+        phloem_axial_diffusivity = 1e-9 * 1  # m^2/s Romero Gomez 2011
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1359,6 +1359,7 @@ class RootNitrogenModel(Model):
                                                                      C=self.passive_processes_C)
         hexose_consumption_by_growth = props['hexose_consumption_by_growth'].values_array()[focus_glob_idx]
         amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
+        label = props['label'].values_array()[focus_glob_idx]
 
         parametrization_mass = 0.0350087941254409
         initial_sigma = 8e-9
@@ -1378,8 +1379,9 @@ class RootNitrogenModel(Model):
             solute_massic_concentration = props[cfg["solute_massic_concentration_prop"]].values_array()[focus_glob_idx]   
             solute_massic_concentration_symplasm = props[cfg["solute_massic_concentration_symplasm"]].values_array()[focus_glob_idx]   
             solute_amount = solute_massic_concentration * living_struct_mass     
-            solute_cv = solute_amount / conductive_element_volume                    
-            solute_cv_symplasm = solute_massic_concentration_symplasm * living_struct_mass / symplasmic_volume
+            solute_cv = solute_amount / conductive_element_volume    
+            # Bellow conversion used to ensure in the case of sucrose that symplastic hexose are seen as equivalent sucrose                
+            solute_cv_symplasm = abs(cfg["diffusive_flux_conversion"]) * solute_massic_concentration_symplasm * living_struct_mass / symplasmic_volume
             if "xylem" in name:
                 vessel_exchange_surface = props['xylem_exchange_surface'].values_array()[focus_glob_idx]
                 axial_diffusivity = xylem_axial_diffusivity
@@ -1395,9 +1397,13 @@ class RootNitrogenModel(Model):
             # Corresponding permeability at this moment
             k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
             if name == "C_sucrose_root":
-                k_diffusion *= (1 + hexose_consumption_by_growth / (self.reference_rate_of_hexose_consumption_by_growth))
+                reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
+                reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
+                k_diffusion *= (1 + hexose_consumption_by_growth / (reference_rate_of_hexose_consumption_by_growth))
             elif name == "phloem_AA":
-                k_diffusion *= (1 + amino_acids_consumption_by_growth / (self.reference_rate_of_AA_consumption_by_growth))
+                reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
+                reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
+                k_diffusion *= (1 + amino_acids_consumption_by_growth / (reference_rate_of_AA_consumption_by_growth))
             # if name == "C_sucrose_root":
             #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
             # elif name == "phloem_AA":
@@ -1546,7 +1552,10 @@ class RootNitrogenModel(Model):
             R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm
 
             if name in phloem_solutes:
-                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+                if name == "phloem_AA":
+                    k_collar_phloem = 4 * collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+                elif name == "C_sucrose_root":
+                    k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
                 k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
                 k_collar_phloem_diag[root] = k_collar_phloem
                 if name == "C_sucrose_root":
@@ -1639,7 +1648,7 @@ class RootNitrogenModel(Model):
 
             props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
         
-        if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
+        if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), - props["AA_root_to_shoot_phloem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
             
 
     # @axial
@@ -2149,7 +2158,7 @@ class RootNitrogenModel(Model):
     @state
     def _C_solutes_phloem(self, C_sucrose_root, phloem_AA):
         ions_proportion = 0.4 # To account for high 300 mM concentrations of potassium in phloem sap, related to sucrose symport co-transport Diant et al. 2010
-        return (phloem_AA) / (1 - ions_proportion) # TODO : Sucrose was removed here because the current unloading created crazy concentrations, needs to be coupled later
+        return (C_sucrose_root) / (1 - ions_proportion) + phloem_AA # TODO : Sucrose was removed here because the current unloading created crazy concentrations, needs to be coupled later
     
 
     # @note PLANT SCALE PROPERTIES UPDATE

@@ -277,7 +277,7 @@ class RootWaterModel(Model):
         """
         solute_molar_volume = 160.35 * 1e-6 # m3.mol-1
         # solute_molar_volume = 100 * 1e-6 # m3.mol-1
-        solute_volumetric_fraction = min(0.07, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
+        solute_volumetric_fraction = min(0.35, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
         # print("fraction", solute_volumetric_fraction)
         # print("frac",  C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
@@ -704,7 +704,7 @@ class RootWaterModel(Model):
         K_phloem = props['K_phloem'].values_array()[focus_glob_idx]
         kr_symplasmic_water_xylem = props['kr_symplasmic_water_xylem'].values_array()[focus_glob_idx]
         kr_apoplastic_water_xylem = props['kr_apoplastic_water_xylem'].values_array()[focus_glob_idx]
-        kr_symplasmic_water_phloem = props['kr_symplasmic_water_phloem'].values_array()[focus_glob_idx] / 1000
+        kr_symplasmic_water_phloem = props['kr_symplasmic_water_phloem'].values_array()[focus_glob_idx] / 10 / 4
         xylem_pressure_in = props['xylem_pressure_in'].values_array()[focus_glob_idx]
         phloem_pressure_in = props['phloem_pressure_in'].values_array()[focus_glob_idx]
         soil_water_pressure = props['soil_water_pressure'].values_array()[focus_glob_idx]

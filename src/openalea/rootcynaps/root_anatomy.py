@@ -708,7 +708,7 @@ class RootAnatomy(Model):
 
     @actual
     @state
-    def _kr_symplasmic_water_phloem(self, radius, length, relative_conductance_walls):
+    def _kr_symplasmic_water_phloem(self, radius, length, relative_conductance_walls, endodermis_conductance_factor):
         kr_eq = 0
         
         for layer in self.cell_layers:
@@ -718,7 +718,7 @@ class RootAnatomy(Model):
                                                         for layer in self.cell_layers if layer.tissue_name == "stele"])
                 kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length, stele_parietal_resistance)
 
-        return kr_eq / 10 # TODO / 10 Probably aquaporin density is not the same + parietal resistance was not accounted for, or just numerical compensation?
+        return kr_eq / 10 * endodermis_conductance_factor # TODO / 10 Probably aquaporin density is not the same + parietal resistance was not accounted for, or just numerical compensation? EDIT: 10/25 added to prevent burst at collar
     
     @totalstate
     def _total_phloem_volume(self, radius, length):
