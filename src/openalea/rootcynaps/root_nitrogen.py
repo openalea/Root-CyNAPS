@@ -519,7 +519,7 @@ class RootNitrogenModel(Model):
     smax_AA: float =                    declare(default=1e-5, unit="mol.s-1.g-1", unit_comment="of amino acids", description="", 
                                                 min_value="", max_value="", value_comment="*100 from ref to come closer to the 30% prop in whole synthesis expected", references="(Barillot 2016)", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Km_Nm_AA: float =                   declare(default=350e-6 * 100, unit="mol.g-1", unit_comment="of nitrates", description="", 
+    Km_Nm_AA: float =                   declare(default=350e-6, unit="mol.g-1", unit_comment="of nitrates", description="", 
                                                 min_value="", max_value="", value_comment="Changed to increase differences uppon Nm changes", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     Km_C_AA: float =                    declare(default=350e-6, unit="mol.g-1", unit_comment="of hexose", description="", 
@@ -1253,9 +1253,10 @@ class RootNitrogenModel(Model):
         shoot_sucrose = props["sucrose_phloem_shoot"][1]
         shoot_amino_acids = props["AA_phloem_shoot"][1]
         shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
-        shoot_phloem_volume = shoot_struct_mass * 1e-7 * 2
+        shoot_phloem_volume = shoot_struct_mass * 1e-7
         cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
-        cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
+        amino_acids_flux_booster = 1.
+        cv_shoot_amino_acids = amino_acids_flux_booster * shoot_amino_acids / shoot_phloem_volume
         if debug_advection: print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
 
         phloem_solutes = ["C_sucrose_root", "phloem_AA"]
@@ -1264,8 +1265,8 @@ class RootNitrogenModel(Model):
         vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
         dt = float(self.time_step)
         root_vid = 1
-        xylem_axial_diffusivity = 1e-8 * 0. # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
-        phloem_axial_diffusivity = 1e-9 * 1  # m^2/s Romero Gomez 2011
+        xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
+        phloem_axial_diffusivity = 1e-9 * 0.01  # m^2/s Romero Gomez 2011
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1359,10 +1360,12 @@ class RootNitrogenModel(Model):
                                                                      C=self.passive_processes_C)
         hexose_consumption_by_growth = props['hexose_consumption_by_growth'].values_array()[focus_glob_idx]
         amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
+        deficit_hexose_root = props['deficit_hexose_root'].values_array()[focus_glob_idx]
+        deficit_AA = props['deficit_AA'].values_array()[focus_glob_idx]
         label = props['label'].values_array()[focus_glob_idx]
 
         parametrization_mass = 0.0350087941254409
-        initial_sigma = 8e-9
+        initial_sigma = 8e-9 * 10 # 1.6e-8 # 8e-9
         exponent = 2/3
         # exponent = 1
         # exponent = 4/3
@@ -1399,11 +1402,11 @@ class RootNitrogenModel(Model):
             if name == "C_sucrose_root":
                 reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
                 reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
-                k_diffusion *= (1 + hexose_consumption_by_growth / (reference_rate_of_hexose_consumption_by_growth))
+                k_diffusion *= (1 + (hexose_consumption_by_growth + deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth))
             elif name == "phloem_AA":
                 reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
                 reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
-                k_diffusion *= (1 + amino_acids_consumption_by_growth / (reference_rate_of_AA_consumption_by_growth))
+                k_diffusion *= (1 + (amino_acids_consumption_by_growth + deficit_AA) / (reference_rate_of_AA_consumption_by_growth))
             # if name == "C_sucrose_root":
             #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
             # elif name == "phloem_AA":
@@ -1508,11 +1511,12 @@ class RootNitrogenModel(Model):
             
             
                 # ---- Convert advected volumes to boundary molar flux weights ----
-                # denom = adv_vol.sum()
-                denom = conductive_element_volume.sum()
-                adv_vol = conductive_element_volume
+                denom = adv_vol.sum()
+                # denom = conductive_element_volume.sum()
+                # adv_vol = conductive_element_volume
                 if denom > 0:
-                    boundary_outflow = (water_flux[root] * adv_vol) / denom
+                    # boundary_outflow = (water_flux[root] * adv_vol) / denom
+                    boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
                 else:
                     boundary_outflow[root] = water_flux[root]
                 # if denom >= 0.0:
@@ -1553,7 +1557,7 @@ class RootNitrogenModel(Model):
 
             if name in phloem_solutes:
                 if name == "phloem_AA":
-                    k_collar_phloem = 4 * collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+                    k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
                 elif name == "C_sucrose_root":
                     k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
                 k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
@@ -1648,7 +1652,11 @@ class RootNitrogenModel(Model):
 
             props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
         
-        if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), - props["AA_root_to_shoot_phloem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
+        if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), 
+                                  - props["AA_root_to_shoot_phloem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
+                                  props["AA_root_to_shoot_xylem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
+                                  props["AA_synthesis"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass) - props["AA_catabolism"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
+                                  props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
             
 
     # @axial
@@ -1953,7 +1961,7 @@ class RootNitrogenModel(Model):
 
     # METABOLIC PROCESSES
     @rate
-    def _AA_synthesis(self, living_struct_mass, Nm, soil_temperature, C_hexose_root=1e-4):
+    def _AA_synthesis(self, living_struct_mass, Nm, soil_temperature, amino_acids_consumption_by_growth, C_hexose_root=1e-4):
         # amino acid synthesis
         smax_AA = self.smax_AA * self.temperature_modification(soil_temperature=soil_temperature,
                                                                     T_ref=self.active_processes_T_ref,
