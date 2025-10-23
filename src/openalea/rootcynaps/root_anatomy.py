@@ -643,7 +643,7 @@ class RootAnatomy(Model):
         :return: the volume (m3)
         """
 
-        return sum([layer.cell_volume(radius, length) for layer in self.cell_layers if layer.tissue_name == "phloem"]) * 1000 # times 3 to account for the buffering capacity of companion cells
+        return sum([layer.cell_volume(radius, length) for layer in self.cell_layers if layer.tissue_name == "phloem"]) * 100 # times 3 to account for the buffering capacity of companion cells
     
 
     @actual

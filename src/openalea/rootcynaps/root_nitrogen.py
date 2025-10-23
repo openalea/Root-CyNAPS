@@ -1253,7 +1253,7 @@ class RootNitrogenModel(Model):
         shoot_sucrose = props["sucrose_phloem_shoot"][1]
         shoot_amino_acids = props["AA_phloem_shoot"][1]
         shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
-        shoot_phloem_volume = shoot_struct_mass * 1e-7
+        shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
         cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
         amino_acids_flux_booster = 1.
         cv_shoot_amino_acids = amino_acids_flux_booster * shoot_amino_acids / shoot_phloem_volume
@@ -1266,7 +1266,7 @@ class RootNitrogenModel(Model):
         dt = float(self.time_step)
         root_vid = 1
         xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
-        phloem_axial_diffusivity = 1e-9 * 0.01  # m^2/s Romero Gomez 2011
+        phloem_axial_diffusivity = 1e-9 * 0  # m^2/s Romero Gomez 2011
 
         # ---------------------------
         # 1) Live-node subset & local indexing
@@ -1364,15 +1364,29 @@ class RootNitrogenModel(Model):
         deficit_AA = props['deficit_AA'].values_array()[focus_glob_idx]
         label = props['label'].values_array()[focus_glob_idx]
 
+        # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
         parametrization_mass = 0.0350087941254409
-        initial_sigma = 8e-9 * 10 # 1.6e-8 # 8e-9
+        transition_mass = 0.003 # for smoothness
+        target_mass = parametrization_mass + transition_mass
+        initial_sigma = 8e-9 # 8e-9 * 3 # 1.6e-8 # 8e-9
+        # max_sigma =1e-6 * 10000
+        max_sigma =1
+        # Linear
+        # slope = (max_sigma - initial_sigma) / (0.001)
+        # origin = initial_sigma - slope * parametrization_mass
+        # current_sigma = min(max_sigma, origin + slope * living_struct_mass.sum())
+
+        # Exponential
+        current_sigma = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (living_struct_mass.sum() - parametrization_mass) / (target_mass - parametrization_mass) ) )
+
         exponent = 2/3
-        # exponent = 1
-        # exponent = 4/3
-        collar_axial_diffusivity_sigma = initial_sigma / (parametrization_mass ** (exponent))
+        # # exponent = 1
+        # # exponent = 4/3
+        collar_axial_diffusivity_sigma = current_sigma / (parametrization_mass ** (exponent))
         collar_axial_diffusivity =  collar_axial_diffusivity_sigma * (living_struct_mass.sum() ** (exponent))
         print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
-        # above parametrized to yield initially : 1e-9 * 2 * 2 * 2
+
+        back_diffusion_asymetry = 1
 
         # Solve solutes sequentially
         for name, cfg in self.solute_configs.items():
@@ -1401,12 +1415,16 @@ class RootNitrogenModel(Model):
             k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
             if name == "C_sucrose_root":
                 reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
-                reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
+                hexose_consumption_by_growth[root] = hexose_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
+                # reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
                 k_diffusion *= (1 + (hexose_consumption_by_growth + deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth))
+                back_diffusion_asymetry = 10
             elif name == "phloem_AA":
                 reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
-                reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
+                amino_acids_consumption_by_growth[root] = amino_acids_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
+                # reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
                 k_diffusion *= (1 + (amino_acids_consumption_by_growth + deficit_AA) / (reference_rate_of_AA_consumption_by_growth))
+                back_diffusion_asymetry = 10
             # if name == "C_sucrose_root":
             #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
             # elif name == "phloem_AA":
@@ -1553,7 +1571,7 @@ class RootNitrogenModel(Model):
             # assert - boundary.sum() < (k_diffusion * solute_cv_symplasm).sum(), f"{name} high risks of depletion"
 
             # R_total = R + boundary, but R is split into LHS and RHS
-            R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm
+            R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm / back_diffusion_asymetry
 
             if name in phloem_solutes:
                 if name == "phloem_AA":
@@ -1619,7 +1637,7 @@ class RootNitrogenModel(Model):
             Cm_sol = n_sol / living_struct_mass
             Cv_sol = n_sol / conductive_element_volume
 
-            R_diffusion_actual = k_diffusion * (solute_cv_symplasm - Cv_sol)
+            R_diffusion_actual = k_diffusion * ((solute_cv_symplasm  / back_diffusion_asymetry) - Cv_sol)
             R_total_actual = R_others + boundary_inflow + R_diffusion_actual
             if name == "C_sucrose_root":
                 R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
