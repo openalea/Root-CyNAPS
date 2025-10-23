@@ -1377,7 +1377,10 @@ class RootNitrogenModel(Model):
         # current_sigma = min(max_sigma, origin + slope * living_struct_mass.sum())
 
         # Exponential
-        current_sigma = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (living_struct_mass.sum() - parametrization_mass) / (target_mass - parametrization_mass) ) )
+        if living_struct_mass.sum() < parametrization_mass + transition_mass:
+            current_sigma = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (living_struct_mass.sum() - parametrization_mass) / (target_mass - parametrization_mass) ) )
+        else:
+            current_sigma = max_sigma
 
         exponent = 2/3
         # # exponent = 1
@@ -1418,7 +1421,7 @@ class RootNitrogenModel(Model):
                 hexose_consumption_by_growth[root] = hexose_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
                 # reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
                 k_diffusion *= (1 + (hexose_consumption_by_growth + deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth))
-                back_diffusion_asymetry = 10
+                back_diffusion_asymetry = 1
             elif name == "phloem_AA":
                 reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
                 amino_acids_consumption_by_growth[root] = amino_acids_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
