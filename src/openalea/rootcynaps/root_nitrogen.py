@@ -2128,20 +2128,42 @@ class RootNitrogenModel(Model):
     def _Nm(self, Nm, living_struct_mass, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_Nm_xylem, 
             export_Nm, AA_synthesis, AA_catabolism, nitrogenase_fixation, deficit_Nm) -> tuple[float, str, float]:
     
-        balance = Nm + (self.time_step / living_struct_mass) * (
-                import_Nm
-                + mycorrhizal_mediated_import_Nm
-                - diffusion_Nm_soil
-                + diffusion_Nm_xylem
-                - export_Nm
-                - AA_synthesis * self.r_Nm_AA
-                + AA_catabolism * self.r_Nm_AA
-                + nitrogenase_fixation
-                - deficit_Nm)
+
+        f = 1e13 # arbitrary
+        _import_Nm = import_Nm * f
+        _mycorrhizal_mediated_import_Nm = mycorrhizal_mediated_import_Nm * f
+        _diffusion_Nm_soil = diffusion_Nm_soil * f
+        _diffusion_Nm_xylem = diffusion_Nm_xylem * f
+        _export_Nm = export_Nm * f
+        _AA_synthesis = AA_synthesis * f
+        _AA_catabolism = AA_catabolism * f
+        _nitrogenase_fixation = nitrogenase_fixation * f
+        _deficit_Nm = deficit_Nm * f
+
+        inflow = (_import_Nm
+                + _mycorrhizal_mediated_import_Nm
+                + _diffusion_Nm_xylem
+                + _AA_catabolism * self.r_Nm_AA
+                + _nitrogenase_fixation)
+        
+        outflow = (_diffusion_Nm_soil
+                + _export_Nm
+                + _AA_synthesis * self.r_Nm_AA
+                + _deficit_Nm)
+
+        netflow = inflow - outflow
+
+        _living_struct_mass = 1e6 * living_struct_mass # µg
+
+        derivative = (self.time_step / _living_struct_mass) * netflow
+        derivative = derivative * 1e-7
+        raw_balance = Nm + derivative
             
-        deficit = - balance * living_struct_mass / self.time_step
-        deficit = np.where(deficit > 1e-20, deficit, 0.)
-        balance = np.maximum(balance, 0.)
+        is_neg = raw_balance < 0.0
+        deficit = np.where(is_neg, -raw_balance * (living_struct_mass / self.time_step), 0.0)
+        # deficit = np.where(deficit > 1e-20, deficit, 0.0)
+
+        balance = np.where(is_neg, 0.0, raw_balance)
 
         return balance, 'deficit_Nm', deficit
 
@@ -2149,6 +2171,8 @@ class RootNitrogenModel(Model):
     @state
     def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
                   hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
+        
+        # TODO as in Root-BRIDGES and for Nm here, change the way balance is computed for Rhizodep to avoid root system balance issues
         
         balance =  AA + (self.time_step / living_struct_mass) * (
                 diffusion_AA_phloem
