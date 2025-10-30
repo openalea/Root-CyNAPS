@@ -254,6 +254,9 @@ class RootNitrogenModel(Model):
     unloading_AA_phloem: float =            declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="Active import of amino acids from phloem, in line with dual flow from rhizodep", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
+    loading_AA_phloem: float =            declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
+                                                    min_value="", max_value="", description="Active export of amino acids to phloem, in line with dual flow from rhizodep", value_comment="", references="", DOI="",
+                                                    variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
     apoplastic_AA_soil_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", 
                                                     min_value="", max_value="", description="", value_comment="", references="", DOI="",
                                                     variable_type="state_variable", by="model_nitrogen", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -469,6 +472,12 @@ class RootNitrogenModel(Model):
     km_unloading_AA_phloem: float = declare(default=100, unit="mol.m-3", unit_comment="", description="", 
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    max_loading_rate: float = declare(default=2e-7, unit="mol.m-2.s-1", unit_comment="", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    Km_loading: float = declare(default=5e-6, unit="mol.g-1", unit_comment="", description="", 
+                                                min_value="", max_value="", value_comment="", references="", DOI="",
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     reference_rate_of_AA_consumption_by_growth: float = declare(default=6.26159e-14, unit="mol.s-1.g-1", unit_comment="of hexose", description="Coefficient of permeability of unloading phloem", 
                                                 min_value="", max_value="", value_comment="From RhizoDep parameter, applied 5e-13 * 6 * 12 / 0.44 * 0.015 / 14 / 1.4", references="Reference consumption rate of hexose for growth for a given root element (used to multiply the reference unloading rate when growth has consumed hexose)", DOI="",
                                                 variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
@@ -569,17 +578,31 @@ class RootNitrogenModel(Model):
     # Active processes, Q10 bell-shaped dependancy
     active_processes_T_ref: float = declare(default=20, unit="°C", unit_comment="", description="the reference temperature", 
                                                min_value="", max_value="", value_comment="", references="Most measured kinetics have been performed in laboratory conditions and hydroponics", DOI="",
-                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     active_processes_A: float = declare(default=-0.0442, unit="adim", unit_comment="", description="parameter A (may be equivalent to the coefficient of linear increase)", 
                                            min_value="", max_value="", value_comment="", references="Gifford (1995), see T_ref", DOI="",
-                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     active_processes_B: float = declare(default=1.55, unit="adim", unit_comment="", description="parameter B (may be equivalent to the Q10 value)", 
                                            min_value="", max_value="", value_comment="", references="Gifford (1995), see T_ref", DOI="",
-                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     active_processes_C: float = declare(default=1, unit="adim", unit_comment="", description="parameter C (either 0 or 1)", 
                                            min_value="", max_value="", value_comment="", references="Gifford (1995), see T_ref", DOI="",
-                                                variable_type="parameter", by="model_carbon", state_variable_type="", edit_by="user")
+                                                variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
     
+    # Exact transposition from rhizodep for phloem loading
+    max_loading_rate_T_ref: float = declare(default=10, unit="°C", unit_comment="", description="the reference temperature", 
+                                           min_value="", max_value="", value_comment="", references="We reuse the temperature-evolution used for phloem unloading, based on the work of Frankenberger and Johanson (1983) (phloem_unloading_T_ref)", DOI="",
+                                            variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    max_loading_rate_A: float = declare(default=-0.04, unit="adim", unit_comment="", description="parameter A (may be equivalent to the coefficient of linear increase)", 
+                                       min_value="", max_value="", value_comment="", references="Frankenberger and Johanson (1983), see T_ref", DOI="",
+                                        variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    max_loading_rate_B: float = declare(default=2.9, unit="adim", unit_comment="", description="parameter B (may be equivalent to the Q10 value)", 
+                                       min_value="", max_value="", value_comment="", references="Frankenberger and Johanson (1983), see T_ref", DOI="",
+                                        variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+    max_loading_rate_C: float = declare(default=1, unit="adim", unit_comment="", description="parameter C (either 0 or 1)", 
+                                       min_value="", max_value="", value_comment="", references="Frankenberger and Johanson (1983), see T_ref", DOI="",
+                                        variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
+
     # Passive processes, supposing no temperature dependancy
     passive_processes_T_ref: float = declare(default=20, unit="°C", unit_comment="", description="the reference temperature", 
                                              min_value="", max_value="", value_comment="", references="We assume that the permeability does not directly depend on temperature, according to the contrasted results obtained by Wan et al. (2001) on poplar, Shen and Yan (2002) on crotalaria, Hill et al. (2007) on wheat, or Kaldy (2012) on a sea grass.", DOI="",
@@ -693,7 +716,7 @@ class RootNitrogenModel(Model):
         "diffusion_parameter": "permeability_phloem_AA",
         "conductive_element_volume_prop": "phloem_volume",
         "water_flux_prop": "axial_export_water_up_phloem",
-        "radial_solute_flux": lambda diffusion_AA_phloem, unloading_AA_phloem: -diffusion_AA_phloem - unloading_AA_phloem,
+        "radial_solute_flux": lambda diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem: loading_AA_phloem - diffusion_AA_phloem - unloading_AA_phloem,
         "flux_shoot_boundary": lambda props: props["AA_input_rate_phloem"][1],
         "boundary_shoot_solute_concentration": lambda props: props["Cv_AA_phloem_collar"][1],
         "solute_flux_to_shoot": "AA_root_to_shoot_phloem",
@@ -1029,6 +1052,19 @@ class RootNitrogenModel(Model):
         return np.where(vmax_unloading_AA_phloem > 0., np.minimum(vmax_unloading_AA_phloem * Cv_AA_phloem * phloem_exchange_surface / (
                     self.km_unloading_AA_phloem + Cv_AA_phloem), phloem_AA * living_struct_mass / 2),
                     0.)
+
+
+    @rate
+    def _loading_AA_phloem(self, phloem_exchange_surface, AA, soil_temperature):
+        # TODO: Reconsider the way the variation of the max loading rate along the root axis has been described!
+
+        # We correct loading according to soil temperature:
+        max_loading_rate = self.max_loading_rate * self.temperature_modification(soil_temperature=soil_temperature,
+                                                                                 T_ref=self.max_loading_rate_T_ref,
+                                                                                 A=self.max_loading_rate_A,
+                                                                                 B=self.max_loading_rate_B,
+                                                                                 C=self.max_loading_rate_C)
+        return np.where(AA > 0., np.maximum(max_loading_rate * phloem_exchange_surface * AA / (self.Km_loading + AA), 0.), 0.)
 
 
     # @axial
@@ -2169,7 +2205,7 @@ class RootNitrogenModel(Model):
 
 
     @state
-    def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
+    def _AA(self, AA, living_struct_mass, diffusion_AA_phloem, unloading_AA_phloem, loading_AA_phloem, import_AA, diffusion_AA_soil, diffusion_AA_xylem, export_AA, AA_synthesis,
                   hexose_consumption_by_growth, storage_synthesis, storage_catabolism, AA_catabolism, deficit_AA) -> tuple[float, str, float]:
         
         # TODO as in Root-BRIDGES and for Nm here, change the way balance is computed for Rhizodep to avoid root system balance issues
@@ -2177,6 +2213,7 @@ class RootNitrogenModel(Model):
         balance =  AA + (self.time_step / living_struct_mass) * (
                 diffusion_AA_phloem
                 + unloading_AA_phloem
+                - loading_AA_phloem
                 + import_AA
                 - diffusion_AA_soil
                 + diffusion_AA_xylem
