@@ -945,10 +945,12 @@ class RootNitrogenModel(Model):
                                                                 A=self.passive_processes_A,
                                                                 B=self.passive_processes_B,
                                                                 C=self.passive_processes_C), 0.)
-        diffusion_process = np.minimum(diffusion_apoplasm * (xylem_Nm * living_struct_mass / np.where(xylem_volume <=0, 1., xylem_volume) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor, 0.)
+        diffusion_process = np.minimum(diffusion_apoplasm * ((xylem_Nm * living_struct_mass / np.where(xylem_volume <=0, 1., xylem_volume)) - soil_Nm) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor, 0.)
+
+        flow = diffusion_process + advection_process
 
         return np.where((xylem_volume <= 0.) | (endodermis_conductance_factor == 0), 0.,
-                        diffusion_process)
+                        flow)
 
 
     # AMINO ACID TRANSPORT
@@ -1007,7 +1009,7 @@ class RootNitrogenModel(Model):
         net_uptake_in_flux = import_AA - diffusion_AA_soil
         diffusion_process = np.minimum(diffusion_apoplasm * (xylem_AA * living_struct_mass / np.where(xylem_volume <= 0., 1., xylem_volume) - soil_AA) * 2 * np.pi * radius * length * xylem_differentiation_factor * endodermis_conductance_factor, 0.)
 
-        flow = diffusion_process
+        flow = diffusion_process + advection_process
         # flow = np.where(flow < 0., np.minimum(flow + import_AA, 0.), flow)
 
         return np.where((xylem_volume <= 0) | (endodermis_conductance_factor == 0), 0.,
@@ -1059,7 +1061,7 @@ class RootNitrogenModel(Model):
         # TODO: Reconsider the way the variation of the max loading rate along the root axis has been described!
 
         # We correct loading according to soil temperature:
-        max_loading_rate = self.max_loading_rate * self.temperature_modification(soil_temperature=soil_temperature,
+        max_loading_rate = (1/3) * self.max_loading_rate * self.temperature_modification(soil_temperature=soil_temperature,
                                                                                  T_ref=self.max_loading_rate_T_ref,
                                                                                  A=self.max_loading_rate_A,
                                                                                  B=self.max_loading_rate_B,
@@ -1302,7 +1304,7 @@ class RootNitrogenModel(Model):
         dt = float(self.time_step)
         root_vid = 1
         xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
-        phloem_axial_diffusivity = 1e-9 * 0  # m^2/s Romero Gomez 2011
+        phloem_axial_diffusivity = 1e-9 * 100  # m^2/s Romero Gomez 2011
 
         # ---------------------------
         # 1) Live-node subset & local indexing
