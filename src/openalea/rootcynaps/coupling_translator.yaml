@@ -104,6 +104,14 @@ SoilModel:
   RootAnatomy:
     root_exchange_surface:
       root_exchange_surface: 1.0
+    length:
+      length: 1.0
+    initial_length:
+      initial_length: 1.0
+    struct_mass:
+      struct_mass: 1.0
+    living_struct_mass:
+      living_struct_mass: 1.0
 
   RootNitrogenModel:
     mineralN_uptake:

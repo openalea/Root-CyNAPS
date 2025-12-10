@@ -4,6 +4,11 @@ from openalea.rootcynaps import RootWaterModel
 from openalea.rootcynaps import RootNitrogenModel
 from openalea.rootcynaps.soon_public_packages.mtg_structural_init import StaticRootGrowthModel
 
+from multiprocessing.shared_memory import SharedMemory
+import numpy as np
+from openalea.metafspm.utils import ArrayDict, mtg_to_arraydict
+from openalea.fspm.utility.writer.visualize import plot_mtg
+
 # Utilities
 from openalea.metafspm.composite_wrapper import CompositeModel
 from openalea.metafspm.component_factory import Choregrapher
@@ -48,6 +53,8 @@ class RootCyNAPS(CompositeModel):
         # INIT INDIVIDUAL MODULES
         assert len(scenario["input_mtg"]) > 0
         self.g_root = scenario["input_mtg"]["root_mtg_file"]
+        # We have to update the coordinates of the new / imported MTG for other model's initialization
+        plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
         # NOTE: Requiered here only to initialize some requiered properties on mtg
         self.root_growth = StaticRootGrowthModel(g=scenario["input_mtg"]["root_mtg_file"], time_step=time_step, **root_parameters)
         self.root_anatomy = RootAnatomy(self.g_root, time_step, **root_parameters)
@@ -58,6 +65,14 @@ class RootCyNAPS(CompositeModel):
         self.declare_data_and_couple_components(root=self.g_root,
                                                 translator_path=translator_path,
                                                 components=(self.root_anatomy, self.root_water, self.root_nitrogen))
+        self.soil_handshake = {v: k for k, v in enumerate(self.plant_side_soil_inputs + self.soil_outputs)}
+
+        descriptors = []
+        for c in self.components:
+            descriptors += c.descriptor
+
+        # NOTE : Important that this type conversion occurs after initiation of the modules
+        mtg_to_arraydict(self.g_root, ignore=descriptors)
         
         # Specific here TODO remove later
         self.root_water.collar_children = self.root_growth.collar_children
@@ -73,29 +88,45 @@ class RootCyNAPS(CompositeModel):
         # Get properties from each MTG
         self.root_props = self.g_root.properties()
         # Note specific property name adaptation to work from Frederic's RhizoDep outputs
-        self.root_props["hexose_consumption_by_growth"] = {}
+        self.root_props["hexose_consumption_by_growth"] = ArrayDict()
+        self.root_props["deficit_hexose_root"] = ArrayDict()
         self.root_props["hexose_consumption_by_growth"].update(self.root_props["hexose_consumption_by_growth_rate"])
+        self.root_props["deficit_hexose_root"].update(self.root_props["Deficit_hexose_root"]) # 0 init
         # TODO : Transfer to root growth as it is general?
         self.root_props["total_living_struct_mass"][1] = sum(list(self.root_props["living_struct_mass"].values()))
         # Check MTG quality
         for v in self.g_root.vertices(scale=self.g_root.max_scale()):
             n = self.g_root.node(v)
             if n.struct_mass > 0 and not isinstance(n.type, str):
-                n.type = 'Normal_root_after_emergence'
+                n.type = self.root_growth.type_Normal_root_after_emergence
                 if len(n.children()) > 0:
-                    n.label = 'Segment'
+                    n.label = self.root_growth.label_Segment
                 else:
-                    n.label = 'Apex'
+                    n.label = self.root_growth.label_Apex
         
         # Performed in initialization and run to update coordinates
-        print("WARNING, coordinates updating has been manually commented to use input MTGs")
-        # plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
+        plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
 
+        self.name = name
         # ROOT PROPERTIES INITIAL PASSING IN MTG
         self.root_props["plant_id"] = name
         self.root_props["model_name"] = self.__class__.__name__
-        self.root_props["carried_components"] = [component.__class__.__name__ for component in self.components]
-        self.queue_plants_to_soil.put({"plant_id": self.name, "data": self.root_props})
+        self.model_name = self.__class__.__name__
+        self.carried_components = [component.__class__.__name__ for component in self.components]
+
+        shm = SharedMemory(name=self.name)
+        buf = np.ndarray((35,20000), dtype=np.float64, buffer=shm.buf)
+        # print(buf)
+        for name in self.plant_side_soil_inputs:
+            value = self.root_props[name]
+            if isinstance(value, ArrayDict):
+                buf[self.soil_handshake[name],:len(value)] = value.values_array()
+            else:
+                print(name, "should be passed")
+        
+        shm.close()
+        self.queue_plants_to_soil.put({"plant_id": self.name, "model_name": self.model_name, "carried_components": self.carried_components, "handshake": self.soil_handshake})
+
 
         # Retreive post environments init states
         self.get_environment_boundaries()
@@ -109,6 +140,9 @@ class RootCyNAPS(CompositeModel):
 
         # Retrieve soil and light status for plant
         self.get_environment_boundaries()
+
+        # Update mtg coordinates
+        plot_mtg(self.g_root, position=self.coordinates, rotation=self.rotation)
 
         # Update topological surfaces and volumes based on other evolved structural properties
         self.root_anatomy()
@@ -128,12 +162,31 @@ class RootCyNAPS(CompositeModel):
         soil_boundary_props = self.queues_soil_to_plants[self.name].get()
 
         # NOTE : here you have to perform a per-variable update otherwise dynamic links are broken
-        for variable_name in self.soil_outputs + ["voxel_neighbor"]: # TODO : soil_outputs come from declare_data_and_couple_components, not a good structure to keep
-            if variable_name not in self.root_props.keys():
-                self.root_props[variable_name] = {}
+        shm = SharedMemory(name=self.name)
+        buf = np.ndarray((35,20000), dtype=np.float64, buffer=shm.buf)
+        vertices = buf[self.soil_handshake["vertex_index"]]
+        vertices_mask = vertices >= 1
+        for variable_name in self.soil_outputs: # TODO : soil_outputs come from declare_data_and_couple_components, not a good structure to keep
+            # print(len(self.root_props[variable_name]))
+            if variable_name not in self.root_props.keys(): # Actually used? I am not sure
+                self.root_props[variable_name] = ArrayDict()
             
-            self.root_props[variable_name].update(soil_boundary_props[variable_name])
-
+            # self.root_props[variable_name].assign_all(buf[self.soil_handshake[variable_name]][vertices_mask])
+            self.root_props[variable_name].scatter(vertices[vertices_mask], buf[self.soil_handshake[variable_name]][vertices_mask])
+            
+        shm.close()
 
     def send_plant_status_to_environment(self):
-        self.queue_plants_to_soil.put({"plant_id": self.name, "data": self.root_props})
+        shm = SharedMemory(name=self.name)
+        buf = np.ndarray((35,20000), dtype=np.float64, buffer=shm.buf)
+        # print(buf)
+        for name in self.plant_side_soil_inputs:
+            value = self.root_props[name]
+            if isinstance(value, ArrayDict):
+                buf[self.soil_handshake[name],:len(value)] = value.values_array()
+            else:
+                print(name, "should be passed")
+        
+        shm.close()
+
+        self.queue_plants_to_soil.put({"plant_id": self.name, "model_name": self.model_name, "handshake": self.soil_handshake})

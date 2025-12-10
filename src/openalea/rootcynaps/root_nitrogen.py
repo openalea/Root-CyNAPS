@@ -26,7 +26,7 @@ import inspect as ins
 import logging
 
 debug = True
-debug_advection = True
+debug_advection = False
 logger_output = logging.getLogger("Simulation_Logger")
 
 @dataclass
@@ -162,7 +162,7 @@ class RootNitrogenModel(Model):
     Cv_AA_xylem_collar: float = declare(default=0.1, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="range approximation", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    Cv_AA_phloem_collar: float = declare(default=260*2, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+    Cv_AA_phloem_collar: float = declare(default=None, unit="mol.m-3", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     AA_input_rate_phloem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Amino acids input rate in phloem at root-shoot junction", 
@@ -1288,17 +1288,18 @@ class RootNitrogenModel(Model):
 
         g = self.g
         props = g.properties()
-        shoot_sucrose = props["sucrose_phloem_shoot"][1]
-        shoot_amino_acids = props["AA_phloem_shoot"][1]
-        shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
-        shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
-        cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
-        amino_acids_flux_booster = 1.
-        cv_shoot_amino_acids = amino_acids_flux_booster * shoot_amino_acids / shoot_phloem_volume
+        
+        if "C_sucrose_root" in self.solute_configs.keys():
+            shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
+            shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
+            shoot_sucrose = props["sucrose_phloem_shoot"][1]
+            cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
+        if props["Cv_AA_phloem_collar"][1] is None:
+            shoot_amino_acids = props["AA_phloem_shoot"][1]
+            cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
+        else:
+            cv_shoot_amino_acids = props["Cv_AA_phloem_collar"][1]
         if debug_advection: print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
-
-        phloem_solutes = ["C_sucrose_root", "phloem_AA"]
-        xylem_solutes = ["xylem_Nm", "xylem_AA"]
 
         vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
         dt = float(self.time_step)
@@ -1407,8 +1408,8 @@ class RootNitrogenModel(Model):
         transition_mass = 0.003 # for smoothness
         target_mass = parametrization_mass + transition_mass
         initial_sigma = 8e-9 # 8e-9 * 3 # 1.6e-8 # 8e-9
-        # max_sigma =1e-6 * 10000
-        max_sigma =1
+        # max_sigma = 1e-6 * 10000
+        max_sigma = 1
         # Linear
         # slope = (max_sigma - initial_sigma) / (0.001)
         # origin = initial_sigma - slope * parametrization_mass
@@ -1496,7 +1497,7 @@ class RootNitrogenModel(Model):
                 boundary_outflow[root] = water_flux[root]
 
 
-            if name not in phloem_solutes and not boundary_only_on_root:
+            if name not in ("C_sucrose_root", "phloem_AA") and not boundary_only_on_root:
                 # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
                 sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
                 Q_down = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)  # (n,) >= 0
@@ -1614,18 +1615,18 @@ class RootNitrogenModel(Model):
             # R_total = R + boundary, but R is split into LHS and RHS
             R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm / back_diffusion_asymetry
 
-            if name in phloem_solutes:
-                if name == "phloem_AA":
-                    k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
-                elif name == "C_sucrose_root":
-                    k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+            if name == "phloem_AA":
+                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
                 k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
                 k_collar_phloem_diag[root] = k_collar_phloem
-                if name == "C_sucrose_root":
-                    R_total[root] += k_collar_phloem * cv_shoot_sucrose
-                elif name == "phloem_AA":
-                    R_total[root] += k_collar_phloem * cv_shoot_amino_acids
+                R_total[root] += k_collar_phloem * cv_shoot_amino_acids
 
+            elif name == "C_sucrose_root":
+                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+                k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
+                k_collar_phloem_diag[root] = k_collar_phloem
+                R_total[root] += k_collar_phloem * cv_shoot_sucrose
+                    
             # ---------------------------
             # 5) Vectorized assembly of A (diffusion + advection), then column-scale by inv(V)
             # ---------------------------
@@ -1643,7 +1644,7 @@ class RootNitrogenModel(Model):
             diag = np.zeros(n, dtype=np.float64)
             diag += -k_diffusion
             diag += -boundary_outflow
-            if name in phloem_solutes:
+            if name in ("C_sucrose_root", "phloem_AA"):
                 diag += -k_collar_phloem_diag
             # diffusion: -D at child and parent diags
             np.add.at(diag, children, -D)
@@ -2020,7 +2021,7 @@ class RootNitrogenModel(Model):
 
     # METABOLIC PROCESSES
     @rate
-    def _AA_synthesis(self, living_struct_mass, Nm, soil_temperature, amino_acids_consumption_by_growth, C_hexose_root=1e-4):
+    def _AA_synthesis(self, living_struct_mass, Nm, soil_temperature, C_hexose_root=1e-4):
         # amino acid synthesis
         smax_AA = self.smax_AA * self.temperature_modification(soil_temperature=soil_temperature,
                                                                     T_ref=self.active_processes_T_ref,
@@ -2142,6 +2143,11 @@ class RootNitrogenModel(Model):
                                                                                             C=self.active_processes_C)
         return vmax_Nm_to_roots_fungus * self.props["mycorrhiza_infected_length"][vertex_index] * Nm_fungus / (Nm_fungus + self.Km_Nm_to_roots_fungus)
 
+
+    @rate
+    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
+        return (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA 
+    
 
     @totalrate
     def _cytokinin_synthesis(self, total_living_struct_mass, C_hexose_average, C_Nm_average, soil_temperature):
@@ -2288,15 +2294,10 @@ class RootNitrogenModel(Model):
         return sum([x*y for x, y in zip(C_hexose_root.values(), living_struct_mass.values())]) / total_living_struct_mass[1]
 
 
-    # DERIVATIVES COMPUTED ONLY FOR PLOTTING (commented)
+    # DERIVATIVES COMPUTED ONLY FOR PLOTTING
 
     # For plotting only
-    #@rate
-    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
-        return (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA 
-
-    # For plotting only
-    #@state
+    @state
     def _net_mineral_N_uptake(self, import_Nm, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, apoplastic_Nm_soil_xylem):
         return import_Nm + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - apoplastic_Nm_soil_xylem
 

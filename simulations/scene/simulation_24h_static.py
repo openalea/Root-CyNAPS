@@ -1,6 +1,7 @@
 # Public packages
 import multiprocessing as mp
 import time
+import numpy as np
 
 # Model packages
 import openalea.rootcynaps
@@ -17,8 +18,8 @@ from openalea.metafspm.scene_wrapper import play_Orchestra
 if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
     custom_output_folder = "outputs/fig_standalone"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
@@ -32,13 +33,15 @@ if __name__ == '__main__':
     parallel_development = 1 # To keep room in CPUs if launching dev simulations in parallel on the machine
     max_processes = mp.cpu_count() - subprocesses_number - parallel_development - 1 # -1 for the main process
 
-    # target_concentrations = np.logspace(0, 4, 5) * 5e-3
+    target_concentrations = np.logspace(0, 4, 5) * 5e-3
     # explored_space = np.logspace(0, 4, 9) * 5e-3
     # target_concentrations = np.logspace(0, 4, 9) * 5e-3
     # target_concentrations = [explored_space[i] for i in range(len(explored_space)-1) if i % 2 == 1]
-    target_concentrations = [5e-1]    
+    # target_concentrations = [5e-1]    
 
     parallel = False
+    # Manual cap
+    max_processes = 10
     active_processes = 0 
     processes = []
 
@@ -84,7 +87,7 @@ if __name__ == '__main__':
 
         else:
             for concentration in target_concentrations:
-                scenario["parameters"]["root_cynaps"]["roots"]["dissolved_mineral_N"] = 5e-7 * concentration / 1e-1
+                scenario["parameters"]["soil_model"]["soil"]["dissolved_mineral_N"] = 2.958e-6 * concentration
                 
                 current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}"
                 print(openalea.rootcynaps.__path__[0])

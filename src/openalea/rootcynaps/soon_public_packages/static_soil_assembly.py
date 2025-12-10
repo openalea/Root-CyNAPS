@@ -36,7 +36,7 @@ class StaticSoilAssembly(CompositeModel):
         self.input_tables = scenario["input_tables"]
 
         # INIT INDIVIDUAL MODULES
-        self.soil = SoilModel(time_step_in_seconds=time_step,
+        self.soil = SoilModel(time_step=time_step,
                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, **soil_parameters)
 
         self.soil_voxels = self.soil.voxels
@@ -57,27 +57,29 @@ class StaticSoilAssembly(CompositeModel):
         for plant_data in batch:
             # Unpacking message
             id = plant_data["plant_id"]
-            props = plant_data["data"]
-            vertices = props["vertex_index"].keys()
-
+            model_name = plant_data["model_name"]
+            carried_components = plant_data["carried_components"]
             translator = self.open_or_create_translator(translator_path)
 
             # Performed for every mtg in case we use different models
-            self.couple_current_with_components_list(receiver=self.soil, components=props["carried_components"], 
+            self.couple_current_with_components_list(receiver=self.soil, components=carried_components, 
                                                     translator=translator, 
-                                                    subcategory=props["model_name"])
+                                                    subcategory=model_name)
             
-            self.soil_inputs, self.soil_outputs = self.get_component_inputs_outputs(translator=translator, components_names=props["carried_components"], target_name=self.soil.__class__.__name__, names_for_others=False)
+            self.soil_inputs, self.soil_outputs = self.get_component_inputs_outputs(translator=translator, components_names=carried_components, target_name=self.soil.__class__.__name__, names_for_others=False)
             
             # Step to ensure every neighbor gets computed at first
-            props["voxel_neighbor"] = {vid: None for vid in vertices}
+            # props["voxel_neighbor"] = {vid: None for vid in vertices}
 
             # Requiered because soil states need to be written in the MTGs by soil, but hadn't been initialized by plants
-            for variable_name in self.soil.state_variables:
-                if variable_name not in props.keys() and variable_name != "voxel_neighbor":
-                    props[variable_name] = {}
+            # for variable_name in self.soil.state_variables:
+            #     if variable_name not in props.keys() and variable_name != "voxel_neighbor":
+            #         props[variable_name] = {}
 
-            self.queues_soil_to_plants[id].put(props)
+            self.soil.get_from_plant(plant_data)
+            self.soil.send_to_plant(plant_data, self.soil_outputs)
+
+            self.queues_soil_to_plants[id].put("finished")
 
     def run(self):
         self.apply_input_tables(tables=self.input_tables, to=self.components, when=self.time)

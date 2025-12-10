@@ -343,6 +343,55 @@ class StaticRootGrowthModel(Model):
     root_order_treshold: int = declare(default=2, unit="adim", unit_comment="", description="the root order above which new lateral roots cannot be formed", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
                                                     variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    
+    # Helpers to keep labels intergers
+    label_Segment: int = declare(default=1, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    label_Apex: int = declare(default=2, unit="adim", unit_comment="", description="label utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    
+    
+    # Helpers to keep types intergers
+    type_Base_of_the_root_system: int = declare(default=1, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Support_for_seminal_root: int = declare(default=2, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Seminal_root_before_emergence: int = declare(default=3, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Support_for_adventitious_root: int = declare(default=4, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Adventitious_root_before_emergence: int = declare(default=5, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Normal_root_before_emergence: int = declare(default=6, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Normal_root_after_emergence: int = declare(default=7, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Stopped: int = declare(default=8, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Just_stopped: int = declare(default=9, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Dead: int = declare(default=10, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Just_dead: int = declare(default=11, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+    type_Root_nodule: int = declare(default=12, unit="adim", unit_comment="", description="type utility", 
+                                                    min_value="", max_value="", value_comment="", references="", DOI="",
+                                                    variable_type="parameter", by="model_growth", state_variable_type="", edit_by="user")
+
+
 
     def __init__(self, g, time_step_in_seconds: int=3600, **scenario: dict):
         """
@@ -358,6 +407,7 @@ class StaticRootGrowthModel(Model):
         self.apply_scenario(**scenario)
         
         self.g = g
+        self.to_integer_types_and_labels()
 
         self.props = self.g.properties()
         self.time_step_in_seconds = time_step_in_seconds
@@ -368,13 +418,22 @@ class StaticRootGrowthModel(Model):
         # SPECIFIC HERE, Select real children for collar element (vid == 1).
         # This is mandatory for correct collar-to-tip Hagen-Poiseuille flow partitioning.
         self.collar_children, self.collar_skip = [], []
+        if "vertex_index" not in self.props.keys():
+            self.props.setdefault("vertex_index", {})
+        if "parent_id" not in self.props.keys():
+            self.props.setdefault("parent_id", {})
+
+        self.collar_children, self.collar_skip = [], []
         for vid in self.vertices:
             children = self.g.children(vid)
+            self.props["vertex_index"][vid] = vid
+            parent = self.g.parent(vid)
+            self.props["parent_id"][vid] = parent
             # if self.props["type"][vid] in ('Support_for_seminal_root', 'Support_for_adventitious_root') and children: # Alternative as these properties can be overridden during the simulation
-            if self.props["label"][vid] == "Segment" and self.props["length"][vid] == 0 and children:
+            if self.props["label"][vid] == self.label_Segment and self.props["length"][vid] == 0 and children:
                 self.collar_skip += [vid]
                 # self.collar_children += [k for k in children if self.props["type"][k] not in ('Support_for_seminal_root', 'Support_for_adventitious_root')]
-                self.collar_children += [k for k in children if not (self.props["label"][k] == "Segment" and self.props["length"][k] == 0)] # Alternative as these properties can be overridden during the simulation
+                self.collar_children += [k for k in children if not (self.props["label"][k] == self.label_Segment and self.props["length"][k] == 0)] # Alternative as these properties can be overridden during the simulation
 
         # TODO introduce an option instead of commenting!
         self.initiate_heterogeneous_variables()
@@ -582,7 +641,7 @@ class StaticRootGrowthModel(Model):
 
             processed_length += n.length
 
-    def post_growth_updating(self, modules_to_update=[], soil_boundaries_to_infer=[]):
+    def post_growth_updating_old(self, modules_to_update=[], soil_boundaries_to_infer=[]):
         g = self.g
         props = self.props
 
@@ -719,6 +778,185 @@ class StaticRootGrowthModel(Model):
         compute_axess_id = True
         if compute_axess_id:
             self.comute_mtg_axes_id()
+
+    
+    def post_growth_updating(self, modules_to_update=[], soil_boundaries_to_infer=[], optional_for_plot=False):
+        ### CACHING NECESSARY OBJECTS
+        # Repeated calls
+        g = self.g
+        props = self.props
+
+        # accessed_properties
+        label = g.property("label")
+        type = g.property("type")
+        living_struct_mass = g.property("living_struct_mass")
+        struct_mass = g.property("struct_mass")
+        living_root_hairs_struct_mass = g.property("living_root_hairs_struct_mass")
+        axis_type = g.property("axis_type")
+
+        props["total_living_struct_mass"][1] = 0.
+
+        if optional_for_plot:
+            root_order = g.property("root_order")
+            axis_index = g.property("axis_index")
+
+            seminal_id = 1
+            adventitious_id = 1
+            lateral_id = 1            
+            processed_vids = []
+
+
+        # update modules vertices from what has been updated by the growth model NOTE : this is not enough we also need to update the "vertices_index" property bellow
+        for module in modules_to_update:
+            setattr(module, "vertices", self.vertices)
+
+        # Select the base of the root
+        root = next(g.component_roots_at_scale_iter(g.root, scale=1))
+
+        if debug: print(self.step_elongating_elements, self.step_new_apices)
+
+        # if "focus_elements" not in props.keys():
+        filter =  {"label": [1, 2], "type":[1, 7, 8, 9, 10, 11, 12]} # in line with choregrapger
+        props["focus_elements"] = [vid for vid, value in struct_mass.items() if (
+            value > 0. # NOTE : Check if robust, don't we need any calculation for non emerged elements?
+            and label[vid] in filter["label"] 
+            and type[vid] in filter["type"])]
+
+        if optional_for_plot:
+            iterator = pre_order2(g, root) # TODO: Not functionnal anymore since we blended with distance from tip
+        else:
+            iterator = post_order2(g, root)
+
+        # Sets are way more efficient than list to interrogate vid membership
+        focus_set = set(props["focus_elements"]) # It has just been computed by the Choregrapher so stick to it
+        collar_children = set(self.collar_children)       
+
+
+        # from root base to tips
+        for v in iterator:
+            # n = g.node(vid)
+
+            # We define its direct successor as son:
+            if v in focus_set:
+
+                # Update the living struct mass
+                living_struct_mass[v] = struct_mass[v] + living_root_hairs_struct_mass[v]
+
+                # We need to get the parent to compute mass partitionning.
+                if v in collar_children:
+                    parent = 1
+                else:
+                    parent = g.parent(v)
+                
+                if type[v] == self.type_Base_of_the_root_system or parent is None:
+                    axis_type[v] = 'seminal'
+                else:
+                    if optional_for_plot:
+                        if root_order[v] == 1:
+                            # We have to introduce this to get proper axis type
+                            graph_parent = g.parent(v)
+
+                            # First exception for pivot root that could be taken for a nodal otherwise
+                            # (Given the structure of the first fake supporting elements)
+                            if v == max(collar_children):
+                                axis_type[v] = 'seminal'
+                            elif type[v] == self.type_Support_for_seminal_root or type[v] == self.type_Support_for_adventitious_root:
+                                axis_type[v] = 'seminal'
+                            elif type[graph_parent] == self.type_Support_for_seminal_root:
+                                axis_type[v] = 'seminal'
+                            elif type[graph_parent] == self.type_Support_for_adventitious_root:
+                                axis_type[v] = 'nodal'
+                            elif axis_type[graph_parent] == 'seminal':
+                                axis_type[v] = 'seminal'
+                            elif axis_type[graph_parent] == 'nodal':
+                                axis_type[v] = 'nodal'
+                            else:
+                                print('Uncaught exception')
+                        else:
+                            axis_type[v] = 'lateral'
+                        
+
+            if optional_for_plot:
+                if v not in processed_vids:
+                    axis = g.Axis(v)
+                    insertion_id = g.parent(min(axis))
+
+                    if insertion_id:
+                        if type[insertion_id] == self.type_Support_for_seminal_root:
+                            axis_index.update({v: f"seminal_{seminal_id}" for v in axis})
+                            seminal_id += 1
+                        elif type[insertion_id] == self.type_Support_for_adventitious_root:
+                            axis_index.update({v: f"adventitious_{adventitious_id}" for v in axis})
+                            adventitious_id += 1
+                        else:
+                            if root_order[min(axis)] > 1:
+                                axis_index.update({v: f"lateral_{lateral_id}" for v in axis})
+                                lateral_id += 1
+                            else:
+                                print("Uncaptured exception on ", v)
+                    else:
+                        # If parent is None we now this is the main seminal axis
+                        axis_index.update({v: f"seminal_{seminal_id}" for v in axis})
+                        seminal_id += 1
+                    
+                    processed_vids += axis
+
+            props["total_living_struct_mass"][1] += living_struct_mass[v] # To ensure compatibility with imported MTG even if .values_array is more efficient
+
+
+    def to_integer_types_and_labels(self):
+
+        for v in self.g.vertices_iter(scale=1):
+            n = self.g.node(v)
+            # Convert labels
+            if n.label == "Segment":
+                n.label = self.label_Segment
+            elif n.label == "Apex":
+                n.label = self.label_Apex
+            elif isinstance(n.label, str):
+                print("Warning, unlnown label string", n.label)
+            elif n.label not in (self.label_Apex, self.label_Segment) and isinstance(n.label, int):
+                print("Warning, unlnown label integer", n.label)
+            else:
+                print("Warning, unlnown label format", n.label)
+
+            # Convert 
+
+            if n.type == "Base_of_the_root_system":
+                n.type = self.type_Base_of_the_root_system
+            elif n.type == "Support_for_seminal_root":
+                n.type = self.type_Support_for_seminal_root
+            elif n.type == "Seminal_root_before_emergence":
+                n.type = self.type_Seminal_root_before_emergence
+            elif n.type == "Support_for_adventitious_root":
+                n.type = self.type_Support_for_adventitious_root
+            elif n.type == "Adventitious_root_before_emergence":
+                n.type = self.type_Adventitious_root_before_emergence
+            elif n.type == "Normal_root_before_emergence":
+                n.type = self.type_Normal_root_before_emergence
+            elif n.type == "Normal_root_after_emergence":
+                n.type = self.type_Normal_root_after_emergence
+            elif n.type == "Stopped":
+                n.type = self.type_Stopped
+            elif n.type == "Just_stopped":
+                n.type = self.type_Just_stopped
+            elif n.type == "Dead":
+                n.type = self.type_Dead
+            elif n.type == "Just_dead":
+                n.type = self.type_Just_dead
+            elif n.type == "Root_nodule":
+                n.type = self.type_Root_nodule
+            elif isinstance(n.type, str):
+                print("Warning, unlnown label string", n.type)
+            elif n.type not in (self.type_Base_of_the_root_system, self.type_Support_for_seminal_root,
+                                 self.type_Seminal_root_before_emergence, self.type_Support_for_adventitious_root,
+                                 self.type_Adventitious_root_before_emergence, self.type_Normal_root_before_emergence,
+                                 self.type_Normal_root_after_emergence, self.type_Stopped,
+                                 self.type_Just_stopped, self.type_Dead,
+                                 self.type_Just_dead, self.type_Root_nodule) and isinstance(n.type, int):
+                print("Warning, unlnown label integer", n.type)
+            else:
+                print("Warning, unlnown type format", n.type)
 
 
     def __call__(self, *args, modules_to_update=[], soil_boundaries_to_infer=[]):
