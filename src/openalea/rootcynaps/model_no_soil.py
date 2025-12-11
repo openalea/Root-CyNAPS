@@ -61,18 +61,20 @@ class RootCyNAPS(CompositeModel):
         self.root_water = RootWaterModel(self.g_root, time_step, **root_parameters)
         self.root_nitrogen = RootNitrogenModel(self.g_root, time_step, **root_parameters)
         
+        components = (self.root_anatomy, self.root_water, self.root_nitrogen)
+        descriptors = []
+        for c in components:
+            descriptors += c.descriptor
+
+        # NOTE : Important that this type conversion occurs after initiation of the modules 
+        # AND BEFORE THE COUPLING FOR ALIASES TO REMAIN UNBROKEN!!!
+        mtg_to_arraydict(self.g_root, ignore=descriptors)
+
         # LINKING MODULES
         self.declare_data_and_couple_components(root=self.g_root,
                                                 translator_path=translator_path,
-                                                components=(self.root_anatomy, self.root_water, self.root_nitrogen))
+                                                components=components)
         self.soil_handshake = {v: k for k, v in enumerate(self.plant_side_soil_inputs + self.soil_outputs)}
-
-        descriptors = []
-        for c in self.components:
-            descriptors += c.descriptor
-
-        # NOTE : Important that this type conversion occurs after initiation of the modules
-        mtg_to_arraydict(self.g_root, ignore=descriptors)
         
         # Specific here TODO remove later
         self.root_water.collar_children = self.root_growth.collar_children
@@ -97,7 +99,7 @@ class RootCyNAPS(CompositeModel):
         # Check MTG quality
         for v in self.g_root.vertices(scale=self.g_root.max_scale()):
             n = self.g_root.node(v)
-            if n.struct_mass > 0 and not isinstance(n.type, str):
+            if n.struct_mass > 0 and not isinstance(n.type, int):
                 n.type = self.root_growth.type_Normal_root_after_emergence
                 if len(n.children()) > 0:
                     n.label = self.root_growth.label_Segment

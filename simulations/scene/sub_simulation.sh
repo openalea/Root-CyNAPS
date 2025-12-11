@@ -10,8 +10,8 @@
 #$ -N rc_revision1
 
 # Nom de la queue
-#$ -q short.q
-# -q long.q
+# -q short.q
+#$ -q long.q
 # -q highmem.q
 
 # Sélection d'un noeud particulier (commented)
@@ -31,7 +31,7 @@
 #$ -cwd
 
 # Utiliser n CPUs
-#$ -pe thread 11
+#$ -pe thread 4
 
 # Python
 
