@@ -11,8 +11,8 @@
 
 # Nom de la queue
 # -q short.q
-#$ -q long.q
-# -q highmem.q
+# -q long.q
+#$ -q highmem.q
 
 # Sélection d'un noeud particulier (commented)
 # -l hostname=n12

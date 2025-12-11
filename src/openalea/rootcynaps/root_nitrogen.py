@@ -575,8 +575,8 @@ class RootNitrogenModel(Model):
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
     # N axial transport
-    fixed_collar_axial_diffusivity: float = declare(default=None, unit="m2.s-1", unit_comment="", description="option to enforce the axial diffusivity of solutes in phloem at the shoot-root junction", 
-                                                min_value="", max_value="", value_comment="Default is None for growing root system architectures, to superimpose for static RSA", references="", DOI="",
+    mass_wise_phloem_wiring: bool = declare(default=True, unit="", unit_comment="", description="option to choose wether the initialization of phloem axial conductance at the shoot-root junction should be performed according to mass increase or time", 
+                                                min_value="", max_value="", value_comment="Default is True for growing root system architectures, to superimpose for static RSA", references="", DOI="",
                                                 variable_type="parameter", by="model_nitrogen", state_variable_type="", edit_by="user")
 
     # Temperature-related parameters
@@ -750,6 +750,8 @@ class RootNitrogenModel(Model):
         self.vertices = self.g.vertices(scale=self.g.max_scale())
 
         self.link_self_to_mtg()
+
+        self.cumulated_time = 0.
 
 
     # @note PROCESSES OF N TRANSPORT AND METABOLISM
@@ -1205,7 +1207,7 @@ class RootNitrogenModel(Model):
         deficit_AA = props['deficit_AA'].values_array()[focus_glob_idx]
         label = props['label'].values_array()[focus_glob_idx]
 
-        if self.fixed_collar_axial_diffusivity is None:
+        if self.mass_wise_phloem_wiring:
             # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
             parametrization_mass = 0.0350087941254409
             transition_mass = 0.003 # for smoothness
@@ -1231,8 +1233,19 @@ class RootNitrogenModel(Model):
             collar_axial_diffusivity =  collar_axial_diffusivity_sigma * (living_struct_mass.sum() ** (exponent))
             print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
         else:
-            collar_axial_diffusivity = self.fixed_collar_axial_diffusivity
-            print("diffusivity", collar_axial_diffusivity)
+            # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
+            transition_time = 24 * 3600 # for smoothness
+            initial_sigma = 8e-9 # 8e-9 * 3
+            max_sigma = 1
+
+            # Exponential
+            if self.cumulated_time < transition_time:
+                collar_axial_diffusivity = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (self.cumulated_time) / (transition_time) ) )
+            else:
+                collar_axial_diffusivity = max_sigma
+
+            print("diffusivity with time", collar_axial_diffusivity, self.cumulated_time)
+
 
         back_diffusion_asymetry = 1
 
@@ -1523,6 +1536,8 @@ class RootNitrogenModel(Model):
                                   props["AA_root_to_shoot_xylem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
                                   props["AA_synthesis"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass) - props["AA_catabolism"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
                                   props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
+            
+        self.cumulated_time += self.time_step
             
 
     # METABOLIC PROCESSES

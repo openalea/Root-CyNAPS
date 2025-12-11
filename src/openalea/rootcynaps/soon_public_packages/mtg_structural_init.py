@@ -426,14 +426,21 @@ class StaticRootGrowthModel(Model):
         self.collar_children, self.collar_skip = [], []
         for vid in self.vertices:
             children = self.g.children(vid)
-            self.props["vertex_index"][vid] = vid
-            parent = self.g.parent(vid)
-            self.props["parent_id"][vid] = parent
             # if self.props["type"][vid] in ('Support_for_seminal_root', 'Support_for_adventitious_root') and children: # Alternative as these properties can be overridden during the simulation
             if self.props["label"][vid] == self.label_Segment and self.props["length"][vid] == 0 and children:
                 self.collar_skip += [vid]
                 # self.collar_children += [k for k in children if self.props["type"][k] not in ('Support_for_seminal_root', 'Support_for_adventitious_root')]
                 self.collar_children += [k for k in children if not (self.props["label"][k] == self.label_Segment and self.props["length"][k] == 0)] # Alternative as these properties can be overridden during the simulation
+
+        for vid in self.vertices:
+            self.props["vertex_index"][vid] = vid
+            if vid in self.collar_children:
+                parent = 1
+            elif vid == 1:
+                parent = -1
+            else:
+                parent = self.g.parent(vid)
+            self.props["parent_id"][vid] = parent
 
         # TODO introduce an option instead of commenting!
         self.initiate_heterogeneous_variables()
