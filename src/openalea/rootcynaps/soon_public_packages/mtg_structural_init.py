@@ -461,43 +461,6 @@ class StaticRootGrowthModel(Model):
         # self.initiate_heterogeneous_struct_mass_production()
         self.post_growth_updating()
 
-
-    def comute_mtg_axes_id(self):
-        g = self.g
-        props = self.props
-        root = next(g.component_roots_at_scale_iter(g.root, scale=1))
-        seminal_id = 1
-        adventitious_id = 1
-        lateral_id = 1
-        
-        processed_vids = []
-        
-        for v in post_order2(g, root):
-            if v not in processed_vids:
-                axis = g.Axis(v)
-                insertion_id = g.parent(min(axis))
-
-                if insertion_id:
-                    parent = g.node(insertion_id)
-                    if parent.type == "Support_for_seminal_root":
-                        props["axis_index"].update({v: f"seminal_{seminal_id}" for v in axis})
-                        seminal_id += 1
-                    elif parent.type == "Support_for_adventitious_root":
-                        props["axis_index"].update({v: f"adventitious_{adventitious_id}" for v in axis})
-                        adventitious_id += 1
-                    else:
-                        if props["root_order"][min(axis)] > 1:
-                            props["axis_index"].update({v: f"lateral_{lateral_id}" for v in axis})
-                            lateral_id += 1
-                        else:
-                            print("Uncaptured exception on ", v)
-                else:
-                    # If parent is None we now this is the main seminal axis
-                    props["axis_index"].update({v: f"seminal_{seminal_id}" for v in axis})
-                    seminal_id += 1
-                
-                processed_vids += axis
-
     @postsegmentation
     @state
     def update_distance_from_tip(self):
@@ -781,10 +744,6 @@ class StaticRootGrowthModel(Model):
                                 n.actual_time_since_formation += (self.time_step_in_seconds / 3600 / 24) * aging_length / n.length
 
                         n.tissue_formation_time = n.thermal_time_since_cells_formation / 3600 / 24
-
-        compute_axess_id = True
-        if compute_axess_id:
-            self.comute_mtg_axes_id()
 
     
     def post_growth_updating(self, modules_to_update=[], soil_boundaries_to_infer=[], optional_for_plot=False):

@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/fig_standalone"
+    custom_output_folder = "outputs/rev2.1"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
     # custom_output_folder = "outputs/fig_batch_net_N_uptake"
@@ -44,6 +44,7 @@ if __name__ == '__main__':
     max_processes = 10
     active_processes = 0 
     processes = []
+    stabilization_duration = 24
 
     for scenario_name, scenario in scenarios.items():
         
@@ -80,7 +81,7 @@ if __name__ == '__main__':
                                                                 translator_path=openalea.rootcynaps.__path__[0],
                                                                 logger_class=Logger, log_settings=Logger.light_log,
                                                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                                                time_step=3600, n_iterations=24))
+                                                                time_step=3600, n_iterations=stabilization_duration))
                 
                 p.start()
                 processes.append(p)
@@ -90,13 +91,16 @@ if __name__ == '__main__':
                 scenario["parameters"]["soil_model"]["soil"]["dissolved_mineral_N"] = 2.958e-6 * concentration
                 
                 current_scenario_name = f"{str(scenario_name)}_{concentration:.2e}"
-                print(openalea.rootcynaps.__path__[0])
+                print("")
+                print(f'[INFO] Launching {current_scenario_name}')
+                print("")
+                
                 play_Orchestra(scene_name=current_scenario_name, output_folder=custom_output_folder, plant_models=[RootCyNAPS], plant_scenarios=[scenario], 
                                     soil_model=StaticSoilAssembly, soil_scenario=scenario,
                                     translator_path=openalea.rootcynaps.__path__[0],
-                                    logger_class=Logger, log_settings=Logger.light_log,
+                                    logger_class=Logger, log_settings=Logger.heavy_log,
                                     scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                    time_step=3600, n_iterations=24)
+                                    time_step=3600, n_iterations=stabilization_duration)
 
                 target_folder_key = "RootCyNAPS_0"
 

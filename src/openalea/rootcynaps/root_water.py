@@ -73,7 +73,7 @@ class RootWaterModel(Model):
     water_root_shoot_xylem: float = declare(default=None, unit="m3.s-1", unit_comment="of water", description="Transpiration related flux at collar",
                                             min_value="", max_value="", value_comment="", references="", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    xylem_pressure_collar: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="Xylem water pressure at collar",
+    xylem_pressure_collar: float = declare(default=-0.5e6, unit="Pa", unit_comment="", description="Xylem water pressure at collar",
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     phloem_pressure_collar: float = declare(default=1e6, unit="Pa", unit_comment="", description="Phloem water potential at collar",
@@ -277,7 +277,7 @@ class RootWaterModel(Model):
         """
         solute_molar_volume = 160.35 * 1e-6 # m3.mol-1
         # solute_molar_volume = 100 * 1e-6 # m3.mol-1
-        solute_volumetric_fraction = min(0.1, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume)
+        solute_volumetric_fraction = np.maximum(0., np.minimum(0.1, C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume))
         # print("fraction", solute_volumetric_fraction)
         # print("frac",  C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
@@ -306,7 +306,8 @@ class RootWaterModel(Model):
     # @actual
     # @rate
     def water_transport(self):
-        """Compute the water potential and fluxes of each segment
+        """
+        Compute the water potential and fluxes of each segment
 
         For each vertex of the root, compute :
             - the water potential (:math:`\psi_{\\text{out}}`) at the base;
@@ -760,7 +761,7 @@ class RootWaterModel(Model):
         # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
         if props['sucrose_input_rate'][1] is None:
             # else case is treated bellow
-            p_phloem_collar = props['phloem_pressure_collar'][root]
+            p_phloem_collar = props['phloem_pressure_collar'][root_vid]
             phloem_using_flow_not_pressure = False
         else:
             # NOTE: We keep the same flux direction as xylem for consistency, even though this is usually reversed

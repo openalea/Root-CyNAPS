@@ -178,6 +178,7 @@ class RootCyNAPS(CompositeModel):
             
         shm.close()
 
+
     def send_plant_status_to_environment(self):
         shm = SharedMemory(name=self.name)
         buf = np.ndarray((35,20000), dtype=np.float64, buffer=shm.buf)

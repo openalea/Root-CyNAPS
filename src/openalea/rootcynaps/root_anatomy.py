@@ -267,6 +267,10 @@ class RootAnatomy(Model):
                                                 unit=".m-1", unit_comment="", description="", min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
 
+    increased_wall_resistance_factor: float = declare(default=0.1, unit="dimensionless", unit_comment="", description="stele wall resistance increase factor to avoid overestimation of xylem-phloem conductance", 
+                            min_value="", max_value="", value_comment="/ 10 Probably aquaporin density is not the same + parietal resistance was not accounted for, or just numerical compensation? ", references="According to the work of Gahoonia et al. (1997), the root hair diameter is relatively constant for different genotypes of wheat and barley, i.e. 12 microns.", DOI="",
+                            variable_type="parameter", by="model_anatomy", state_variable_type="", edit_by="user")
+
     # Helpers to keep labels intergers
     label_Segment: int = declare(default=1, unit="adim", unit_comment="", description="label utility", 
                                                     min_value="", max_value="", value_comment="", references="", DOI="",
@@ -718,8 +722,7 @@ class RootAnatomy(Model):
                                                         for layer in self.cell_layers if layer.tissue_name == "stele"])
                 kr_eq = layer.kr_symplasmic_water(kr_eq, radius, length, stele_parietal_resistance)
 
-        return (kr_eq / 10) * endodermis_conductance_factor # TODO / 10 Probably aquaporin density is not the same + parietal resistance was not accounted for, or just numerical compensation? 
-                                                            # EDIT: 12/25 added the effect of differentiation that should to prevent burst at collar, even though the dynamic should be a bit different than endordermis differentiation
+        return kr_eq * self.increased_wall_resistance_factor * endodermis_conductance_factor  # EDIT: 12/25 added the effect of differentiation that should to prevent burst at collar, even though the dynamic should be a bit different than endordermis differentiation
     
     @totalstate
     def _total_phloem_volume(self, radius, length):
