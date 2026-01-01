@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/rev2.1"
+    custom_output_folder = "outputs/debug1.2"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
     # custom_output_folder = "outputs/fig_batch_net_N_uptake"

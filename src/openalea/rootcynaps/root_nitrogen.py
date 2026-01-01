@@ -171,7 +171,7 @@ class RootNitrogenModel(Model):
     AA_input_rate_xylem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Amino acids input rate in xylem at root-shoot junction", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    Nm_input_rate_xylem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at root-shoot junction", 
+    Nm_input_rate_xylem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Mineral N input rate in phloem at root-shoot junction", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     cytokinins_root_shoot_xylem: float = declare(default=0, unit="mol.h-1", unit_comment="of cytokinins", description="",
@@ -1099,7 +1099,9 @@ class RootNitrogenModel(Model):
             shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
             shoot_sucrose = props["sucrose_phloem_shoot"][1]
             cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
-        if props["Cv_AA_phloem_collar"][1] is None:
+
+        Cv_AA_phloem_collar = props["Cv_AA_phloem_collar"][1]
+        if (Cv_AA_phloem_collar is None) or (np.isnan(Cv_AA_phloem_collar)):
             shoot_amino_acids = props["AA_phloem_shoot"][1]
             cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
         else:
@@ -1203,7 +1205,10 @@ class RootNitrogenModel(Model):
                                                                      B=self.passive_processes_B,
                                                                      C=self.passive_processes_C)
         hexose_consumption_by_growth = props['hexose_consumption_by_growth'].values_array()[focus_glob_idx]
-        amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
+        if 'amino_acids_consumption_by_growth' in props.keys():
+            amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
+        else:
+            amino_acids_consumption_by_growth = ((hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA)
         deficit_hexose_root = props['deficit_hexose_root'].values_array()[focus_glob_idx]
         deficit_AA = props['deficit_AA'].values_array()[focus_glob_idx]
         label = props['label'].values_array()[focus_glob_idx]
@@ -1232,7 +1237,7 @@ class RootNitrogenModel(Model):
             # # exponent = 4/3
             collar_axial_diffusivity_sigma = current_sigma / (parametrization_mass ** (exponent))
             collar_axial_diffusivity =  collar_axial_diffusivity_sigma * (living_struct_mass.sum() ** (exponent))
-            print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
+            # print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
         else:
             # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
             transition_time = 24 * 3600 # for smoothness
@@ -1245,7 +1250,7 @@ class RootNitrogenModel(Model):
             else:
                 collar_axial_diffusivity = max_sigma
 
-            print("diffusivity with time", collar_axial_diffusivity, self.cumulated_time)
+            # print("diffusivity with time", collar_axial_diffusivity, self.cumulated_time)
 
 
         back_diffusion_asymetry = 1
@@ -1253,7 +1258,7 @@ class RootNitrogenModel(Model):
         # Solve solutes sequentially
         for name, cfg in self.solute_configs.items():
             # Per-node fields (aligned to vids)
-            water_flux = props[cfg["water_flux_prop"]].values_array()[focus_glob_idx]               
+            water_flux = props[cfg["water_flux_prop"]].values_array()[focus_glob_idx]         
             conductive_element_volume = props[cfg["conductive_element_volume_prop"]].values_array()[focus_glob_idx]        
             solute_massic_concentration = props[cfg["solute_massic_concentration_prop"]].values_array()[focus_glob_idx]   
             solute_massic_concentration_symplasm = props[cfg["solute_massic_concentration_symplasm"]].values_array()[focus_glob_idx]   
@@ -1295,10 +1300,11 @@ class RootNitrogenModel(Model):
 
             boundary_from_reached_segments = False
             # Boundary flux from shoot B (mol/s)
-            if cfg["flux_shoot_boundary"](props) is not None:
-                print("WARNING, OLD case where the solute flow was enforced")
+            flux_shoot_boundary = cfg["flux_shoot_boundary"](props)
+            if (flux_shoot_boundary is not None) and (not np.isnan(flux_shoot_boundary)):
+                print("WARNING, OLD case where the solute flow was enforced", name, flux_shoot_boundary)
                 raise ValueError("OLD case where the solute flow was enforced")
-                boundary_from_shoot = cfg["flux_shoot_boundary"](props)
+                boundary_from_shoot = flux_shoot_boundary
             else:
                 water_flux_root = water_flux[root]
                 if water_flux_root < 0.0:
@@ -1310,7 +1316,7 @@ class RootNitrogenModel(Model):
                     # B = - water_flux_root * solute_amount[root] / conductive_element_volume[root]
 
             # CRITICAL SECTION FOR COLLAR FLOW ATTRIBUTION TO ELEMENTS REACHED BY THE SAP MOVEMENT FRONT DURING THE TIME STEP
-            # Distribute B over impacted nodes exactly like your BFS logic
+            # Distribute B over impacted nodes exactly like your BFS logicd
             boundary_inflow = np.zeros(n, dtype=np.float64)
             boundary_outflow = np.zeros(n, dtype=np.float64)
             
@@ -1318,7 +1324,6 @@ class RootNitrogenModel(Model):
 
             if boundary_only_on_root and boundary_from_reached_segments:
                 boundary_outflow[root] = water_flux[root]
-
 
             if name not in ("C_sucrose_root", "phloem_AA") and not boundary_only_on_root:
                 # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
@@ -1667,11 +1672,6 @@ class RootNitrogenModel(Model):
                                                                                             B=self.active_processes_B,
                                                                                             C=self.active_processes_C)
         return vmax_Nm_to_roots_fungus * self.props["mycorrhiza_infected_length"][vertex_index] * Nm_fungus / (Nm_fungus + self.Km_Nm_to_roots_fungus)
-
-
-    @rate
-    def _amino_acids_consumption_by_growth(self, hexose_consumption_by_growth):
-        return (hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA 
     
 
     @totalrate

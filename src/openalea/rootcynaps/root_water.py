@@ -82,7 +82,7 @@ class RootWaterModel(Model):
     Cv_sucrose_phloem_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration in phloem at collar point", 
                                        min_value=0, max_value=1200, value_comment="", references="Winter et al. 1992", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    sucrose_input_rate: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
+    sucrose_root_to_shoot_phloem: float = declare(default=None, unit="mol.s-1", unit_comment="", description="Sucrose input rate in phloem at collar point", 
                                        min_value="", max_value="", value_comment="", references="", DOI="",
                                         variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
 
@@ -456,15 +456,15 @@ class RootWaterModel(Model):
                         p_parent_xylem = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
 
                     # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
-                    if props['sucrose_input_rate'][1] is None:
+                    if props['sucrose_root_to_shoot_phloem'][1] is None:
                         # else case is treated bellow
                         p_parent_phloem = props['phloem_pressure_collar'][root]
                     else:
                         # NOTE: We keep the same flux direction as xylem for consistency, even though this is usually reversed
-                        if props['sucrose_input_rate'][1] > 0.:
-                            estimated_flux_to_shoot = - props['sucrose_input_rate'][1] / props['Cv_sucrose_phloem_collar'][1]
+                        if props['sucrose_root_to_shoot_phloem'][1] < 0.:
+                            estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / props['Cv_sucrose_phloem_collar'][1]
                         else:
-                            estimated_flux_to_shoot = - props['sucrose_input_rate'][1] / (props['total_sucrose_phloem'][1] / props['phloem_volume'].values_array().sum())
+                            estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / (props['total_sucrose_phloem'][1] / props['phloem_volume'].values_array().sum())
                         p_parent_phloem = n.phloem_pressure_out - (estimated_flux_to_shoot / n.K_phloem)
                         
 
@@ -747,7 +747,8 @@ class RootWaterModel(Model):
 
         # Boundary # TODO uncomplete!
         # If no transpiration flux is provided, we take the boundary water potential that is provided
-        if props['water_root_shoot_xylem'][1] is None:
+        water_root_shoot_xylem = props['water_root_shoot_xylem'][1]
+        if (water_root_shoot_xylem is None) or (np.isnan(water_root_shoot_xylem)):
             p_xylem_collar = props['xylem_pressure_collar'][root_vid]
             xylem_using_flow_not_pressure = False
         else:
@@ -759,17 +760,18 @@ class RootWaterModel(Model):
             p_xylem_collar = props['xylem_pressure_out'][root_vid] - (xylem_estimated_flux_to_shoot / props['K_xylem'][root_vid])
 
         # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
-        if props['sucrose_input_rate'][1] is None:
+        sucrose_root_to_shoot_phloem = props['sucrose_root_to_shoot_phloem'][1]
+        if (sucrose_root_to_shoot_phloem is None) or (np.isnan(sucrose_root_to_shoot_phloem)):
             # else case is treated bellow
             p_phloem_collar = props['phloem_pressure_collar'][root_vid]
             phloem_using_flow_not_pressure = False
         else:
             # NOTE: We keep the same flux direction as xylem for consistency, even though this is usually reversed
             # NOTE: This was a very important addition for the consistency of axial phloem transport of both water and solutes in the phloem
-            if props['sucrose_input_rate'][1] > 0.:
-                phloem_estimated_flux_to_shoot = - props['sucrose_input_rate'][1] / props['Cv_sucrose_phloem_collar'][1]
+            if props['sucrose_root_to_shoot_phloem'][1] < 0.: 
+                phloem_estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / props['Cv_sucrose_phloem_collar'][1]
             else:
-                phloem_estimated_flux_to_shoot = - props['sucrose_input_rate'][1] / (props['total_sucrose_phloem'][1] / props['phloem_volume'].values_array().sum())
+                phloem_estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / (props['total_sucrose_phloem'][1] / props['phloem_volume'].values_array().sum())
             phloem_using_flow_not_pressure = True
 
         # Using slices to assemble the sparse matrix
