@@ -18,9 +18,10 @@ from openalea.metafspm.scene_wrapper import play_Orchestra
 if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5*(k+1)}" for k in range(12)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=[f"RC_ref_{5 + 10*(k)}" for k in range(6)])
-    scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
-    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_07_02.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/debug1.2"
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
+    # scenarios = ms.from_table(file_path="inputs/Scenarios_26_01_23.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
+    scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=["RC_ref_50"])
+    custom_output_folder = "outputs/stabilization_SI"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
     # custom_output_folder = "outputs/fig_batch_net_N_uptake"
@@ -33,18 +34,21 @@ if __name__ == '__main__':
     parallel_development = 1 # To keep room in CPUs if launching dev simulations in parallel on the machine
     max_processes = mp.cpu_count() - subprocesses_number - parallel_development - 1 # -1 for the main process
 
-    target_concentrations = np.logspace(0, 4, 5) * 5e-3
+    # target_concentrations = np.logspace(0, 4, 5) * 5e-3
     # explored_space = np.logspace(0, 4, 9) * 5e-3
     # target_concentrations = np.logspace(0, 4, 9) * 5e-3
     # target_concentrations = [explored_space[i] for i in range(len(explored_space)-1) if i % 2 == 1]
-    # target_concentrations = [5e-1]    
+    target_concentrations = [5e-1]    
 
     parallel = False
     # Manual cap
     max_processes = 10
     active_processes = 0 
     processes = []
-    stabilization_duration = 24
+    # stabilization_duration = 24
+    stabilization_duration = 60 * 24
+    # time_step = 3600
+    time_step = 60
 
     for scenario_name, scenario in scenarios.items():
         
@@ -81,7 +85,7 @@ if __name__ == '__main__':
                                                                 translator_path=openalea.rootcynaps.__path__[0],
                                                                 logger_class=Logger, log_settings=Logger.light_log,
                                                                 scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                                                time_step=3600, n_iterations=stabilization_duration))
+                                                                time_step=time_step, n_iterations=stabilization_duration))
                 
                 p.start()
                 processes.append(p)
@@ -98,9 +102,9 @@ if __name__ == '__main__':
                 play_Orchestra(scene_name=current_scenario_name, output_folder=custom_output_folder, plant_models=[RootCyNAPS], plant_scenarios=[scenario], 
                                     soil_model=StaticSoilAssembly, soil_scenario=scenario,
                                     translator_path=openalea.rootcynaps.__path__[0],
-                                    logger_class=Logger, log_settings=Logger.heavy_log,
+                                    logger_class=Logger, log_settings=Logger.light_log,
                                     scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
-                                    time_step=3600, n_iterations=stabilization_duration)
+                                    time_step=time_step, n_iterations=stabilization_duration)
 
                 target_folder_key = "RootCyNAPS_0"
 

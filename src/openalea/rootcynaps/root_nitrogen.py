@@ -371,13 +371,13 @@ class RootNitrogenModel(Model):
     C_phloem_AA: float =            declare(default=10, unit="mol.m-3", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    Nm_root_to_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of nitrates", description="",
+    Nm_root_to_shoot_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    AA_root_to_shoot_xylem: float =        declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
+    AA_root_to_shoot_xylem: float =        declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
-    AA_root_to_shoot_phloem: float =       declare(default=0., unit="mol.time_step-1", unit_comment="of amino acids", description="",
+    AA_root_to_shoot_phloem: float =       declare(default=0., unit="mol.s-1", unit_comment="of amino acids", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="plant_scale_state", by="model_nitrogen", state_variable_type="", edit_by="user")
     total_AA_rhizodeposition: float =   declare(default=0., unit="mol.h-1", unit_comment="of amino acids", description="",
@@ -1095,9 +1095,10 @@ class RootNitrogenModel(Model):
         props = g.properties()
         
         if "C_sucrose_root" in self.solute_configs.keys():
-            shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1]
+            shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1] # Confusing name with "shoot" but it is actually total axis struct mass
             shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
             shoot_sucrose = props["sucrose_phloem_shoot"][1]
+            print("pre", shoot_sucrose, shoot_phloem_volume)
             cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
 
         Cv_AA_phloem_collar = props["Cv_AA_phloem_collar"][1]
@@ -1511,6 +1512,7 @@ class RootNitrogenModel(Model):
             R_total_actual = R_others + boundary_inflow + R_diffusion_actual
             if name == "C_sucrose_root":
                 R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
+                print("post", collar_axial_diffusivity, k_collar_phloem, Cv_sol[root], cv_shoot_sucrose)
                 R_total_actual[root] -= R_to_shoot_actual
                 props["sucrose_root_to_shoot_phloem"][1] = R_to_shoot_actual
             elif name == "phloem_AA":
@@ -1857,4 +1859,3 @@ class RootNitrogenModel(Model):
     @state
     def _net_N_uptake(self, import_Nm, import_AA, mycorrhizal_mediated_import_Nm, diffusion_Nm_soil, diffusion_AA_soil, apoplastic_Nm_soil_xylem, apoplastic_AA_soil_xylem):
         return import_Nm + import_AA + mycorrhizal_mediated_import_Nm - diffusion_Nm_soil - diffusion_AA_soil - apoplastic_Nm_soil_xylem - apoplastic_AA_soil_xylem
-

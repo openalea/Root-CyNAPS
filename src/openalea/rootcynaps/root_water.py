@@ -76,7 +76,7 @@ class RootWaterModel(Model):
     xylem_pressure_collar: float = declare(default=-0.5e6, unit="Pa", unit_comment="", description="Xylem water pressure at collar",
                                             min_value="", max_value="", value_comment="", references="For young seedlings, supposed quasi stable McGowan and Tzimas", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
-    phloem_pressure_collar: float = declare(default=1e6, unit="Pa", unit_comment="", description="Phloem water potential at collar",
+    phloem_pressure_collar: float = declare(default=2e6, unit="Pa", unit_comment="", description="Phloem water potential at collar",
                                             min_value="", max_value="", value_comment="", references="Dinant et al. 2010 for Barley", DOI="",
                                             variable_type="input", by="model_shoot", state_variable_type="", edit_by="user")
     Cv_sucrose_phloem_collar: float = declare(default=950, unit="mol.m-3", unit_comment="", description="Sucrose volumic concentration in phloem at collar point", 

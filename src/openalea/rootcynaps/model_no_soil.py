@@ -167,7 +167,24 @@ class RootCyNAPS(CompositeModel):
         shm = SharedMemory(name=self.name)
         buf = np.ndarray((35,20000), dtype=np.float64, buffer=shm.buf)
         vertices = buf[self.soil_handshake["vertex_index"]]
+        # vertices = self.root_props["vertex_index"].values_array()
+        # vertices = vertices.astype(np.int64)
         vertices_mask = vertices >= 1
+
+        print("Shifting location?", self.soil_handshake["vertex_index"])
+        print("Length", len(self.root_props["vertex_index"]))
+        # print("Fetching dtype", np.issubdtype(vertices.dtype, np.integer))
+        # print("Fetching dtype", np.issubdtype(vertices.dtype, np.floating))
+        print("checking negatives", np.any(vertices < 0))
+        if np.any(vertices < 0):
+            print(vertices[vertices < 0])
+        print("checking inf", np.any(vertices > 1e6))
+        if np.any(vertices > 1e6):
+            print(vertices[vertices > 1e6])
+        print("checking not int floats", np.all((vertices % 1)==0))
+        if not np.all((vertices % 1)==0):
+            print(vertices[(vertices % 1) != 0])
+
         for variable_name in self.soil_outputs: # TODO : soil_outputs come from declare_data_and_couple_components, not a good structure to keep
             # print(len(self.root_props[variable_name]))
             if variable_name not in self.root_props.keys(): # Actually used? I am not sure
