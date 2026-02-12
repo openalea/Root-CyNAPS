@@ -21,7 +21,8 @@ if __name__ == '__main__':
     # scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     # scenarios = ms.from_table(file_path="inputs/Scenarios_26_01_23.xlsx", which=[f"RC_ref_{10*(k+1)}" for k in range(6)])
     scenarios = ms.from_table(file_path="inputs/Scenarios_25_12_11.xlsx", which=["RC_ref_50"])
-    custom_output_folder = "outputs/stabilization_SI"
+    # custom_output_folder = "outputs/stabilization_SI"
+    custom_output_folder = "outputs/trash"
     # custom_output_folder = "outputs/fig_visuals_aa_exudation"
     # custom_output_folder = "outputs/fig_visuals_water"
     # custom_output_folder = "outputs/fig_batch_net_N_uptake"
@@ -45,10 +46,10 @@ if __name__ == '__main__':
     max_processes = 10
     active_processes = 0 
     processes = []
-    # stabilization_duration = 24
-    stabilization_duration = 60 * 24
-    # time_step = 3600
-    time_step = 60
+    stabilization_duration = 24
+    # stabilization_duration = 60 * 24
+    time_step = 3600
+    # time_step = 60
 
     for scenario_name, scenario in scenarios.items():
         
@@ -102,7 +103,7 @@ if __name__ == '__main__':
                 play_Orchestra(scene_name=current_scenario_name, output_folder=custom_output_folder, plant_models=[RootCyNAPS], plant_scenarios=[scenario], 
                                     soil_model=StaticSoilAssembly, soil_scenario=scenario,
                                     translator_path=openalea.rootcynaps.__path__[0],
-                                    logger_class=Logger, log_settings=Logger.light_log,
+                                    logger_class=Logger, log_settings=Logger.heavy_log,
                                     scene_xrange=scene_xrange, scene_yrange=scene_yrange, sowing_density=sowing_density,
                                     time_step=time_step, n_iterations=stabilization_duration)
 

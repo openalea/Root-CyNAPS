@@ -25,7 +25,7 @@ if __name__ == '__main__':
         vmin, vmax = 1e-12 * conversion_factor, 2e-11 * conversion_factor # for AA exudation
 
         custom_colorbar(folderpath=output_path, label="manual", vmin=vmin, vmax=vmax, 
-                                            colormap="hot", vertical=True, log_scale=False, filename=f"manual_colorbar_aa_exudation.png")
+                                            colormap="Wistia", vertical=True, log_scale=False, filename=f"manual_colorbar_aa_exudation.png")
 
         for concentration in target_concentrations:
             analyze_data(scenarios=[f"{str(scenario_name)}_{concentration:.2e}"], outputs_dirpath=output_path, target_folder_key=target_folder_key,
