@@ -1098,7 +1098,7 @@ class RootNitrogenModel(Model):
             shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1] # Confusing name with "shoot" but it is actually total axis struct mass
             shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
             shoot_sucrose = props["sucrose_phloem_shoot"][1]
-            print("pre", shoot_sucrose, shoot_phloem_volume)
+            # print("pre", shoot_sucrose, shoot_phloem_volume)
             cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
 
         Cv_AA_phloem_collar = props["Cv_AA_phloem_collar"][1]
@@ -1512,7 +1512,7 @@ class RootNitrogenModel(Model):
             R_total_actual = R_others + boundary_inflow + R_diffusion_actual
             if name == "C_sucrose_root":
                 R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
-                print("post", collar_axial_diffusivity, k_collar_phloem, Cv_sol[root], cv_shoot_sucrose)
+                # print("post", collar_axial_diffusivity, k_collar_phloem, Cv_sol[root], cv_shoot_sucrose)
                 R_total_actual[root] -= R_to_shoot_actual
                 props["sucrose_root_to_shoot_phloem"][1] = R_to_shoot_actual
             elif name == "phloem_AA":

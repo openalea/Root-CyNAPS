@@ -267,7 +267,7 @@ class RootWaterModel(Model):
         soil_temperature_Kelvin = soil_temperature + 273.15
         sap_viscosity = A * np.exp( (B / soil_temperature_Kelvin) + (C * soil_temperature_Kelvin) + D * (soil_temperature_Kelvin ** 2)) # Andrade 1930 polynomial extension by Viswanath & Natarajan (1989)
         # print(sap_viscosity)
-        return sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii) * xylem_differentiation_factor
+        return sum([(np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in xylem_vessel_radii]) * xylem_differentiation_factor
 
     @potential
     @rate
@@ -282,7 +282,7 @@ class RootWaterModel(Model):
         # print("frac",  C_solutes_phloem * living_struct_mass * solute_molar_volume / phloem_volume) # TODO: should not be constrained but here absurd values
         sap_viscosity = self.phloem_sap_viscosity(solute_volumetric_fraction, soil_temperature + 273.15)
         # print(sap_viscosity)
-        return np.sum((np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii)
+        return np.sum([(np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii])
 
 
     def phloem_sap_viscosity(self, solute_volumetric_fraction, soil_temperature_Kelvin):
