@@ -203,7 +203,7 @@ class RootNitrogenModel(Model):
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     
     # Agregates for the water transport model
-    C_solutes_xylem: float =                 declare(default=0, unit="mol.m-3", unit_comment="of total solutes", description="Total solute concentration in xylem",
+    C_solutes_xylem: float =                 declare(default=0, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in xylem",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
     C_solutes_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
@@ -1094,6 +1094,7 @@ class RootNitrogenModel(Model):
         g = self.g
         props = g.properties()
         
+        # For the shoot sucrose concentration, sucrose volumic concentration needs to be estimated even if it is not explicitly provided by the shoot model 
         if "C_sucrose_root" in self.solute_configs.keys():
             shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1] # Confusing name with "shoot" but it is actually total axis struct mass
             shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
@@ -1471,8 +1472,8 @@ class RootNitrogenModel(Model):
 
             # Diagonal contributions gathered per node
             diag = np.zeros(n, dtype=np.float64)
-            diag += -k_diffusion
-            diag += -boundary_outflow
+            diag += - k_diffusion
+            diag += - boundary_outflow
             if name in ("C_sucrose_root", "phloem_AA"):
                 diag += -k_collar_phloem_diag
             # diffusion: -D at child and parent diags
@@ -1524,15 +1525,14 @@ class RootNitrogenModel(Model):
 
             if debug_advection: print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
 
-            if boundary_from_reached_segments:
+            if boundary_from_reached_segments and name not in ("C_sucrose_root", "phloem_AA"):
                 # Record applied flux (mol/s) to the shoot, conservative by construction
                 props[cfg["solute_flux_to_shoot"]][1] = (solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum())/dt
             else:
                 # Check the balance is right
                 M_target = solute_amount.sum() + (dt * R_total_actual.sum())
                 p_error = 100 * abs(n_sol.sum() - M_target) / abs(M_target)
-                if p_error > 1.:
-                    print(name, "% balance error", p_error)
+                assert p_error < 1., f"{name}, % balance error {p_error}"
 
             # c_min, c_max = cfg["solute_volumic_concentration_bounds"]
             # n_min = c_min * conductive_element_volume
