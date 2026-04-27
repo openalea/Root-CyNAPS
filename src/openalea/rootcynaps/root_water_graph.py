@@ -6,8 +6,11 @@ from openalea.mtg.traversal import post_order2, pre_order2
 
 from openalea.metafspm.component import Model, declare
 from openalea.metafspm.component_factory import *
+from openalea.metafspm.mpg import MPG
+from openalea.metafspm.graph_system import GraphView
+from openalea.metafspm.graph_system_decorators import graph_system, node_balance, boundary_condition, graph_jacobian, graph_output
 
-from scipy.sparse import csc_matrix, linalg
+from scipy.sparse import csc_matrix, diags, linalg
 
 
 debug = True
@@ -124,10 +127,12 @@ class RootWaterModel(Model):
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
     K_xylem: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="axial root segment conductance",
                                           min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user",
+                                          location="edge")
     K_phloem: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="axial root segment conductance",
                                           min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
+                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user",
+                                          location="edge")
     Keq: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="Equivalent conductance of the current root segment considering its position in the root system",
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
@@ -160,6 +165,20 @@ class RootWaterModel(Model):
     axial_import_water_down_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                              min_value="", max_value="", value_comment="", references="", DOI="",
                                              variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
+
+    # Graph-system fields (used by @graph_system _transport_solve)
+    osmotic_xylem_term: float = declare(default=0., unit="Pa", unit_comment="", description="Pre-computed osmotic correction for soil-xylem radial exchange: reflection_xylem * RT * (Cv_soil - Cv_xylem)",
+                                        min_value="", max_value="", value_comment="", references="", DOI="",
+                                        variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user",
+                                        location="node")
+    osmotic_phloem_term: float = declare(default=0., unit="Pa", unit_comment="", description="Pre-computed osmotic correction for phloem-xylem radial exchange: reflection_phloem * RT * (Cv_phloem - Cv_xylem)",
+                                         min_value="", max_value="", value_comment="", references="", DOI="",
+                                         variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user",
+                                         location="node")
+    is_collar: float = declare(default=0., unit="adim", unit_comment="", description="1.0 at the collar node (vid=1), 0.0 elsewhere; populated by _update_graph_view for use as a types filter",
+                               min_value="", max_value="", value_comment="", references="", DOI="",
+                               variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user",
+                               location="node")
 
     # --- INITIALIZES MODEL PARAMETERS ---
 
@@ -254,6 +273,57 @@ class RootWaterModel(Model):
                 self.collar_skip += [vid]
                 self.collar_children += [k for k in children if self.type[k] not in (self.type_Support_for_seminal_root, self.type_Support_for_adventitious_root)]
 
+        self._rebuild_graph_view()
+
+    @stepinit
+    def _update_graph_view(self):
+        """Rebuild _graph_view each timestep to track growing root architecture."""
+        self._rebuild_graph_view()
+
+    def _rebuild_graph_view(self):
+        """
+        Build (or rebuild) self._graph_view from the current focus_elements set.
+
+        Called once from post_coupling_init (after pull_available_inputs) and
+        each timestep from the @stepinit _update_graph_view method.
+
+        Side-effects:
+          - self.props["is_collar"] is updated: 1.0 at the collar node, 0.0 elsewhere.
+          - self._graph_view is replaced with the new GraphView.
+        """
+        props = self.props
+
+        # Focus VIDs: living active segments
+        focus_vids_list = [int(v) for v in props["focus_elements"]]
+
+        # Skip structural connector segments (Support_for_seminal/adventitious_root)
+        skip_set = set(self.collar_skip)
+
+        mpg = MPG.from_mtg(self.g)
+        is_collar_dict = mpg.populate_node_edge_scales(
+            focus_vids_list,
+            skip_predicate=lambda v: v in skip_set,
+        )
+
+        # Write is_collar into props (1.0 = collar, 0.0 = interior node)
+        is_collar_prop = props["is_collar"]
+        for vid, val in is_collar_dict.items():
+            is_collar_prop[vid] = 1.0 if val else 0.0
+
+        # Node IDs = all non-skipped focus nodes; edge IDs = non-collar nodes (children)
+        node_vids = np.array(sorted(is_collar_dict.keys()), dtype=np.int64)
+        edge_vids = np.array(
+            sorted(v for v, c in is_collar_dict.items() if not c), dtype=np.int64
+        )
+
+        self._graph_view = GraphView.from_mtg_subset(
+            mpg,
+            node_scale=MPG.scales["node"],
+            node_ids=node_vids,
+            edge_scale=MPG.scales["edge"],
+            edge_ids=edge_vids,
+        )
+
     @potential
     @rate
     def _K_xylem(self, soil_temperature, length, xylem_vessel_radii, xylem_differentiation_factor):
@@ -285,6 +355,192 @@ class RootWaterModel(Model):
         return np.sum([(np.pi * (vessel_radius ** 4) / (8 * sap_viscosity * length)) for vessel_radius in phloem_vessel_radii])
 
 
+    @rate
+    def _osmotic_xylem_term(self, soil_temperature, Cv_solutes_soil, C_solutes_xylem, living_struct_mass, xylem_volume):
+        """reflection_xylem * RT * (Cv_soil - Cv_xylem), pre-computed per node before the graph solve."""
+        RT = 8.31415 * (273.15 + soil_temperature)
+        Cv_xylem = C_solutes_xylem * living_struct_mass / xylem_volume if xylem_volume > 0. else 0.
+        return self.reflection_xylem * RT * (Cv_solutes_soil - Cv_xylem)
+
+    @rate
+    def _osmotic_phloem_term(self, soil_temperature, C_solutes_xylem, C_solutes_phloem, living_struct_mass, xylem_volume, phloem_volume):
+        """reflection_phloem * RT * (Cv_phloem - Cv_xylem), pre-computed per node before the graph solve."""
+        RT = 8.31415 * (273.15 + soil_temperature)
+        Cv_xylem = C_solutes_xylem * living_struct_mass / xylem_volume if xylem_volume > 0. else 0.
+        Cv_phloem = C_solutes_phloem * living_struct_mass / phloem_volume if phloem_volume > 0. else 0.
+        return self.reflection_phloem * RT * (Cv_phloem - Cv_xylem)
+
+    @graph_system(
+        node_unknowns=["xylem_pressure_in", "phloem_pressure_in"],
+        edge_unknowns=[],
+        method="newton",
+        max_iter=2,
+        tol=1e-8,
+        schedule_as="axial",
+    )
+    class _transport_solve:
+
+        # ── Xylem residual (all nodes; Dirichlet BC overwrites collar row) ────
+
+        @node_balance(field="xylem_pressure_in")
+        def _xylem_bulk_balance(self, xylem_pressure_in, phloem_pressure_in, K_xylem,
+                                 kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
+                                 kr_symplasmic_water_phloem,
+                                 soil_water_pressure, osmotic_xylem_term, osmotic_phloem_term):
+            B = self._graph_view.incidence
+            L_x = B @ diags(K_xylem) @ B.T
+            kr_water = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
+            return (np.asarray(L_x @ xylem_pressure_in).reshape(-1)
+                    - kr_water * (soil_water_pressure - xylem_pressure_in - osmotic_xylem_term)
+                    - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term))
+
+        # Active — Dirichlet: xylem pressure at collar from shoot transpiration model
+        @boundary_condition("node", "dirichlet", field="xylem_pressure_in", types={"is_collar": [1.0]})
+        def _xylem_collar_dirichlet(self, xylem_pressure_in):
+            return xylem_pressure_in - self.props["xylem_pressure_collar"][1]
+
+        # Inactive — Neumann: prescribed transpiration outflow at collar
+        # @boundary_condition("node", "neumann", field="xylem_pressure_in", types={"is_collar": [1.0]})
+        # def _xylem_collar_neumann(self):
+        #     Q_transp = self.props.get("water_root_shoot_xylem", {}).get(1, 0.0) or 0.0
+        #     return np.array([Q_transp])
+
+        # ── Phloem residual (all nodes; Neumann BC adds flux at collar row) ──
+
+        @node_balance(field="phloem_pressure_in")
+        def _phloem_bulk_balance(self, xylem_pressure_in, phloem_pressure_in, K_phloem,
+                                  kr_symplasmic_water_phloem, osmotic_phloem_term):
+            B = self._graph_view.incidence
+            L_ph = B @ diags(K_phloem) @ B.T
+            return (np.asarray(L_ph @ phloem_pressure_in).reshape(-1)
+                    + kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term))
+
+        # Active — Neumann: sucrose-driven sap inflow from shoot sets collar flux
+        @boundary_condition("node", "neumann", field="phloem_pressure_in", types={"is_collar": [1.0]})
+        def _phloem_collar_neumann(self):
+            suc = self.props.get("sucrose_root_to_shoot_phloem", {}).get(1, None)
+            if suc is None:
+                return np.zeros(1)
+            cv = self.props["Cv_sucrose_phloem_collar"].get(1, 950.0)
+            # Q_water [m3/s] = sucrose flux [mol/s] / phloem concentration [mol/m3] at collar
+            Q_water = suc / cv
+            return np.array([-Q_water])
+
+        # Inactive — Dirichlet: prescribed phloem water potential at collar
+        # @boundary_condition("node", "dirichlet", field="phloem_pressure_in", types={"is_collar": [1.0]})
+        # def _phloem_collar_dirichlet(self, phloem_pressure_in):
+        #     return phloem_pressure_in - self.props["phloem_pressure_collar"][1]
+
+        # ── Analytic Jacobian (2n × 2n) ───────────────────────────────────────
+
+        @graph_jacobian
+        def _analytic_jacobian(self, xylem_pressure_in, phloem_pressure_in,
+                                K_xylem, K_phloem,
+                                kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
+                                kr_symplasmic_water_phloem, is_collar):
+            n = self._graph_view.n_nodes
+            B = self._graph_view.incidence
+            L_x  = (B @ diags(K_xylem)  @ B.T).toarray()
+            L_ph = (B @ diags(K_phloem) @ B.T).toarray()
+            kr_water = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
+            # Xylem: Dirichlet at collar → identity row replaces bulk row
+            nc = (1.0 - is_collar)[:, None]
+            ic = is_collar
+
+            J = np.zeros((2 * n, 2 * n))
+            # Xylem–xylem: bulk Laplacian + diagonal kr, identity at Dirichlet collar
+            J[:n, :n] = (L_x + np.diag(kr_water + kr_symplasmic_water_phloem)) * nc + np.diag(ic)
+            # Xylem–phloem coupling (zeroed at Dirichlet collar row)
+            J[:n, n:] = -np.diag(kr_symplasmic_water_phloem) * nc
+            # Phloem–xylem coupling (full — Neumann keeps bulk Jacobian row at collar)
+            J[n:, :n] = -np.diag(kr_symplasmic_water_phloem)
+            # Phloem–phloem: full Laplacian + diagonal (Neumann flux is snapshotted, dQ/dP = 0)
+            J[n:, n:] = L_ph + np.diag(kr_symplasmic_water_phloem)
+            return J
+
+        # ── Post-solve outputs ────────────────────────────────────────────────
+
+        @graph_output("xylem_pressure_out")
+        def _xylem_pressure_out(self, xylem_pressure_in):
+            gv = self._graph_view
+            P_out = xylem_pressure_in.copy()
+            P_out[gv.head] = xylem_pressure_in[gv.tail]
+            return P_out
+
+        @graph_output("phloem_pressure_out")
+        def _phloem_pressure_out(self, phloem_pressure_in):
+            gv = self._graph_view
+            P_out = phloem_pressure_in.copy()
+            P_out[gv.head] = phloem_pressure_in[gv.tail]
+            return P_out
+
+        @graph_output("axial_export_water_up_xylem")
+        def _axial_export_xylem(self, xylem_pressure_in, K_xylem):
+            gv = self._graph_view
+            dp = np.asarray(gv.incidence.T @ xylem_pressure_in).reshape(-1)
+            axial = np.zeros(gv.n_nodes)
+            axial[gv.head] = -K_xylem * dp
+            return axial
+
+        @graph_output("axial_export_water_up_phloem")
+        def _axial_export_phloem(self, phloem_pressure_in, K_phloem):
+            gv = self._graph_view
+            dp = np.asarray(gv.incidence.T @ phloem_pressure_in).reshape(-1)
+            axial = np.zeros(gv.n_nodes)
+            axial[gv.head] = -K_phloem * dp
+            return axial
+
+        @graph_output("radial_import_water_xylem")
+        def _radial_import_xylem(self, xylem_pressure_in,
+                                  kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
+                                  soil_water_pressure, osmotic_xylem_term):
+            return (kr_symplasmic_water_xylem + kr_apoplastic_water_xylem) * (
+                soil_water_pressure - xylem_pressure_in - osmotic_xylem_term
+            )
+
+        @graph_output("radial_import_water_xylem_apoplastic")
+        def _radial_import_xylem_apo(self, xylem_pressure_in,
+                                      kr_apoplastic_water_xylem,
+                                      soil_water_pressure, osmotic_xylem_term):
+            return kr_apoplastic_water_xylem * (
+                soil_water_pressure - xylem_pressure_in - osmotic_xylem_term
+            )
+
+        @graph_output("radial_import_water_phloem")
+        def _radial_import_phloem(self, xylem_pressure_in, phloem_pressure_in,
+                                   kr_symplasmic_water_phloem, osmotic_phloem_term):
+            return -kr_symplasmic_water_phloem * (
+                phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term
+            )
+
+        @graph_output("axial_import_water_down_xylem")
+        def _axial_import_down_xylem(self, xylem_pressure_in, phloem_pressure_in, K_xylem,
+                                      kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
+                                      kr_symplasmic_water_phloem,
+                                      soil_water_pressure, osmotic_xylem_term, osmotic_phloem_term):
+            gv = self._graph_view
+            dp_x = np.asarray(gv.incidence.T @ xylem_pressure_in).reshape(-1)
+            axial_up = np.zeros(gv.n_nodes)
+            axial_up[gv.head] = -K_xylem * dp_x
+            kr_water = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
+            radial_xy = kr_water * (soil_water_pressure - xylem_pressure_in - osmotic_xylem_term)
+            radial_ph = -kr_symplasmic_water_phloem * (
+                phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term
+            )
+            return axial_up - radial_xy + radial_ph
+
+        @graph_output("axial_import_water_down_phloem")
+        def _axial_import_down_phloem(self, xylem_pressure_in, phloem_pressure_in, K_phloem,
+                                       kr_symplasmic_water_phloem, osmotic_phloem_term):
+            gv = self._graph_view
+            dp_ph = np.asarray(gv.incidence.T @ phloem_pressure_in).reshape(-1)
+            axial_up_ph = np.zeros(gv.n_nodes)
+            axial_up_ph[gv.head] = -K_phloem * dp_ph
+            radial_ph = -kr_symplasmic_water_phloem * (
+                phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term
+            )
+            return axial_up_ph - radial_ph
+
     def phloem_sap_viscosity(self, solute_volumetric_fraction, soil_temperature_Kelvin):
         """
         Model from Telis et al. 2007, assuming sucrose properties for whole sap solutes
@@ -301,601 +557,6 @@ class RootWaterModel(Model):
         activation_energy = activation_energy_ref * (1 + (0.5 * solute_volumetric_fraction)) / (1 - solute_volumetric_fraction) # Telis et al. 2007
         viscosity_ref = np.exp((viscosity_ref_a * solute_volumetric_fraction**2) + viscosity_ref_b * solute_volumetric_fraction + viscosity_ref_c) # Pa.s-1 empirical
         return viscosity_ref * np.exp((activation_energy / R) * ((1/soil_temperature_Kelvin) - (1/ temperature_ref)))
-
-
-    # @actual
-    # @rate
-    def water_transport(self):
-        """
-        Compute the water potential and fluxes of each segment
-
-        For each vertex of the root, compute :
-            - the water potential (:math:`\psi_{\\text{out}}`) at the base;
-            - the water potential (:math:`\psi_{\\text{in}}`) at the end;
-            - the water flux (`J`) at the base;
-            - the lateral water flux (`j`) entering the segment.
-
-        The vertex base is the side toward the basal direction, the vertex end is the one toward the root tip.
-
-        :Algorithm:
-
-            The algorithm has two stages:
-
-                - First, on each segment, an equivalent conductance is computed in post_order (children before parent).
-                - Finally, the water flux and potential are computed in pre order (parent then children).
-
-        .. note::
-            Here :math:`\psi` are the hydrostatic water potential i.e. the hydrostatic pressure.
-            There are no osmotic components.
-        """
-
-        g = self.g # To prevent repeated MTG lookups
-        props = self.props
-
-        # Select the base of the root
-        root = next(g.component_roots_at_scale_iter(g.root, scale=1))
-
-        # Equivalent conductance computation from tip to collar
-        for v in post_order2(g, root):
-            n = g.node(v)
-            if n.struct_mass > 0.:
-                if v == root:
-                    children = self.collar_children
-                else:
-                    children = [child for child in g.children(v) if props["living_struct_mass"][child] > 0.]
-
-                r = 1. / (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem + sum(props["Keq"][cid] for cid in children))
-                R = 1. / n.K_xylem
-                n.Keq = 1. / (r + R)
-
-        # Water flux and water potential computation from collar to tips
-        for v in pre_order2(g, root):
-            n = g.node(v)
-            # Compute psi according to Millman theorem, then compute radial flux
-            if n.living_struct_mass > 0:
-                if v in self.collar_children:
-                    parent = 1
-                    brothers = self.collar_children
-                else:
-                    parent = g.parent(v)
-                    brothers = [sibling for sibling in g.children_iter(parent) if props["living_struct_mass"][sibling] > 0.]
-                p = g.node(parent)
-
-                if v == root:
-                    children = self.collar_children
-                else:
-                    children = [child for child in g.children_iter(v) if props["living_struct_mass"][child] > 0.]
-
-                Keq_brothers = sum( props["Keq"][cid] for cid in brothers)
-                Keq_children = sum( props["Keq"][cid] for cid in children)
-
-                if parent is None:
-                    n.xylem_pressure_out = props['xylem_pressure_collar'][1]
-
-                    # If collar flux is provided by the shoot model
-                    if self.collar_flux_provided:
-                        n.axial_export_water_up_xylem = props['water_root_shoot_xylem'][1]
-                    # Else we compute the flux according to the Haggen-Poiseuille conductance of
-                    else:
-                        n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
-
-                else:
-                    n.xylem_pressure_out = p.xylem_pressure_in
-                    n.axial_export_water_up_xylem = (p.axial_export_water_up_xylem - p.radial_import_water_xylem) * ( n.Keq / Keq_brothers )
-
-                k_radial_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
-                n.kr_xylem = k_radial_xylem # TODO remove, only for visualization
-
-                n.xylem_pressure_in = (n.K_xylem * n.xylem_pressure_out + n.soil_water_pressure * (k_radial_xylem + Keq_children)) / (k_radial_xylem + n.K_xylem + Keq_children)
-                n.radial_import_water_xylem = (n.soil_water_pressure - n.xylem_pressure_in) * k_radial_xylem
-                n.radial_import_water_xylem_apoplastic = (n.soil_water_pressure - n.xylem_pressure_in) * n.kr_apoplastic_water_xylem
-
-                # Computed to avoid children iteration when needed by other modules
-                if len(children) > 0:
-                    n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem
-                else:
-                    n.axial_import_water_down_xylem = 0
-
-
-    # @actual
-    # @rate
-    def water_transport_munch(self):
-        """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
-        is solved by LU decomposition.
-        NOTE : the convention is that IN corresponds to children, young end of a given segment, and OUT refers to parent, old end of a given segment
-        """
-        # print("water build matrix")
-        g = self.g # To prevent repeated MTG lookups
-        props = self.props
-        struct_mass = g.property('struct_mass')
-
-        local_vid = 1
-        local_vids = {}
-        for vid, value in struct_mass.items():
-            if value > 0:
-                local_vids[vid] = local_vid
-                local_vid += 1
-
-        elt_number = len(local_vids)
-        minusG = np.zeros(2 * elt_number)
-
-        # Select the base of the root
-        root = next(g.component_roots_at_scale_iter(g.root, scale=1))
-
-        ############
-        # row and col indexes and non-zero Jacobian terms
-        ############
-        row = []
-        col = []
-        data = []
-
-        for v in g.vertices_iter(scale = 1):
-
-            n = g.node(v)
-
-            if n.struct_mass > 0:
-                # Volumic concentrations retreived there from inputs because metabolic only provides massic to be able to update on a growing arch
-                Cv_solutes_xylem = n.C_solutes_xylem * n.living_struct_mass / n.xylem_volume
-                Cv_solutes_phloem = n.C_solutes_phloem * n.living_struct_mass / n.phloem_volume
-
-                # Simulated separatly for apoplastic pathway decomposition, for phloem it is only symplastic so not differentiated
-                kr_xylem = n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem
-                n.kr_xylem = kr_xylem # TODO : Remove only for visualization
-                kr_phloem = n.kr_symplasmic_water_phloem # Only a symplastic component
-
-                if v == root:
-                    children = self.collar_children
-                    children_n = {cid: g.node(cid) for cid in children if struct_mass[cid] > 0}
-                    # If no transpiration flux is provided, we take the boundary water potential that is provided
-                    if props['water_root_shoot_xylem'][1] is None:
-                        p_parent_xylem = props['xylem_pressure_collar'][root]
-                    else:
-                        shoot_buffering_factor = 0.
-                        # redistribution_threshold = 3e-13
-                        redistribution_threshold = 0
-                        p_parent_xylem = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
-
-                    # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
-                    if props['sucrose_root_to_shoot_phloem'][1] is None:
-                        # else case is treated bellow
-                        p_parent_phloem = props['phloem_pressure_collar'][root]
-                    else:
-                        # NOTE: We keep the same flux direction as xylem for consistency, even though this is usually reversed
-                        if props['sucrose_root_to_shoot_phloem'][1] < 0.:
-                            estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / props['Cv_sucrose_phloem_collar'][1]
-                        else:
-                            estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / (props['total_sucrose_phloem'][1] / props['phloem_volume'].values_array().sum())
-                        p_parent_phloem = n.phloem_pressure_out - (estimated_flux_to_shoot / n.K_phloem)
-                        
-
-                else:
-                    children = g.children(v)
-                    children_n = {cid: g.node(cid) for cid in children if struct_mass[cid] > 0}
-                    if v in self.collar_children:
-                        parent = root
-                    else:
-                        parent = g.parent(v)
-                    p = g.node(parent)
-                    p_parent_xylem = p.xylem_pressure_in
-                    p_parent_phloem = p.phloem_pressure_in
-
-                    # First block column
-                    # dGp_xy_i/dP_xy_p
-                    row.append(int(2 * local_vids[v] - 2))
-                    col.append(int(2 * local_vids[parent] - 2))
-                    data.append(- n.K_xylem)
-
-                    # NOTE : Just kept for readability
-                    # # dGp_ph_i/dP_xy_p
-                    # row[nid] = int(2 * local_vids[v] - 1)
-                    # col[nid] = int(2 * local_vids[parent] - 2)
-                    # data[nid] = 0
-
-                    # # Second block column
-                    # # dGp_xy_i/dP_ph_p
-                    # row[nid] = int(2 * local_vids[v] - 2)
-                    # col[nid] = int(2 * local_vids[parent] - 1)
-                    # data[nid] = 0
-
-                    # dGp_ph_i/dP_ph_p
-                    row.append(int(2 * local_vids[v] - 1))
-                    col.append(int(2 * local_vids[parent] - 1))
-                    data.append(- n.K_phloem)
-
-                # First block column
-                # dGp_xy_i/dP_xy_i
-                row.append(int(2 * local_vids[v] - 2))
-                col.append(int(2 * local_vids[v] - 2))
-                data.append(n.K_xylem + sum([cn.K_xylem for cn in children_n.values()]) + kr_xylem + kr_phloem)
-
-                # dGp_ph_i/dP_xy_i
-                row.append(int(2 * local_vids[v] - 1))
-                col.append(int(2 * local_vids[v] - 2))
-                data.append(- kr_phloem)
-
-                # Second block column
-                # dGp_xy_i/dP_ph_i
-                row.append(int(2 * local_vids[v] - 2))
-                col.append(int(2 * local_vids[v] - 1))
-                data.append(- kr_phloem)
-
-                # dGp_ph_i/dP_ph_i
-                row.append(int(2 * local_vids[v] - 1))
-                col.append(int(2 * local_vids[v] - 1))
-                data.append(n.K_phloem + sum([cn.K_phloem for cn in children_n.values()]) + kr_phloem)
-
-                for cid, cn in children_n.items():
-                    # First block column
-                    # dGp_xy_i/dP_xy_j
-                    row.append(int(2 * local_vids[v] - 2))
-                    col.append(int(2 * local_vids[cid] - 2))
-                    data.append(- cn.K_xylem)
-
-                    # NOTE : Just kept for readability
-                    # # dGp_ph_i/dP_xy_j
-                    # row[nid] = int(2 * local_vids[v] - 1)
-                    # col[nid] = int(2 * local_vids[cid] - 2)
-                    # data[nid] = 0
-
-                    # # Second block column
-                    # # dGp_xy_i/dP_ph_j
-                    # row[nid] = int(2 * local_vids[v] - 2)
-                    # col[nid] = int(2 * local_vids[cid] - 1)
-                    # data[nid] = 0
-
-                    # dGp_ph_i/dP_ph_j
-                    row.append(int(2 * local_vids[v] - 1))
-                    col.append(int(2 * local_vids[cid] - 1))
-                    data.append(- cn.K_phloem)
-
-                # On growing architecture, pressure property has not been initialized on children here so we set it as that of the parent
-                for cn in children_n.values():
-                    # Only one check reveals an assignation need for both
-                    if cn.xylem_pressure_in is None:
-                        cn.xylem_pressure_in = n.xylem_pressure_in
-                        cn.phloem_pressure_in = n.phloem_pressure_in
-
-                # -Gp_xylem
-                # if props['water_root_shoot_xylem'][1] is None or v != root:
-                minusG[2 * local_vids[v] - 2] = -(n.K_xylem * (n.xylem_pressure_in - p_parent_xylem)
-                                    - sum([cn.K_xylem * (cn.xylem_pressure_in - n.xylem_pressure_in) for cn in children_n.values()])
-                                    - kr_xylem * (n.soil_water_pressure - n.xylem_pressure_in - self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature) * (n.Cv_solutes_soil - Cv_solutes_xylem))
-                                    - kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
-                minusG[2 * local_vids[v] - 1] = -(n.K_phloem * (n.phloem_pressure_in - p_parent_phloem)
-                                    - sum([cn.K_phloem * (cn.phloem_pressure_in - n.phloem_pressure_in) for cn in children_n.values()])
-                                    + kr_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature) * (Cv_solutes_phloem - Cv_solutes_xylem)))
-
-        row = np.array(row, dtype=int)
-        col = np.array(col, dtype=int)
-        data = np.array(data, dtype=float)
-        if debug: assert len(row) == len(row) == len(data)
-
-        # NOTE for non standard cases (1 parent and more than 1 children): On main axis, no parent at collar and no children at root tip make 4 values fall out of the matrix
-        # Then each branching (several on collar or simple lateral insertion), adds 2 terms being a supplementary children, but also substract 2 as it forms an apex.
-        # print(len(row), elt_number, len(minusG))
-        if debug: assert len(row) == 8 * elt_number - 4
-
-        # Solving the system using sparse LU
-        J = csc_matrix((data, (row, col)), shape = (2 * elt_number, 2 * elt_number))
-        # print("water solve")
-        solve = linalg.splu(J)
-        dY = solve.solve(minusG)
-
-        # print("water applies")
-        # We apply results from collar to tips
-        for v in pre_order2(g, root):
-            n = g.node(v)
-
-            if n.struct_mass > 0:
-
-                # print(n.index(), n.xylem_pressure_in, dY[2 * local_vids[v] - 2], 2 * local_vids[v] - 2)
-                if not np.isnan(dY[2 * local_vids[v] - 2]):
-                    n.xylem_pressure_in = n.xylem_pressure_in + dY[2 * local_vids[v] - 2]
-                else:
-                    print("WARNING static xylem pressure")
-
-                if not np.isnan(dY[2 * local_vids[v] - 1]):
-                    n.phloem_pressure_in = n.phloem_pressure_in + dY[2 * local_vids[v] - 1]
-                else:
-                    print("WARNING static phloem pressure")
-
-                if v == root:
-                    # Computed twice but cheap
-                    if props['water_root_shoot_xylem'][1] is None:
-                        n.xylem_pressure_out = props['xylem_pressure_collar'][root]
-                    else:
-                        shoot_buffering_factor = 0.
-                        # redistribution_threshold = 3e-13
-                        redistribution_threshold = 0
-                        n.xylem_pressure_out = n.xylem_pressure_out - (((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1] - redistribution_threshold) / n.K_xylem)
-
-                    n.phloem_pressure_out = props['phloem_pressure_collar'][root]
-
-                else:
-                    if v in self.collar_children:
-                        p = g.node(root)
-                    else:
-                        p = g.node(g.parent(v))
-                    n.xylem_pressure_out = p.xylem_pressure_in
-                    n.phloem_pressure_out = p.phloem_pressure_in
-
-                n.axial_export_water_up_xylem = n.K_xylem * (n.xylem_pressure_in - n.xylem_pressure_out)
-                n.axial_export_water_up_phloem = n.K_phloem * (n.phloem_pressure_in - n.phloem_pressure_out)
-
-                Cv_solutes_xylem = n.C_solutes_xylem * n.living_struct_mass / n.xylem_volume
-                Cv_solutes_phloem = n.C_solutes_phloem * n.living_struct_mass / n.phloem_volume
-
-                n.radial_import_water_xylem = (n.kr_symplasmic_water_xylem + n.kr_apoplastic_water_xylem) * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solutes_soil - Cv_solutes_xylem))
-                n.radial_import_water_xylem_apoplastic = n.kr_apoplastic_water_xylem * (n.soil_water_pressure - n.xylem_pressure_in - (self.reflection_xylem * 8.31415 * (273.15 + n.soil_temperature)) * (n.Cv_solutes_soil - Cv_solutes_xylem))
-                # Minus the orientation defined for G
-                # NOTE: Very important to keep this convention for vessel flux advection
-                n.radial_import_water_phloem = - n.kr_symplasmic_water_phloem * (n.phloem_pressure_in - n.xylem_pressure_in - (self.reflection_phloem * 8.31415 * (273.15 + n.soil_temperature)) * (Cv_solutes_phloem - Cv_solutes_xylem))
-
-                # Computed to avoid children iteration when needed by other modules
-                n.axial_import_water_down_xylem = n.axial_export_water_up_xylem - n.radial_import_water_xylem + n.radial_import_water_phloem # That last one was reversed compared to Gminus so it enters phloem
-                n.axial_import_water_down_phloem = n.axial_export_water_up_phloem - n.radial_import_water_phloem
-                if debug: assert np.abs(n.axial_export_water_up_xylem + n.radial_import_water_phloem - n.axial_import_water_down_xylem - n.radial_import_water_xylem) < 1e-18
-                if debug: assert np.abs(n.axial_export_water_up_phloem - n.axial_import_water_down_phloem - n.radial_import_water_phloem) < 1e-18
-
-                if len(g.children(v)) == 0:
-                    # print(np.abs(n.axial_import_water_down_xylem), np.abs(n.axial_import_water_down_phloem))
-                    if debug: assert np.abs(n.axial_import_water_down_xylem) < 1e-18 * 100
-                    if debug: assert np.abs(n.axial_import_water_down_phloem) < 1e-18 * 100
-
-        # print(self.props["xylem_pressure_in"].values())
-                # Usefull visual checks
-                # print(n.index(), n.phloem_pressure_in, n.kr_symplasmic_water_phloem, n.axial_export_water_up_phloem, n.radial_import_water_phloem, n.axial_import_water_down_phloem, Cv_solutes_phloem, Cv_solutes_xylem)
-                # print(n.index(), n.xylem_pressure_in, n.kr_symplasmic_water_xylem, n.soil_water_pressure, n.axial_export_water_up_xylem, n.radial_import_water_xylem, n.axial_import_water_down_xylem)
-
-        # print("finished")
-
-
-    @actual
-    @rate
-    def water_transport_munch_arrays(self):
-        """the system of equation under matrix form is solved using a Newton-Raphson schemes, at each step a system J dY = -G
-        is solved by LU decomposition.
-        NOTE : the convention is that IN corresponds to children, young end of a given segment, and OUT refers to parent, old end of a given segment
-        """
-
-        g = self.g
-        props = self.props
-        vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
-        root_vid = 1
-        # root = 0
-
-        # 1) Focus set: vertex IDs and their global indices
-        focus_vids  = np.asarray(props["focus_elements"], dtype=np.int64)        # (n,)
-        focus_glob_idx  = vertex_index.indices_of(props["focus_elements"])                 # (n,)
-
-        n = focus_vids.size
-
-        # 2) Global→Local map: from global *index* to local [0..n-1]
-        global2local = np.full(vertex_index.size, -1, dtype=np.int64)    # -1 means “not in focus set”
-        global2local[focus_glob_idx] = np.arange(n, dtype=np.int64)
-
-        root_glob_idx = vertex_index.indices_of([root_vid])[0]
-        root = int(global2local[root_glob_idx])
-
-        # 3) Parent ids (global vertex IDs), aligned to *global* order
-        parent_vid_global = props["parent_id"].values_array()
-
-        # For focus only: parent vids aligned to local order
-        parent_vid_focus  = parent_vid_global[focus_glob_idx]                        # (n,)
-        has_parent = parent_vid_focus >= 0                                # (n,) bool
-
-        # 4) Compute local parent indices for the focus set
-        parent_idx = np.full(n, -1, dtype=np.int64)                              # default: -1 (root/boundary)
-
-        # Map those parent vids → global indices → local indices
-        parent_glob_idx = vertex_index.indices_of(parent_vid_focus[has_parent]).astype(np.int64)  # (m,)
-        parent_loc  = global2local[parent_glob_idx]                                              # (m,) may be -1 if parent outside focus
-        child_loc   = np.flatnonzero(has_parent)                                    # (m,)
-
-        # Keep only edges whose parent is also in the focus set
-        valid = parent_loc >= 0
-        parent_idx[child_loc[valid]] = parent_loc[valid]
-
-        # 5) Edge arrays (purely local, no negatives)
-        children = np.flatnonzero(parent_idx >= 0).astype(np.int64)              # (m_edges,)
-        parents  = parent_idx[children]                                          # (m_edges,)
-
-        # Pull arrays fast (aligned with local vids)
-        K_xylem = props['K_xylem'].values_array()[focus_glob_idx]
-        K_phloem = props['K_phloem'].values_array()[focus_glob_idx]
-        kr_symplasmic_water_xylem = props['kr_symplasmic_water_xylem'].values_array()[focus_glob_idx]
-        kr_apoplastic_water_xylem = props['kr_apoplastic_water_xylem'].values_array()[focus_glob_idx]
-        kr_symplasmic_water_phloem = props['kr_symplasmic_water_phloem'].values_array()[focus_glob_idx]
-        xylem_pressure_in = props['xylem_pressure_in'].values_array()[focus_glob_idx]
-        phloem_pressure_in = props['phloem_pressure_in'].values_array()[focus_glob_idx]
-        soil_water_pressure = props['soil_water_pressure'].values_array()[focus_glob_idx]
-        soil_temperature = props['soil_temperature'].values_array()[focus_glob_idx]
-        Cv_solutes_soil = props['Cv_solutes_soil'].values_array()[focus_glob_idx]
-        xylem_volume = props['xylem_volume'].values_array()
-        Cv_solutes_xylem = np.where(xylem_volume > 0., props['C_solutes_xylem'].values_array() * props['living_struct_mass'].values_array()
-                / np.where(xylem_volume > 0., xylem_volume, 1.), 0.)[focus_glob_idx]
-        phloem_volume = props['phloem_volume'].values_array()
-        Cv_solutes_phloem = np.where(phloem_volume > 0., props['C_solutes_phloem'].values_array() * props['living_struct_mass'].values_array()
-                / np.where(phloem_volume > 0, phloem_volume, 1.), 0.)[focus_glob_idx]
-
-        # Pattern (build once per topology / time step when growing)
-        i = np.arange(n, dtype=np.int64)
-
-        rows = []
-        cols = []
-        slices = {}
-
-        # PREPARE structure for non zero data, using slices to point arrays with the right size in the resulting "data" array created bellow
-        # diagonal/cross entries per node
-        off = 0
-        rows.append(2*i);   cols.append(2*i);     slices['diag_xylem'] = slice(off, off+n); off += n
-        rows.append(2*i+1); cols.append(2*i+1);   slices['diag_phloem'] = slice(off, off+n); off += n
-        rows.append(2*i);   cols.append(2*i+1);   slices['cross_xylem_over_phloem'] = slice(off, off+n); off += n
-        rows.append(2*i+1); cols.append(2*i);     slices['cross_phloem_over_xylem'] = slice(off, off+n); off += n
-
-        # parent couplings (child row, parent col)
-        m = children.size
-        rows.append(2*children);   cols.append(2*parents);     slices['parent_xylem'] = slice(off, off+m); off += m
-        rows.append(2*children+1); cols.append(2*parents+1);   slices['parent_phloem'] = slice(off, off+m); off += m
-
-        # children couplings (parent row, child col), handles numerous children right
-        rows.append(2*parents);   cols.append(2*children);     slices['children_xylem'] = slice(off, off+m); off += m
-        rows.append(2*parents+1); cols.append(2*children+1);   slices['children_parent'] = slice(off, off+m); off += m
-
-        row = np.concatenate(rows).astype(np.int32, copy=False)
-        col = np.concatenate(cols).astype(np.int32, copy=False)
-
-        # Boundary # TODO uncomplete!
-        # If no transpiration flux is provided, we take the boundary water potential that is provided
-        water_root_shoot_xylem = props['water_root_shoot_xylem'][1]
-        if (water_root_shoot_xylem is None) or (np.isnan(water_root_shoot_xylem)):
-            p_xylem_collar = props['xylem_pressure_collar'][root_vid]
-            xylem_using_flow_not_pressure = False
-        else:
-            shoot_buffering_factor = 0.
-            # xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1], 1e-13) # NOTE : Minimal levels at night for pressure stability for now
-            xylem_estimated_flux_to_shoot = props['water_root_shoot_xylem'][1] # NOTE : Minimal levels at night for pressure stability for now
-            xylem_using_flow_not_pressure = True
-            # Manual override
-            p_xylem_collar = props['xylem_pressure_out'][root_vid] - (xylem_estimated_flux_to_shoot / props['K_xylem'][root_vid])
-
-        # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
-        sucrose_root_to_shoot_phloem = props['sucrose_root_to_shoot_phloem'][1]
-        if (sucrose_root_to_shoot_phloem is None) or (np.isnan(sucrose_root_to_shoot_phloem)):
-            # else case is treated bellow
-            p_phloem_collar = props['phloem_pressure_collar'][root_vid]
-            phloem_using_flow_not_pressure = False
-        else:
-            # NOTE: We keep the same flux direction as xylem for consistency, even though this is usually reversed
-            # NOTE: This was a very important addition for the consistency of axial phloem transport of both water and solutes in the phloem
-            if props['sucrose_root_to_shoot_phloem'][1] < 0.: 
-                phloem_estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / props['Cv_sucrose_phloem_collar'][1]
-            else:
-                phloem_estimated_flux_to_shoot = props['sucrose_root_to_shoot_phloem'][1] / (props['total_sucrose_phloem'][1] / props['phloem_volume'].values_array().sum())
-            phloem_using_flow_not_pressure = True
-
-        # Using slices to assemble the sparse matrix
-        # useful derived arrays
-        kr_water_xylem = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
-        RT = 8.31415 * (273.15 + soil_temperature)
-
-        # prepare for diagonal values
-        sum_K_children_xylem = np.bincount(parents, weights=K_xylem[children], minlength=n)
-        sum_K_children_phloem = np.bincount(parents, weights=K_phloem[children], minlength=n)
-
-        # prepare for parent/children coupling values (edges)
-        K_xylem_child = K_xylem[children]
-        K_phloem_child = K_phloem[children]
-
-        # ---- assemble data in the fixed order ----
-        data = np.empty(4*n + 4*children.size, dtype=np.float64)
-        data[slices['diag_xylem']] = K_xylem + sum_K_children_xylem + kr_water_xylem + kr_symplasmic_water_phloem   # dGp_xy_i/dP_xy_i
-        data[slices['diag_phloem']] = K_phloem + sum_K_children_phloem + kr_symplasmic_water_phloem                  # dGp_ph_i/dP_ph_i
-        data[slices['cross_xylem_over_phloem']] = - kr_symplasmic_water_phloem                                                 # dGp_xy_i/dP_ph_i
-        data[slices['cross_phloem_over_xylem']] = - kr_symplasmic_water_phloem                                                 # dGp_ph_i/dP_xy_i
-        data[slices['parent_xylem']] = - K_xylem_child                                                                 # dGp_xy_i/dP_xy_p
-        data[slices['parent_phloem']] = - K_phloem_child                                                                # dGp_ph_i/dP_ph_p
-        data[slices['children_xylem']] = - K_xylem_child                                                                 # dGp_xy_i/dP_xy_j
-        data[slices['children_parent']] = - K_phloem_child                                                                # dGp_ph_i/dP_ph_j
-        # Reminder that for parent and children, cross partial derivatives are 0 so not included here
-
-        # ---- build -G (two rows per node) ----
-        # Parents' pressures
-        p_parent_xylem = xylem_pressure_in[parent_idx].copy()
-        p_parent_phloem = phloem_pressure_in[parent_idx].copy()
-        if not xylem_using_flow_not_pressure:
-            p_parent_xylem[root] = p_xylem_collar                # boundary at root
-        if not phloem_using_flow_not_pressure:
-            p_parent_phloem[root] = p_phloem_collar
-
-        # child sums: sum_j K_child * (P_child - P_i) aggregated to parent i
-        sum_children_term_xylem = np.bincount(
-            parents,
-            weights=K_xylem_child * (xylem_pressure_in[children] - xylem_pressure_in[parents]),
-            minlength=n
-        )
-        sum_children_term_phloem = np.bincount(
-            parents,
-            weights=K_phloem_child * (phloem_pressure_in[children] - phloem_pressure_in[parents]),
-            minlength=n
-        )
-
-        osmotic_term_xylem = self.reflection_xylem * RT * (Cv_solutes_soil - Cv_solutes_xylem)         # soil – xylem osmotic term
-        osmotic_term_phloem = self.reflection_phloem * RT * (Cv_solutes_phloem - Cv_solutes_xylem)            # phloem – xylem osmotic term
-
-        axial_term_xylem = K_xylem * (xylem_pressure_in - p_parent_xylem)
-        if xylem_using_flow_not_pressure:
-            axial_term_xylem[root] = xylem_estimated_flux_to_shoot
-
-        axial_term_phloem = K_phloem * (phloem_pressure_in - p_parent_phloem)
-        if phloem_using_flow_not_pressure:
-            axial_term_phloem[root] = phloem_estimated_flux_to_shoot
-
-        G_xylem = ( axial_term_xylem
-                    - sum_children_term_xylem
-                    - kr_water_xylem * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
-                    - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem))
-
-        G_phloem = (axial_term_phloem
-                    - sum_children_term_phloem
-                    + kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem))
-
-        minusG = np.empty(2*n, dtype=np.float64)
-        minusG[0::2] = - G_xylem
-        minusG[1::2] = - G_phloem
-
-        # build J and solve
-        J = csc_matrix((data, (row, col)), shape=(2*n, 2*n))
-        dY = linalg.splu(J).solve(minusG)
-
-        # update pressures in arrays
-        xylem_pressure_in = xylem_pressure_in + dY[0::2]
-        phloem_pressure_in = phloem_pressure_in + dY[1::2]
-
-        # out pressures (parent’s in), with root boundary
-        xylem_pressure_out = xylem_pressure_in[parent_idx].copy()
-        phloem_pressure_out = phloem_pressure_in[parent_idx].copy()
-        if not xylem_using_flow_not_pressure:
-            xylem_pressure_out[root] = p_xylem_collar
-        if not phloem_using_flow_not_pressure:
-            phloem_pressure_out[root] = p_phloem_collar
-
-        # axial exports
-        axial_export_water_up_xylem = K_xylem * (xylem_pressure_in - xylem_pressure_out)
-        if xylem_using_flow_not_pressure:
-            axial_export_water_up_xylem[root] = xylem_estimated_flux_to_shoot
-        axial_export_water_up_phloem = K_phloem * (phloem_pressure_in - phloem_pressure_out)
-        if phloem_using_flow_not_pressure:
-            axial_export_water_up_phloem[root] = phloem_estimated_flux_to_shoot
-
-        # radial terms
-        osmotic_term_xylem = self.reflection_xylem * RT * (Cv_solutes_soil - Cv_solutes_xylem)
-        osmotic_term_phloem = self.reflection_phloem * RT * (Cv_solutes_phloem - Cv_solutes_xylem)
-
-        radial_import_water_xylem = (kr_symplasmic_water_xylem + kr_apoplastic_water_xylem) * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
-        radial_import_water_xylem_apoplastic = kr_apoplastic_water_xylem * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
-        # For phleom, minus the orientation defined for G
-        # NOTE: Very important to keep this convention for vessel flux advection
-        radial_import_water_phloem = - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem)
-
-        # “down” imports
-        axial_import_water_down_xylem = axial_export_water_up_xylem - radial_import_water_xylem + radial_import_water_phloem
-        axial_import_water_down_phloem = axial_export_water_up_phloem - radial_import_water_phloem
-        if debug: assert np.all(np.abs(axial_export_water_up_xylem + radial_import_water_phloem - axial_import_water_down_xylem - radial_import_water_xylem) < 1e-18)
-        if debug: assert np.all(np.abs(axial_export_water_up_phloem - axial_import_water_down_phloem - radial_import_water_phloem) < 1e-18)
-
-        # Push to array dict (one shot each)
-        props['xylem_pressure_in'].assign_at(focus_glob_idx, xylem_pressure_in)
-        props['phloem_pressure_in'].assign_at(focus_glob_idx, phloem_pressure_in)
-        props['xylem_pressure_out'].assign_at(focus_glob_idx, xylem_pressure_out)
-        props['phloem_pressure_out'].assign_at(focus_glob_idx, phloem_pressure_out)
-        props['axial_export_water_up_xylem'].assign_at(focus_glob_idx, axial_export_water_up_xylem)
-        props['axial_export_water_up_phloem'].assign_at(focus_glob_idx, axial_export_water_up_phloem)
-        props['radial_import_water_xylem'].assign_at(focus_glob_idx, radial_import_water_xylem)
-        props['radial_import_water_xylem_apoplastic'].assign_at(focus_glob_idx, radial_import_water_xylem_apoplastic)
-        props['radial_import_water_phloem'].assign_at(focus_glob_idx, radial_import_water_phloem)
-        props['axial_import_water_down_xylem'].assign_at(focus_glob_idx, axial_import_water_down_xylem)
-        props['axial_import_water_down_phloem'].assign_at(focus_glob_idx, axial_import_water_down_phloem)
 
 
     @state

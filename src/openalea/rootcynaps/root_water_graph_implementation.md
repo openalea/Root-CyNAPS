@@ -205,7 +205,7 @@ Add also:
 Replace the `@actual @rate` decorated monolithic method with the new `@graph_system` block.
 
 ### Step 7 — Equivalence verification
-Run both `RootWaterModel` (from `root_water.py`) and `RootWaterGraphModel` (from `root_water_graph.py`) on the same MTG fixture for one timestep. Assert max absolute difference < 1e-8 on all 11 output arrays.
+Run both `RootWaterModel` (from `root_water.py`) and `RootWaterGraphModel` (from `root_water_graph.py`) on the same MTG fixture for 24 timesteps. Assert max absolute difference < 1e-8 on all 11 output arrays.
 
 ---
 
