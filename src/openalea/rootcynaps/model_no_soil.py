@@ -1,6 +1,6 @@
 # Components classes
 from openalea.rootcynaps import RootAnatomy
-from openalea.rootcynaps import RootWaterModel
+from openalea.hydroroot import RootWaterModel 
 from openalea.rootcynaps import RootNitrogenModel
 from openalea.rootcynaps.soon_public_packages.mtg_structural_init import StaticRootGrowthModel
 

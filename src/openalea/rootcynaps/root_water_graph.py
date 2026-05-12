@@ -54,7 +54,7 @@ class RootWaterModel(Model):
     kr_symplasmic_water_phloem: float = declare(default=1., unit="m3.s-1.Pa-1", unit_comment="", description="Effective Symplasmic water conductance of all cell layer contribution, including transmembrane and plasmodesmata resistance",
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
-    xylem_differentiation_factor: float = declare(default=1., unit="adim", unit_comment="of vessel membrane", description="",
+    xylem_differentiation_factor: float = declare(default=3., unit="adim", unit_comment="of vessel membrane", description="",
                                             min_value="", max_value="", value_comment="", references="",  DOI="",
                                             variable_type="input", by="model_anatomy", state_variable_type="", edit_by="user")
 
@@ -108,16 +108,10 @@ class RootWaterModel(Model):
     phloem_water: float = declare(default=0, unit="m3", unit_comment="of water", description="",
                                                 min_value="", max_value="", value_comment="", references="", DOI="",
                                                 variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    xylem_pressure_in: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
+    xylem_pressure: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    xylem_pressure_out: float = declare(default=-0.01e6*5, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
-                                          min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    phloem_pressure_in: float = declare(default=1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
-                                          min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    phloem_pressure_out: float = declare(default=1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
+    phloem_pressure: float = declare(default=1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
                                           min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
@@ -133,9 +127,6 @@ class RootWaterModel(Model):
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user",
                                           location="edge")
-    Keq: float = declare(default=0, unit="m3.Pa-1.s-1", unit_comment="", description="Equivalent conductance of the current root segment considering its position in the root system",
-                                          min_value="", max_value="", value_comment="", references="", DOI="",
-                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
 
     # Water properties
     # sap_viscosity: float = declare(default=1.003e-3, unit="Pa.s", unit_comment="", description="Viscosity at 20°C",
@@ -149,22 +140,16 @@ class RootWaterModel(Model):
     radial_import_water_xylem_apoplastic: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="Water flow through the apoplastic pathway, computed for radial advection",
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    axial_export_water_up_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
+    axial_water_flow_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    axial_import_water_down_xylem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
-                                             min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     radial_import_water_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="radial water exchange between xylem and phloem, mostly osmotic driven",
                                          min_value="", max_value="", value_comment="", references="", DOI="",
                                          variable_type="state_variable", by="model_water", state_variable_type="NonInertialExtensive", edit_by="user")
-    axial_export_water_up_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
+    axial_water_flow_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
                                            min_value="", max_value="", value_comment="", references="", DOI="",
                                            variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    axial_import_water_down_phloem: float = declare(default=0., unit="m3.s-1", unit_comment="of water", description="",
-                                             min_value="", max_value="", value_comment="", references="", DOI="",
-                                             variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
 
     # Graph-system fields (used by @graph_system _transport_solve)
     osmotic_xylem_term: float = declare(default=0., unit="Pa", unit_comment="", description="Pre-computed osmotic correction for soil-xylem radial exchange: reflection_xylem * RT * (Cv_soil - Cv_xylem)",
@@ -371,7 +356,7 @@ class RootWaterModel(Model):
         return self.reflection_phloem * RT * (Cv_phloem - Cv_xylem)
 
     @graph_system(
-        node_unknowns=["xylem_pressure_in", "phloem_pressure_in"],
+        node_unknowns=["xylem_pressure", "phloem_pressure"],
         edge_unknowns=[],
         method="newton",
         max_iter=2,
@@ -382,164 +367,149 @@ class RootWaterModel(Model):
 
         # ── Xylem residual (all nodes; Dirichlet BC overwrites collar row) ────
 
-        @node_balance(field="xylem_pressure_in")
-        def _xylem_bulk_balance(self, xylem_pressure_in, phloem_pressure_in, K_xylem,
+        @node_balance(field="xylem_pressure")
+        def _xylem_balance_residual(self, xylem_pressure, phloem_pressure, K_xylem,
                                  kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
                                  kr_symplasmic_water_phloem,
                                  soil_water_pressure, osmotic_xylem_term, osmotic_phloem_term):
-            B = self._graph_view.incidence
-            L_x = B @ diags(K_xylem) @ B.T
-            kr_water = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
-            return (np.asarray(L_x @ xylem_pressure_in).reshape(-1)
-                    - kr_water * (soil_water_pressure - xylem_pressure_in - osmotic_xylem_term)
-                    - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term))
+            incidence = self._graph_view.incidence
+            laplacian_xylem = incidence @ diags(K_xylem) @ incidence.T
+            kr_xylem_total = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
+            return (np.asarray(laplacian_xylem @ xylem_pressure).reshape(-1)
+                    - kr_xylem_total * (soil_water_pressure - xylem_pressure - osmotic_xylem_term)
+                    - kr_symplasmic_water_phloem * (phloem_pressure - xylem_pressure - osmotic_phloem_term))
 
-        # Active — Dirichlet: xylem pressure at collar from shoot transpiration model
-        @boundary_condition("node", "dirichlet", field="xylem_pressure_in", types={"is_collar": [1.0]})
-        def _xylem_collar_dirichlet(self, xylem_pressure_in):
-            return xylem_pressure_in - self.props["xylem_pressure_collar"][1]
+        # ── Xylem collar BC — two mutually exclusive options ─────────────────────
+        # OPTION A (active): Dirichlet — prescribes collar pressure from shoot model.
+        #   Use when water_root_shoot_xylem is None (no transpiration flux provided).
+        @boundary_condition("node", "dirichlet", field="xylem_pressure", types={"is_collar": [1.0]}, explicit=True)
+        def _xylem_collar_dirichlet(self):
+            return np.array([self.props["xylem_pressure_collar"][1]])
 
-        # Inactive — Neumann: prescribed transpiration outflow at collar
-        # @boundary_condition("node", "neumann", field="xylem_pressure_in", types={"is_collar": [1.0]})
+        # OPTION B (inactive): Neumann — injects transpiration as a flux source at the collar,
+        #   letting Newton solve the collar pressure self-consistently from the full balance.
+        #   Use when water_root_shoot_xylem is provided. The Jacobian adapts automatically.
+        #   To activate: uncomment this block and comment out OPTION A above.
+        # @boundary_condition("node", "neumann", field="xylem_pressure", types={"is_collar": [1.0]})
         # def _xylem_collar_neumann(self):
-        #     Q_transp = self.props.get("water_root_shoot_xylem", {}).get(1, 0.0) or 0.0
-        #     return np.array([Q_transp])
+        #     return np.array([self.props["water_root_shoot_xylem"][1]])
 
         # ── Phloem residual (all nodes; Neumann BC adds flux at collar row) ──
 
-        @node_balance(field="phloem_pressure_in")
-        def _phloem_bulk_balance(self, xylem_pressure_in, phloem_pressure_in, K_phloem,
+        @node_balance(field="phloem_pressure")
+        def _phloem_balance_residual(self, xylem_pressure, phloem_pressure, K_phloem,
                                   kr_symplasmic_water_phloem, osmotic_phloem_term):
-            B = self._graph_view.incidence
-            L_ph = B @ diags(K_phloem) @ B.T
-            return (np.asarray(L_ph @ phloem_pressure_in).reshape(-1)
-                    + kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term))
+            incidence = self._graph_view.incidence
+            laplacian_phloem = incidence @ diags(K_phloem) @ incidence.T
+            return (np.asarray(laplacian_phloem @ phloem_pressure).reshape(-1)
+                    + kr_symplasmic_water_phloem * (phloem_pressure - xylem_pressure - osmotic_phloem_term))
 
-        # Active — Neumann: sucrose-driven sap inflow from shoot sets collar flux
-        @boundary_condition("node", "neumann", field="phloem_pressure_in", types={"is_collar": [1.0]})
+        # ── Phloem collar BC — two mutually exclusive options ────────────────────
+        # OPTION A (inactive): Dirichlet — prescribes collar pressure from shoot model.
+        #   Use when sucrose_root_to_shoot_phloem is None (no sucrose flux provided).
+        #   To activate: uncomment this block and comment out OPTION B below.
+        # @boundary_condition("node", "dirichlet", field="phloem_pressure", types={"is_collar": [1.0]}, explicit=True)
+        # def _phloem_collar_dirichlet(self):
+        #     return np.array([self.props["phloem_pressure_collar"][1]])
+
+        # OPTION B (active): Neumann — derives water flux from sucrose flux at collar,
+        #   letting Newton solve collar pressure self-consistently from the full balance.
+        #   Use when sucrose_root_to_shoot_phloem is provided. The Jacobian adapts automatically.
+        #   Negative sucrose flux uses local collar concentration; positive uses system-wide mean.
+        @boundary_condition("node", "neumann", field="phloem_pressure", types={"is_collar": [1.0]})
         def _phloem_collar_neumann(self):
-            suc = self.props.get("sucrose_root_to_shoot_phloem", {}).get(1, None)
-            if suc is None:
-                return np.zeros(1)
-            cv = self.props["Cv_sucrose_phloem_collar"].get(1, 950.0)
-            # Q_water [m3/s] = sucrose flux [mol/s] / phloem concentration [mol/m3] at collar
-            Q_water = suc / cv
-            return np.array([-Q_water])
-
-        # Inactive — Dirichlet: prescribed phloem water potential at collar
-        # @boundary_condition("node", "dirichlet", field="phloem_pressure_in", types={"is_collar": [1.0]})
-        # def _phloem_collar_dirichlet(self, phloem_pressure_in):
-        #     return phloem_pressure_in - self.props["phloem_pressure_collar"][1]
+            sucrose_flux = self.props["sucrose_root_to_shoot_phloem"][1]
+            if sucrose_flux < 0.:
+                phloem_sucrose_concentration = self.props["Cv_sucrose_phloem_collar"][1]
+            else:
+                phloem_sucrose_concentration = self.props["total_sucrose_phloem"][1] / sum(self.props["phloem_volume"].values())
+            water_flux_phloem_collar = sucrose_flux / phloem_sucrose_concentration
+            return np.array([-water_flux_phloem_collar])
 
         # ── Analytic Jacobian (2n × 2n) ───────────────────────────────────────
 
         @graph_jacobian
-        def _analytic_jacobian(self, xylem_pressure_in, phloem_pressure_in,
+        def _analytic_jacobian(self, xylem_pressure, phloem_pressure,
                                 K_xylem, K_phloem,
                                 kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
-                                kr_symplasmic_water_phloem, is_collar):
-            n = self._graph_view.n_nodes
-            B = self._graph_view.incidence
-            L_x  = (B @ diags(K_xylem)  @ B.T).toarray()
-            L_ph = (B @ diags(K_phloem) @ B.T).toarray()
-            kr_water = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
-            # Xylem: Dirichlet at collar → identity row replaces bulk row
-            nc = (1.0 - is_collar)[:, None]
-            ic = is_collar
+                                kr_symplasmic_water_phloem, is_collar,
+                                _node_fields):
+            n_nodes = self._graph_view.n_nodes
+            incidence = self._graph_view.incidence
+            laplacian_xylem  = (incidence @ diags(K_xylem)  @ incidence.T).toarray()
+            laplacian_phloem = (incidence @ diags(K_phloem) @ incidence.T).toarray()
+            kr_xylem_total = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
 
-            J = np.zeros((2 * n, 2 * n))
-            # Xylem–xylem: bulk Laplacian + diagonal kr, identity at Dirichlet collar
-            J[:n, :n] = (L_x + np.diag(kr_water + kr_symplasmic_water_phloem)) * nc + np.diag(ic)
-            # Xylem–phloem coupling (zeroed at Dirichlet collar row)
-            J[:n, n:] = -np.diag(kr_symplasmic_water_phloem) * nc
-            # Phloem–xylem coupling (full — Neumann keeps bulk Jacobian row at collar)
-            J[n:, :n] = -np.diag(kr_symplasmic_water_phloem)
-            # Phloem–phloem: full Laplacian + diagonal (Neumann flux is snapshotted, dQ/dP = 0)
-            J[n:, n:] = L_ph + np.diag(kr_symplasmic_water_phloem)
-            return J
+            # Xylem collar: Dirichlet (OPTION A) → identity row; Neumann (OPTION B) → full bulk row.
+            transpiration_flow = self.props["water_root_shoot_xylem"][1]
+            dirichlet_collar_xylem = is_collar if (transpiration_flow is None or np.isnan(transpiration_flow)) else np.zeros(n_nodes)
+            bulk_mask_xylem = (1.0 - dirichlet_collar_xylem)[:, None]
+
+            # Phloem collar: Dirichlet (OPTION A) → identity row; Neumann (OPTION B) → full bulk row.
+            sucrose_flux = self.props["sucrose_root_to_shoot_phloem"][1]
+            dirichlet_collar_phloem = is_collar if (sucrose_flux is None or np.isnan(sucrose_flux)) else np.zeros(n_nodes)
+            bulk_mask_phloem = (1.0 - dirichlet_collar_phloem)[:, None]
+
+            xylem_block_offset  = _node_fields.index("xylem_pressure")  * n_nodes
+            phloem_block_offset = _node_fields.index("phloem_pressure") * n_nodes
+
+            jacobian = np.zeros((2 * n_nodes, 2 * n_nodes))
+            jacobian[xylem_block_offset:xylem_block_offset+n_nodes,
+                     xylem_block_offset:xylem_block_offset+n_nodes] = (
+                (laplacian_xylem + np.diag(kr_xylem_total + kr_symplasmic_water_phloem)) * bulk_mask_xylem
+                + np.diag(dirichlet_collar_xylem))
+            jacobian[xylem_block_offset:xylem_block_offset+n_nodes,
+                     phloem_block_offset:phloem_block_offset+n_nodes] = (
+                -np.diag(kr_symplasmic_water_phloem) * bulk_mask_xylem)
+            jacobian[phloem_block_offset:phloem_block_offset+n_nodes,
+                     xylem_block_offset:xylem_block_offset+n_nodes] = (
+                -np.diag(kr_symplasmic_water_phloem) * bulk_mask_phloem)
+            jacobian[phloem_block_offset:phloem_block_offset+n_nodes,
+                     phloem_block_offset:phloem_block_offset+n_nodes] = (
+                (laplacian_phloem + np.diag(kr_symplasmic_water_phloem)) * bulk_mask_phloem
+                + np.diag(dirichlet_collar_phloem))
+            return jacobian
 
         # ── Post-solve outputs ────────────────────────────────────────────────
 
-        @graph_output("xylem_pressure_out")
-        def _xylem_pressure_out(self, xylem_pressure_in):
-            gv = self._graph_view
-            P_out = xylem_pressure_in.copy()
-            P_out[gv.head] = xylem_pressure_in[gv.tail]
-            return P_out
+        @graph_output("axial_water_flow_xylem")
+        def _axial_export_xylem(self, xylem_pressure, K_xylem):
+            graph_view = self._graph_view
+            axial_pressure_drop = np.asarray(graph_view.incidence.T @ xylem_pressure).reshape(-1)
+            axial_flow = np.zeros(graph_view.n_nodes)
+            axial_flow[graph_view.head] = -K_xylem * axial_pressure_drop
+            return axial_flow
 
-        @graph_output("phloem_pressure_out")
-        def _phloem_pressure_out(self, phloem_pressure_in):
-            gv = self._graph_view
-            P_out = phloem_pressure_in.copy()
-            P_out[gv.head] = phloem_pressure_in[gv.tail]
-            return P_out
-
-        @graph_output("axial_export_water_up_xylem")
-        def _axial_export_xylem(self, xylem_pressure_in, K_xylem):
-            gv = self._graph_view
-            dp = np.asarray(gv.incidence.T @ xylem_pressure_in).reshape(-1)
-            axial = np.zeros(gv.n_nodes)
-            axial[gv.head] = -K_xylem * dp
-            return axial
-
-        @graph_output("axial_export_water_up_phloem")
-        def _axial_export_phloem(self, phloem_pressure_in, K_phloem):
-            gv = self._graph_view
-            dp = np.asarray(gv.incidence.T @ phloem_pressure_in).reshape(-1)
-            axial = np.zeros(gv.n_nodes)
-            axial[gv.head] = -K_phloem * dp
-            return axial
+        @graph_output("axial_water_flow_phloem")
+        def _axial_export_phloem(self, phloem_pressure, K_phloem):
+            graph_view = self._graph_view
+            axial_pressure_drop = np.asarray(graph_view.incidence.T @ phloem_pressure).reshape(-1)
+            axial_flow = np.zeros(graph_view.n_nodes)
+            axial_flow[graph_view.head] = -K_phloem * axial_pressure_drop
+            return axial_flow
 
         @graph_output("radial_import_water_xylem")
-        def _radial_import_xylem(self, xylem_pressure_in,
+        def _radial_import_xylem(self, xylem_pressure,
                                   kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
                                   soil_water_pressure, osmotic_xylem_term):
             return (kr_symplasmic_water_xylem + kr_apoplastic_water_xylem) * (
-                soil_water_pressure - xylem_pressure_in - osmotic_xylem_term
+                soil_water_pressure - xylem_pressure - osmotic_xylem_term
             )
 
         @graph_output("radial_import_water_xylem_apoplastic")
-        def _radial_import_xylem_apo(self, xylem_pressure_in,
+        def _radial_import_xylem_apo(self, xylem_pressure,
                                       kr_apoplastic_water_xylem,
                                       soil_water_pressure, osmotic_xylem_term):
             return kr_apoplastic_water_xylem * (
-                soil_water_pressure - xylem_pressure_in - osmotic_xylem_term
+                soil_water_pressure - xylem_pressure - osmotic_xylem_term
             )
 
         @graph_output("radial_import_water_phloem")
-        def _radial_import_phloem(self, xylem_pressure_in, phloem_pressure_in,
+        def _radial_import_phloem(self, xylem_pressure, phloem_pressure,
                                    kr_symplasmic_water_phloem, osmotic_phloem_term):
             return -kr_symplasmic_water_phloem * (
-                phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term
+                phloem_pressure - xylem_pressure - osmotic_phloem_term
             )
-
-        @graph_output("axial_import_water_down_xylem")
-        def _axial_import_down_xylem(self, xylem_pressure_in, phloem_pressure_in, K_xylem,
-                                      kr_symplasmic_water_xylem, kr_apoplastic_water_xylem,
-                                      kr_symplasmic_water_phloem,
-                                      soil_water_pressure, osmotic_xylem_term, osmotic_phloem_term):
-            gv = self._graph_view
-            dp_x = np.asarray(gv.incidence.T @ xylem_pressure_in).reshape(-1)
-            axial_up = np.zeros(gv.n_nodes)
-            axial_up[gv.head] = -K_xylem * dp_x
-            kr_water = kr_symplasmic_water_xylem + kr_apoplastic_water_xylem
-            radial_xy = kr_water * (soil_water_pressure - xylem_pressure_in - osmotic_xylem_term)
-            radial_ph = -kr_symplasmic_water_phloem * (
-                phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term
-            )
-            return axial_up - radial_xy + radial_ph
-
-        @graph_output("axial_import_water_down_phloem")
-        def _axial_import_down_phloem(self, xylem_pressure_in, phloem_pressure_in, K_phloem,
-                                       kr_symplasmic_water_phloem, osmotic_phloem_term):
-            gv = self._graph_view
-            dp_ph = np.asarray(gv.incidence.T @ phloem_pressure_in).reshape(-1)
-            axial_up_ph = np.zeros(gv.n_nodes)
-            axial_up_ph[gv.head] = -K_phloem * dp_ph
-            radial_ph = -kr_symplasmic_water_phloem * (
-                phloem_pressure_in - xylem_pressure_in - osmotic_phloem_term
-            )
-            return axial_up_ph - radial_ph
 
     def phloem_sap_viscosity(self, solute_volumetric_fraction, soil_temperature_Kelvin):
         """
