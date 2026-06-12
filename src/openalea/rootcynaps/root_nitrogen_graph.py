@@ -21,19 +21,107 @@ from openalea.metafspm.component import FunctionalComponent, declare
 from openalea.metafspm.component_factory import *
 from openalea.rhizodep.temperature import TemperatureModel
 
-from scipy.sparse import csc_matrix, identity, linalg, diags
+from scipy.sparse import csc_matrix, coo_matrix
 import inspect as ins
 
 import logging
+
+from openalea.metafspm.graph_system import GraphView
+from openalea.metafspm.graph_system_decorators import graph_system, node_balance, graph_output
+
+
+# ---------------------------------------------------------------------------
+# BFS advective-front propagation (algorithm unchanged from original)
+# ---------------------------------------------------------------------------
+
+def _bfs_collar_outflow(root, adj, edge_parent, offsets,
+                         water_flux, conductive_element_volume, dt):
+    """Distribute collar advective outflow over nodes reached by the sap front.
+
+    Returns boundary_outflow[i] (m³/s): advective concentration-sink at node i
+    equals boundary_outflow[i] * C_i.
+    """
+    n = conductive_element_volume.size
+    sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
+    Q_aligned = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)
+
+    vol_budget = np.abs(water_flux[root]) * dt
+    Q_edge = Q_aligned[adj]
+    m_edges = Q_edge.size
+    prefix = np.empty(m_edges + 1, dtype=np.float64)
+    prefix[0] = 0.0
+    np.cumsum(Q_edge, out=prefix[1:])
+    sum_Q_parent = prefix[offsets[1:]] - prefix[offsets[:-1]]
+
+    in_budget = np.zeros(n, dtype=np.float64)
+    in_budget[root] = vol_budget
+    adv_vol = np.zeros(n, dtype=np.float64)
+    time_rem = np.zeros(n, dtype=np.float64)
+    time_rem[root] = dt
+    crossing_time = np.zeros(n, dtype=np.float64)
+    parent_is_active = np.zeros(n, dtype=bool)
+
+    while True:
+        active = np.flatnonzero(in_budget > 0.0)
+        if active.size == 0:
+            break
+        adv_here = np.minimum(in_budget[active], conductive_element_volume[active])
+        adv_vol[active] += adv_here
+        wf_safe = np.where(np.abs(water_flux[active]) > 0.0,
+                            np.abs(water_flux[active]), 1.0)
+        crossing_time[active] = np.maximum(
+            time_rem[active] - 0.5 * adv_vol[active] / wf_safe, 0.0)
+        out_here = in_budget[active] - adv_here
+
+        out_full = np.zeros(n, dtype=np.float64)
+        out_full[active] = out_here
+        parent_is_active[:] = False
+        parent_is_active[active] = True
+
+        out_e = out_full[edge_parent]
+        sumQ_e = sum_Q_parent[edge_parent]
+        edge_ok = (parent_is_active[edge_parent]
+                   & (Q_edge > 0.0) & (sumQ_e > 0.0) & (out_e > 0.0))
+
+        child_recv = np.zeros(m_edges, dtype=np.float64)
+        child_recv[edge_ok] = out_e[edge_ok] * Q_edge[edge_ok] / sumQ_e[edge_ok]
+
+        next_in = np.zeros(n, dtype=np.float64)
+        np.add.at(next_in, adj, child_recv)
+        in_budget = next_in
+
+        if edge_ok.any():
+            ep_ok = edge_parent[edge_ok]
+            ch_ok = adj[edge_ok]
+            wf_ep = np.where(np.abs(water_flux[ep_ok]) > 0.0,
+                              np.abs(water_flux[ep_ok]), 1.0)
+            time_rem[ch_ok] = np.maximum(
+                time_rem[ep_ok] - adv_vol[ep_ok] / wf_ep, 0.0)
+
+    denom = adv_vol.sum()
+    if denom > 0.0:
+        return np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
+    out = np.zeros(n, dtype=np.float64)
+    out[root] = water_flux[root]
+    return out
+
 
 debug = True
 debug_advection = False
 logger_output = logging.getLogger("Simulation_Logger")
 
 @dataclass
-class RootNitrogenModel(FunctionalComponent, TemperatureModel):
+class RootNitrogenModelGraph():
     """
-    Root nitrogen balance model of Root_CyNAPS
+    Root nitrogen balance model of Root_CyNAPS — metafspm @graph_system variant.
+
+    Replaces the monolithic axial_transport_N_arrays loop with:
+    - ``@axial _precompute_axial_N``: builds the topology GraphView, runs BFS collar
+      propagation, and stores per-solute transport coefficients to props each timestep.
+    - Three static ``@graph_system`` inner classes (``_solve_xylem_Nm``,
+      ``_solve_xylem_AA``, ``_solve_phloem_AA``): implicit-Euler backward-Euler
+      Newton solves (1 iteration for these linear systems) declared at class-definition
+      time, one per solute.
     """
 
 
@@ -1078,479 +1166,422 @@ class RootNitrogenModel(FunctionalComponent, TemperatureModel):
         return np.where(AA > 0., np.maximum(max_loading_rate * phloem_exchange_surface * AA / (self.Km_loading + AA), 0.), 0.)
 
 
-    @axial
     @rate
-    def axial_transport_N_arrays(self):
-        """
-        Optimized axial solute transport (transient advection + diffusion) that preserves
-        the original equations but avoids Python per-node loops during assembly.
+    @axial
+    def _precompute_axial_N(self):
+        """Build GraphView topology and store per-solute transport coefficients to props.
 
-        Assumes:
-        - self.g    : MTG/graph with .properties() and standard accessors
-        - self.time_step
-        - self.collar_children : iterable of VIDs directly under the collar/root
-        - self.solute_configs  : dict per solute with keys used below
+        Runs at combined priority [0, 2, 1, 0] (@rate row index 1, @axial row index 2)
+        — after all plain @rate metabolic steps [0, 2, 0, 0] (export_Nm,
+        diffusion_Nm_xylem, …) but before the @graph_system solvers which run at
+        @totalrate priority [0, 3, 0, 0].  This mirrors the original
+        RootNitrogenModel where axial_transport_N_arrays (@axial @rate) reads the
+        *current* timestep's metabolic rates at the same [0, 2, 1, 0] slot.
         """
-
         g = self.g
         props = g.properties()
+        dt = float(self.time_step)
 
-        # For the shoot sucrose concentration, sucrose volumic concentration needs to be estimated even if it is not explicitly provided by the shoot model
-        if "C_sucrose_root" in self.solute_configs.keys():
-            shoot_struct_mass = props["mstruct_axis_shoot"][1] - props["total_living_struct_mass"][1] # Confusing name with "shoot" but it is actually total axis struct mass
-            shoot_phloem_volume = shoot_struct_mass * 1e-7 * 4
-            shoot_sucrose = props["sucrose_phloem_shoot"][1]
-            # print("pre", shoot_sucrose, shoot_phloem_volume)
-            cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
-
+        # ── Shoot phloem concentrations ───────────────────────────────────
+        shoot_struct_mass = (props["mstruct_axis_shoot"][1]
+                             - props["total_living_struct_mass"][1])
+        shoot_phloem_volume = max(shoot_struct_mass * 1e-7 * 4, 1e-20)
         Cv_AA_phloem_collar = props["Cv_AA_phloem_collar"][1]
         if (Cv_AA_phloem_collar is None) or (np.isnan(Cv_AA_phloem_collar)):
-            shoot_amino_acids = props["AA_phloem_shoot"][1]
-            cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
+            cv_shoot_amino_acids = props["AA_phloem_shoot"][1] / shoot_phloem_volume
         else:
-            cv_shoot_amino_acids = props["Cv_AA_phloem_collar"][1]
-        if debug_advection: print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
+            cv_shoot_amino_acids = Cv_AA_phloem_collar
+        if "C_sucrose_root" in self.solute_configs:
+            cv_shoot_sucrose = props["sucrose_phloem_shoot"][1] / shoot_phloem_volume
 
-        vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
-        dt = float(self.time_step)
+        vertex_index = props["vertex_index"]
         root_vid = 1
-        xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
-        phloem_axial_diffusivity = 1e-9 * 100  # m^2/s Romero Gomez 2011
 
-        # ---------------------------
-        # 1) Live-node subset & local indexing
-        # ---------------------------
-        # 1) Focus set: vertex IDs and their global indices
-        focus_vids  = np.asarray(props["focus_elements"], dtype=np.int64)        # (n,)
-        focus_glob_idx  = vertex_index.indices_of(props["focus_elements"])                 # (n,)
-        focus_collar_children = [vid for vid in self.collar_children if vid in focus_vids]
-        collar_children_glob_idx  = vertex_index.indices_of(focus_collar_children)                 # (n,)
-
-
+        # ── Focus subset & local indexing ─────────────────────────────────
+        focus_vids = np.asarray(props["focus_elements"], dtype=np.int64)
+        focus_glob_idx = vertex_index.indices_of(props["focus_elements"])
         n = focus_vids.size
 
-        # 2) Global→Local map: from global *index* to local [0..n-1]
-        global2local = np.full(vertex_index.size, -1, dtype=np.int64)    # -1 means “not in focus set”
+        global2local = np.full(vertex_index.size, -1, dtype=np.int64)
         global2local[focus_glob_idx] = np.arange(n, dtype=np.int64)
         root_glob_idx = vertex_index.indices_of([root_vid])[0]
         root = int(global2local[root_glob_idx])
 
-        # 3) Parent ids (global vertex IDs), aligned to *global* order
         parent_vid_global = props["parent_id"].values_array()
+        parent_vid_focus = parent_vid_global[focus_glob_idx]
+        has_parent = parent_vid_focus >= 0
 
-        # For focus only: parent vids aligned to local order
-        parent_vid_focus  = parent_vid_global[focus_glob_idx]                        # (n,)
-        has_parent = parent_vid_focus >= 0                                # (n,) bool
-
-        # 4) Compute local parent indices for the focus set
-        parent_idx = np.full(n, -1, dtype=np.int64)                              # default: -1 (root/boundary)
-
-        # Map those parent vids → global indices → local indices
-        parent_glob_idx = vertex_index.indices_of(parent_vid_focus[has_parent]).astype(np.int64)  # (m,)
-        parent_loc  = global2local[parent_glob_idx]                                              # (m,) may be -1 if parent outside focus
-        child_loc   = np.flatnonzero(has_parent)                                    # (m,)
-
-        # Keep only edges whose parent is also in the focus set
+        parent_idx = np.full(n, -1, dtype=np.int64)
+        parent_glob_idx = vertex_index.indices_of(
+            parent_vid_focus[has_parent]).astype(np.int64)
+        parent_loc = global2local[parent_glob_idx]
+        child_loc = np.flatnonzero(has_parent)
         valid = parent_loc >= 0
         parent_idx[child_loc[valid]] = parent_loc[valid]
 
-        collar_children_idx = global2local[collar_children_glob_idx]
-
-        # 5) Edge arrays (purely local, no negatives)
-        children = np.flatnonzero(parent_idx >= 0).astype(np.int64)              # (m_edges,)
-        parents  = parent_idx[children]                                          # (m_edges,)
+        children = np.flatnonzero(parent_idx >= 0).astype(np.int64)
+        parents = parent_idx[children]
         m = children.size
 
-        # Build CSR-like parent -> children adjacency for traversal attribution of collar fluxes in the loop bellow
-        # parents/children are already local indices; we group edges by parent.
-        # 'order' groups edges, 'adj' holds children in parent-grouped order,
-        # 'edge_parent' maps per-parent quantities to each edge quickly,
-        # 'offsets' marks start/end of each parent's children in 'adj'.
+        # CSR-style parent→children adjacency for BFS
         counts = np.bincount(parents, minlength=n).astype(np.int32)
         offsets = np.empty(n + 1, dtype=np.int32)
         offsets[0] = 0
         np.cumsum(counts, out=offsets[1:])
         order = np.argsort(parents, kind="stable")
-        adj = children[order]                  # (m,) children grouped by parent
-        edge_parent = parents[order]           # (m,) parent index for each edge
+        adj = children[order]
+        edge_parent = parents[order]
 
-        # ---------------------------
-        # Fixed sparse pattern (once per call)
-        #    Blocks: diag (n), off_ip (child,row ; parent,col), off_pi (parent,row ; child,col)
-        # ---------------------------
-        i = np.arange(n, dtype=np.int64)
-        row_blocks = []
-        col_blocks = []
-        slices = {}
-        off = 0
-
-        # diagonal (i,i)
-        row_blocks.append(i);              col_blocks.append(i);            slices['diag']   = slice(off, off + n); off += n
-        # child-parent (i,p)
-        row_blocks.append(children);       col_blocks.append(parents);      slices['off_ip'] = slice(off, off + m); off += m
-        # parent-child (p,i)
-        row_blocks.append(parents);        col_blocks.append(children);     slices['off_pi'] = slice(off, off + m); off += m
-
-        row = np.concatenate(row_blocks).astype(np.int32, copy=False)
-        col = np.concatenate(col_blocks).astype(np.int32, copy=False)
-        nnz = row.size
-
-        # geometry arrays common to all solutes
-
-        length = props['length'].values_array()[focus_glob_idx]
-        radius = props['radius'].values_array()[focus_glob_idx]
-        living_struct_mass = props['living_struct_mass'].values_array()[focus_glob_idx]
-        symplasmic_volume = props['symplasmic_volume'].values_array()[focus_glob_idx]
-        soil_temperature = props['soil_temperature'].values_array()[focus_glob_idx]
-        soil_temperature_diffusion_modif = self.temperature_modification(soil_temperature=soil_temperature,
-                                                                     T_ref=self.passive_processes_T_ref,
-                                                                     A=self.passive_processes_A,
-                                                                     B=self.passive_processes_B,
-                                                                     C=self.passive_processes_C)
-        hexose_consumption_by_growth = props['hexose_consumption_by_growth'].values_array()[focus_glob_idx]
-        if 'amino_acids_consumption_by_growth' in props.keys():
-            amino_acids_consumption_by_growth = props['amino_acids_consumption_by_growth'].values_array()[focus_glob_idx]
+        # ── Build and store GraphView ──────────────────────────────────────
+        if m > 0:
+            cols_e = np.arange(m, dtype=np.int64)
+            incidence = coo_matrix(
+                (np.r_[np.ones(m, dtype=np.float64), -np.ones(m, dtype=np.float64)],
+                 (np.r_[children, parents], np.r_[cols_e, cols_e])),
+                shape=(n, m),
+            ).tocsc()
         else:
-            amino_acids_consumption_by_growth = ((hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA)
-        deficit_hexose_root = props['deficit_hexose_root'].values_array()[focus_glob_idx]
-        deficit_AA = props['deficit_AA'].values_array()[focus_glob_idx]
-        label = props['label'].values_array()[focus_glob_idx]
+            incidence = csc_matrix((n, 0), dtype=np.float64)
+        # Use large-offset edge IDs so they don't collide with node vertex IDs
+        # during prop snapshotting in _invoke_graph_system.
+        edge_ids = np.arange(m, dtype=np.int64) + 10_000_000
+        self._graph_view = GraphView(
+            node_ids=focus_vids.copy(),
+            edge_ids=edge_ids,
+            tail=children.copy(),
+            head=parents.copy(),
+            incidence=incidence,
+            boundary_incidence=csc_matrix((n, 0), dtype=np.float64),
+            boundary_names=(),
+        )
 
+        # ── Root index marker (stored to props for @graph_output methods) ──
+        root_flag = np.zeros(n, dtype=np.float64)
+        root_flag[root] = 1.0
+        props["_gs_root_idx"] = {int(vid): float(root_flag[i])
+                                  for i, vid in enumerate(focus_vids)}
+
+        # ── Shared geometry ───────────────────────────────────────────────
+        length = props["length"].values_array()[focus_glob_idx]
+        radius = props["radius"].values_array()[focus_glob_idx]
+        living_struct_mass = props["living_struct_mass"].values_array()[focus_glob_idx]
+        symplasmic_volume = props["symplasmic_volume"].values_array()[focus_glob_idx]
+        soil_temperature = props["soil_temperature"].values_array()[focus_glob_idx]
+        soil_temperature_diffusion_modif = self.temperature_modification(
+            soil_temperature=soil_temperature,
+            T_ref=self.passive_processes_T_ref,
+            A=self.passive_processes_A,
+            B=self.passive_processes_B,
+            C=self.passive_processes_C,
+        )
+        hexose_consumption_by_growth = (
+            props["hexose_consumption_by_growth"].values_array()[focus_glob_idx]
+        )
+        if "amino_acids_consumption_by_growth" in props.keys():
+            amino_acids_consumption_by_growth = (
+                props["amino_acids_consumption_by_growth"].values_array()[focus_glob_idx]
+            )
+        else:
+            amino_acids_consumption_by_growth = (
+                (hexose_consumption_by_growth * 6 * 12 / 0.44)
+                * self.struct_mass_N_content / self.r_Nm_AA
+            )
+        deficit_hexose_root = props["deficit_hexose_root"].values_array()[focus_glob_idx]
+        deficit_AA = props["deficit_AA"].values_array()[focus_glob_idx]
+
+        # ── Collar axial diffusivity ramp (phloem) ─────────────────────────
         if self.mass_wise_phloem_wiring:
-            # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
             parametrization_mass = 0.0350087941254409
-            transition_mass = 0.003 # for smoothness
+            transition_mass = 0.003
             target_mass = parametrization_mass + transition_mass
-            initial_sigma = 8e-9 # 8e-9 * 3
-            # max_sigma = 1e-6 * 10000
+            initial_sigma = 8e-9
             max_sigma = 1
-            # Linear
-            # slope = (max_sigma - initial_sigma) / (0.001)
-            # origin = initial_sigma - slope * parametrization_mass
-            # current_sigma = min(max_sigma, origin + slope * living_struct_mass.sum())
-
-            # Exponential
-            if living_struct_mass.sum() < parametrization_mass + transition_mass:
-                current_sigma = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (living_struct_mass.sum() - parametrization_mass) / (target_mass - parametrization_mass) ) )
+            if living_struct_mass.sum() < target_mass:
+                current_sigma = min(max_sigma, initial_sigma * np.exp(
+                    np.log(max_sigma / initial_sigma)
+                    * (living_struct_mass.sum() - parametrization_mass)
+                    / (target_mass - parametrization_mass)))
             else:
                 current_sigma = max_sigma
-
-            exponent = 2/3
-            # # exponent = 1
-            # # exponent = 4/3
-            collar_axial_diffusivity_sigma = current_sigma / (parametrization_mass ** (exponent))
-            collar_axial_diffusivity =  collar_axial_diffusivity_sigma * (living_struct_mass.sum() ** (exponent))
-            # print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
+            collar_axial_diffusivity = (
+                current_sigma / (parametrization_mass ** (2 / 3))
+                * living_struct_mass.sum() ** (2 / 3)
+            )
         else:
-            # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
-            transition_time = 24 * 3600 # for smoothness
-            initial_sigma = 8e-9 # 8e-9 * 3
+            transition_time = 24 * 3600
+            initial_sigma = 8e-9
             max_sigma = 1
-
-            # Exponential
             if self.cumulated_time < transition_time:
-                collar_axial_diffusivity = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (self.cumulated_time) / (transition_time) ) )
+                collar_axial_diffusivity = min(
+                    max_sigma,
+                    initial_sigma * np.exp(
+                        np.log(max_sigma / initial_sigma)
+                        * self.cumulated_time / transition_time),
+                )
             else:
                 collar_axial_diffusivity = max_sigma
 
-            # print("diffusivity with time", collar_axial_diffusivity, self.cumulated_time)
-
-
-        back_diffusion_asymetry = 1
-
-        # Solve solutes sequentially
+        # ── Per-solute precomputation ──────────────────────────────────────
         for name, cfg in self.solute_configs.items():
-            # Per-node fields (aligned to vids)
-            water_flux = props[cfg["water_flux_prop"]].values_array()[focus_glob_idx]         
-            conductive_element_volume = props[cfg["conductive_element_volume_prop"]].values_array()[focus_glob_idx]        
-            solute_massic_concentration = props[cfg["solute_massic_concentration_prop"]].values_array()[focus_glob_idx]   
-            solute_massic_concentration_symplasm = props[cfg["solute_massic_concentration_symplasm"]].values_array()[focus_glob_idx]   
-            solute_amount = solute_massic_concentration * living_struct_mass     
-            solute_cv = solute_amount / conductive_element_volume    
-            # Bellow conversion used to ensure in the case of sucrose that symplastic hexose are seen as equivalent sucrose                
-            solute_cv_symplasm = abs(cfg["diffusive_flux_conversion"]) * solute_massic_concentration_symplasm * living_struct_mass / symplasmic_volume
+            water_flux = props[cfg["water_flux_prop"]].values_array()[focus_glob_idx]
+            conductive_element_volume = (
+                props[cfg["conductive_element_volume_prop"]].values_array()[focus_glob_idx]
+            )
+            solute_massic_concentration = (
+                props[cfg["solute_massic_concentration_prop"]].values_array()[focus_glob_idx]
+            )
+            solute_massic_concentration_symplasm = (
+                props[cfg["solute_massic_concentration_symplasm"]].values_array()[focus_glob_idx]
+            )
+            solute_amount = solute_massic_concentration * living_struct_mass
+
             if "xylem" in name:
-                vessel_exchange_surface = props['xylem_exchange_surface'].values_array()[focus_glob_idx]
-                axial_diffusivity = xylem_axial_diffusivity
-            elif "phloem" in name:
-                vessel_exchange_surface = props['phloem_exchange_surface'].values_array()[focus_glob_idx]
-                axial_diffusivity = phloem_axial_diffusivity
-
-            # Radial term R (mol/s)
-            R_diffusion = props[cfg["diffusive_flux_name"]].values_array()[focus_glob_idx] * cfg["diffusive_flux_conversion"]
-            arg_names = [p.name for p in ins.signature(cfg["radial_solute_flux"]).parameters.values()]
-            R_others = cfg["radial_solute_flux"](*(props[arg].values_array()[focus_glob_idx] for arg in arg_names)) - R_diffusion
-            
-            # Corresponding permeability at this moment
-            k_diffusion = getattr(self, cfg["diffusion_parameter"]) * soil_temperature_diffusion_modif * vessel_exchange_surface
-            if name == "C_sucrose_root":
-                reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
-                hexose_consumption_by_growth[root] = hexose_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
-                # reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
-                k_diffusion *= (1 + (hexose_consumption_by_growth + deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth))
-                back_diffusion_asymetry = 1
-            elif name == "phloem_AA":
-                reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
-                amino_acids_consumption_by_growth[root] = amino_acids_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
-                # reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
-                k_diffusion *= (1 + (amino_acids_consumption_by_growth + deficit_AA) / (reference_rate_of_AA_consumption_by_growth))
-                back_diffusion_asymetry = 10
-            # if name == "C_sucrose_root":
-            #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
-            # elif name == "phloem_AA":
-            #     k_diffusion *= (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
-
-
-            boundary_from_reached_segments = False
-            # Boundary flux from shoot B (mol/s)
-            flux_shoot_boundary = cfg["flux_shoot_boundary"](props)
-            if (flux_shoot_boundary is not None) and (not np.isnan(flux_shoot_boundary)):
-                print("WARNING, OLD case where the solute flow was enforced", name, flux_shoot_boundary)
-                raise ValueError("OLD case where the solute flow was enforced")
-                boundary_from_shoot = flux_shoot_boundary
+                vessel_exchange_surface = (
+                    props["xylem_exchange_surface"].values_array()[focus_glob_idx]
+                )
             else:
+                vessel_exchange_surface = (
+                    props["phloem_exchange_surface"].values_array()[focus_glob_idx]
+                )
+
+            R_diffusion = (
+                props[cfg["diffusive_flux_name"]].values_array()[focus_glob_idx]
+                * cfg["diffusive_flux_conversion"]
+            )
+            arg_names = [p.name for p in ins.signature(
+                cfg["radial_solute_flux"]).parameters.values()]
+            R_others = (
+                cfg["radial_solute_flux"](
+                    *(props[arg].values_array()[focus_glob_idx] for arg in arg_names)
+                ) - R_diffusion
+            )
+
+            k_diffusion = (
+                getattr(self, cfg["diffusion_parameter"])
+                * soil_temperature_diffusion_modif
+                * vessel_exchange_surface
+            )
+            back_diffusion_asymmetry = 1
+            if name == "C_sucrose_root":
+                hexose_local = hexose_consumption_by_growth.copy()
+                hexose_local[root] /= 10
+                k_diffusion = k_diffusion * (
+                    1 + (hexose_local + deficit_hexose_root)
+                    / self.reference_rate_of_hexose_consumption_by_growth
+                )
+            elif name == "phloem_AA":
+                aa_local = amino_acids_consumption_by_growth.copy()
+                aa_local[root] /= 10
+                k_diffusion = k_diffusion * (
+                    1 + (aa_local + deficit_AA)
+                    / self.reference_rate_of_AA_consumption_by_growth
+                )
+                back_diffusion_asymmetry = 10
+
+            # Symplasmic concentration pre-divided by back_diffusion_asymmetry
+            solute_cv_symplasm = (
+                abs(cfg["diffusive_flux_conversion"])
+                * solute_massic_concentration_symplasm
+                * living_struct_mass / symplasmic_volume
+            ) / back_diffusion_asymmetry
+
+            # BFS boundary outflow (xylem solutes only; phloem uses collar diffusion)
+            boundary_outflow = np.zeros(n, dtype=np.float64)
+            if name not in ("C_sucrose_root", "phloem_AA"):
+                # Check collar boundary mode
+                flux_shoot_boundary = cfg["flux_shoot_boundary"](props)
+                if (flux_shoot_boundary is not None) and (not np.isnan(flux_shoot_boundary)):
+                    raise ValueError(
+                        f"OLD case where the solute flow was enforced: {name}"
+                    )
                 water_flux_root = water_flux[root]
                 if water_flux_root < 0.0:
-                    if "xylem" in name:
-                        print("WARNING, EDGE CASE TO ALIGN WITH PHLOEM, downward water flow but no N is redistributed to xylem from shoot")
-                    boundary_from_shoot = - water_flux_root * cfg["boundary_shoot_solute_concentration"](props)
+                    print("WARNING, EDGE CASE: downward water flow, no N "
+                          "redistributed to xylem from shoot:", name)
                 else:
-                    boundary_from_reached_segments = True
-                    # B = - water_flux_root * solute_amount[root] / conductive_element_volume[root]
+                    boundary_outflow = _bfs_collar_outflow(
+                        root, adj, edge_parent, offsets,
+                        water_flux, conductive_element_volume, dt,
+                    )
 
-            # CRITICAL SECTION FOR COLLAR FLOW ATTRIBUTION TO ELEMENTS REACHED BY THE SAP MOVEMENT FRONT DURING THE TIME STEP
-            # Distribute B over impacted nodes exactly like your BFS logicd
-            boundary_inflow = np.zeros(n, dtype=np.float64)
-            boundary_outflow = np.zeros(n, dtype=np.float64)
-            
-            boundary_only_on_root = False
-
-            if boundary_only_on_root and boundary_from_reached_segments:
-                boundary_outflow[root] = water_flux[root]
-
-            if name not in ("C_sucrose_root", "phloem_AA") and not boundary_only_on_root:
-                # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
-                sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
-                Q_down = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)  # (n,) >= 0
-
-                # Initial water volume budget at the collar for this step
-                vol_budget0 = np.abs(water_flux[root]) * dt
-                parent_crossing_time = dt
-
-                # Only flux with the same sign as collar contributes to splitting, reversed flux is opposite to the advection front.
-                Q_child_edge = Q_down[adj]                                # (m,)
-                m_edges = Q_child_edge.size
-                prefix = np.empty(m_edges + 1, dtype=np.float64)             # size m+1
-                prefix[0] = 0.0
-                np.cumsum(Q_child_edge, out=prefix[1:])                      # prefix[k] = sum(Q_child_edge[:k])
-                # Sum per parent i is prefix[offsets[i+1]] - prefix[offsets[i]]
-                sum_child_Q = prefix[offsets[1:]] - prefix[offsets[:-1]]     # (n,)
-
-                # in_budget[i]  = how much volume arrives *at the entrance* of node i
-                # adv_vol[i]    = how much volume actually *passes through* node i (<= V_eff[i])
-                # out_budget[i] = leftover volume after filling node i that goes to its children
-                in_budget = np.zeros(n, dtype=np.float64)
-                in_budget[root] = vol_budget0
-                adv_vol = np.zeros(n, dtype=np.float64)
-                time_remaining_after_parent = np.zeros(n, dtype=np.float64)
-                time_remaining_after_parent[root] = dt
-                crossing_time = np.zeros(n, dtype=np.float64)
-
-                # We iterate while some nodes still have incoming budget to push further.
-                # Each iteration touches all edges vectorially (masked to active parents).
-                # Depth is bounded by the tree height or until the budget is exhausted.
-                ct = 0
-                while True:
-                    active_parents = np.flatnonzero(in_budget > 0.0)
-                    if active_parents.size == 0:
-                        break
-
-                    # 1) Consume budget inside active parents
-                    adv_here = np.minimum(in_budget[active_parents], conductive_element_volume[active_parents])  # (k,)
-                    adv_vol[active_parents] += adv_here
-                    crossing_time[active_parents] = np.maximum(time_remaining_after_parent[active_parents] - (0.5 * adv_vol[active_parents] / np.abs(water_flux[active_parents])), 0.)
-                    out_here = in_budget[active_parents] - adv_here                          # (k,) >= 0
-
-                    # 2) Prepare per-parent arrays expanded to all parents (for edge mapping)
-                    out_full = np.zeros(n, dtype=np.float64)
-                    out_full[active_parents] = out_here
-                    parent_is_active = np.zeros(n, dtype=bool)
-                    parent_is_active[active_parents] = True
-
-                    # 3) Compute child incoming budgets on *edges* (vectorized)
-                    # For edges whose parent is active and has downstream children, split
-                    # the parent's leftover volume proportionally to Q_child_edge.
-                    out_edge   = out_full[edge_parent]       # (m,)
-                    sumQ_edge  = sum_child_Q[edge_parent]    # (m,)
-                    # Edge is eligible if its parent is active, its child has Q>0, and the parent's sumQ>0.
-                    edge_ok = parent_is_active[edge_parent] & (Q_child_edge > 0.0) & (sumQ_edge > 0.0) & (out_edge > 0.0)
-
-                    child_in_edge = np.zeros_like(out_edge)
-                    # child_in_edge = out_parent * (Q_child / sum_Q_children_of_parent)
-                    child_in_edge[edge_ok] = out_edge[edge_ok] * (Q_child_edge[edge_ok] / sumQ_edge[edge_ok])
-
-                    # 4) Accumulate edge contributions to each child node’s *incoming* budget for next level
-                    next_in_budget = np.zeros(n, dtype=np.float64)
-                    np.add.at(next_in_budget, adj, child_in_edge)  # sum contributions per child
-
-                    # 5) Advance to next level
-                    in_budget = next_in_budget
-                    # Updating time remaining after the parent for the next loop
-                    time_remaining_after_parent[in_budget > 0.0] = np.maximum(time_remaining_after_parent[edge_parent[edge_ok]] - (adv_vol[edge_parent[edge_ok]] / np.abs(water_flux[edge_parent[edge_ok]])), 0.)
-
-                    ct += 1
-            
-            
-                # ---- Convert advected volumes to boundary molar flux weights ----
-                denom = adv_vol.sum()
-                # denom = conductive_element_volume.sum()
-                # adv_vol = conductive_element_volume
-                if denom > 0:
-                    # boundary_outflow = (water_flux[root] * adv_vol) / denom
-                    boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
-                else:
-                    boundary_outflow[root] = water_flux[root]
-                # if denom >= 0.0:
-                #     # If the root system exports to shoot, the advected solution is not homogeneous and therefore the segments crossed by the advection front 
-                #     # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
-                #     # but the boundary is still in mol.s-1
-                #     if boundary_from_reached_segments:
-                #         boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
-
-                #     # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
-                #     # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
-                #     else:
-                #         if boundary_from_shoot >= 0.:
-                #             boundary_inflow = (boundary_from_shoot * adv_vol) / denom
-                #         else:
-                #             w = adv_vol / denom
-                #             denomC = (w * solute_cv).sum()
-                #             boundary_outflow = (-boundary_from_shoot) * (w / denomC)
-                # else:
-                #     if boundary_from_shoot >= 0.:
-                #         boundary_inflow[root] = boundary_from_shoot
-                #     else:
-                #         boundary_outflow[root] = - boundary_from_shoot / solute_cv[root]
-
-                # if not boundary_from_reached_segments:
-                #     # assert np.abs(boundary_inflow.sum() - boundary_from_shoot) < boundary_from_shoot * 1e-9, f"{name} input not consistent: {boundary_inflow.sum()}, {boundary_from_shoot}"
-
-                #     # Record applied flux (mol/s) to the shoot
-                #     props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
-
-            # Considering vessels have a low buffer capacity, if the outflux at collar exceeds maximal diffusion speed, we are sure to deplete
-
-            # assert - boundary.sum() < (solute_massic_concentration_symplasm * living_struct_mass).sum() + solute_amount.sum(), f"{name} not enough solute in system to wistand outflux"
-            # assert - boundary.sum() < (k_diffusion * solute_cv_symplasm).sum(), f"{name} high risks of depletion"
-
-            # R_total = R + boundary, but R is split into LHS and RHS
-            R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm / back_diffusion_asymetry
-
+            # Phloem collar coupling: stiffness and source at root node only
+            collar_k = np.zeros(n, dtype=np.float64)
+            collar_src = np.zeros(n, dtype=np.float64)
             if name == "phloem_AA":
-                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
-                k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
-                k_collar_phloem_diag[root] = k_collar_phloem
-                R_total[root] += k_collar_phloem * cv_shoot_amino_acids
-
+                k_collar = (
+                    collar_axial_diffusivity
+                    * (np.pi * (0.3 * radius[root]) ** 2) / max(length[root], 1e-10)
+                )
+                collar_k[root] = k_collar
+                collar_src[root] = k_collar * cv_shoot_amino_acids
             elif name == "C_sucrose_root":
-                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root] # m3.s-1
-                k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
-                k_collar_phloem_diag[root] = k_collar_phloem
-                R_total[root] += k_collar_phloem * cv_shoot_sucrose
-                    
-            # ---------------------------
-            # 5) Vectorized assembly of A (diffusion + advection), then column-scale by inv(V)
-            # ---------------------------
-            # Per-edge diffusion coefficient D: dx = (len_c + len_p)/2; area = pi*(0.1*(r_c+r_p)/2)^2
-            dx   = 0.5 * (length[children] + length[parents])
-            area = np.pi * (0.3 * (radius[children] + radius[parents]) / 2.)**2
-            D    = np.where(dx > 0., axial_diffusivity * area / np.where(dx > 0., dx, 0.001), 0.) # Safegarded from just initialized elements
-    
-            # Advection defined at child node
-            F     = water_flux[children]                                              # (m,)
-            Fpos  = np.maximum(F, 0.0)                                                # (m,)
-            Fneg  = np.minimum(F, 0.0)                                                # (m,) <= 0
+                k_collar = (
+                    collar_axial_diffusivity
+                    * (np.pi * (0.3 * radius[root]) ** 2) / max(length[root], 1e-10)
+                )
+                collar_k[root] = k_collar
+                collar_src[root] = k_collar * cv_shoot_sucrose
 
-            # Diagonal contributions gathered per node
-            diag = np.zeros(n, dtype=np.float64)
-            diag += - k_diffusion
-            diag += - boundary_outflow
-            if name in ("C_sucrose_root", "phloem_AA"):
-                diag += -k_collar_phloem_diag
-            # diffusion: -D at child and parent diags
-            np.add.at(diag, children, -D)
-            np.add.at(diag, parents,  -D)
-            # advection: -Fpos on child diag, +Fneg (<=0) on parent diag
-            np.add.at(diag, children, -Fpos)
-            np.add.at(diag, parents,   Fneg)
+            # Store per-solute arrays to props keyed by focus vertex IDs
+            pname = cfg["solute_massic_concentration_prop"]
+            props[pname + "_kd"]   = {int(vid): float(k_diffusion[i])     for i, vid in enumerate(focus_vids)}
+            props[pname + "_r0"]   = {int(vid): float(R_others[i])         for i, vid in enumerate(focus_vids)}
+            props[pname + "_bo"]   = {int(vid): float(boundary_outflow[i]) for i, vid in enumerate(focus_vids)}
+            props[pname + "_cs"]   = {int(vid): float(solute_cv_symplasm[i]) for i, vid in enumerate(focus_vids)}
+            props[pname + "_ck"]   = {int(vid): float(collar_k[i])         for i, vid in enumerate(focus_vids)}
+            props[pname + "_cr"]   = {int(vid): float(collar_src[i])       for i, vid in enumerate(focus_vids)}
+            props[pname + "_Nold"] = {int(vid): float(solute_amount[i])    for i, vid in enumerate(focus_vids)}
 
-            # Off-diagonals (match pattern order)
-            off_ip = D - Fneg   # row child, col parent
-            off_pi = D + Fpos   # row parent, col child
-
-            # Pack into data vector in fixed slots
-            data = np.empty(nnz, dtype=np.float64)
-            data[slices['diag']]   = diag
-            data[slices['off_ip']] = off_ip
-            data[slices['off_pi']] = off_pi
-
-            # Column scaling for A @ diag(1/V): multiply each nonzero by 1 / V[col]
-            if np.any((conductive_element_volume <= 0) | np.isinf(conductive_element_volume)):
-                print(conductive_element_volume)
-            invV_cols = (1.0 / conductive_element_volume)[col]
-            data_scaled = data * invV_cols # Performed here to avoid a later sparse matricial operation that goes dense
-            
-
-            # LHS = I - dt * (A @ diag(1/V)), RHS = ns0 + dt * R_total
-            LHS = identity(n, format='csc') + csc_matrix(((-dt) * data_scaled, (row, col)), shape=(n, n))
-            solve_BE = linalg.splu(LHS).solve
-            RHS = solute_amount + dt * R_total
-            n_sol = solve_BE(RHS)
-
-            Cm_sol = n_sol / living_struct_mass
-            Cv_sol = n_sol / conductive_element_volume
-
-            R_diffusion_actual = k_diffusion * ((solute_cv_symplasm  / back_diffusion_asymetry) - Cv_sol)
-            R_total_actual = R_others + boundary_inflow + R_diffusion_actual
-            if name == "C_sucrose_root":
-                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
-                # print("post", collar_axial_diffusivity, k_collar_phloem, Cv_sol[root], cv_shoot_sucrose)
-                R_total_actual[root] -= R_to_shoot_actual
-                props["sucrose_root_to_shoot_phloem"][1] = R_to_shoot_actual
-            elif name == "phloem_AA":
-                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_amino_acids)
-                R_total_actual[root] -= R_to_shoot_actual
-                props["AA_root_to_shoot_phloem"][1] = R_to_shoot_actual
-
-            props[cfg["diffusive_flux_name"]].assign_at(focus_glob_idx, R_diffusion_actual / cfg["diffusive_flux_conversion"])
-
-            if debug_advection: print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
-
-            if boundary_from_reached_segments and name not in ("C_sucrose_root", "phloem_AA"):
-                # Record applied flux (mol/s) to the shoot, conservative by construction
-                props[cfg["solute_flux_to_shoot"]][1] = (solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum())/dt
-            else:
-                # Check the balance is right
-                M_target = solute_amount.sum() + (dt * R_total_actual.sum())
-                p_error = 100 * abs(n_sol.sum() - M_target) / abs(M_target)
-                assert p_error < 1., f"{name}, % balance error {p_error}"
-
-            # c_min, c_max = cfg["solute_volumic_concentration_bounds"]
-            # n_min = c_min * conductive_element_volume
-            # n_max = c_max * conductive_element_volume
-
-            Cm_sol = n_sol / living_struct_mass
-
-            props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
-        
-        if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), 
-                                  - props["AA_root_to_shoot_phloem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
-                                  props["AA_root_to_shoot_xylem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
-                                  props["AA_synthesis"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass) - props["AA_catabolism"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
-                                  props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
-            
         self.cumulated_time += self.time_step
-            
+
+    # ── Per-solute @graph_system blocks (implicit-Euler advection-diffusion) ──
+    #
+    # Each block solves:  (Cm_new - Cm_old) / dt = F_net(Cm_new) / M_struct
+    # where F_net includes upwind advection, axial diffusion, symplasmic exchange,
+    # BFS collar outflow (xylem) or phloem-collar diffusion (phloem).
+    #
+    # Scheduling priorities (Choregrapher lexicographic sort on string tuples):
+    #   [0, 2, 0, 0] — @rate: metabolic steps (export_Nm, diffusion_Nm_xylem, …)
+    #   [0, 2, 1, 0] — @rate @axial: _precompute_axial_N (reads current-step metabolic rates)
+    #   [0, 3, 0, 0] — @totalrate: _Nm (symplasm), then graph solvers (schedule_as="totalrate")
+    #   [0, 4, 0, 0] — @state: Nm, AA, C_solutes_xylem, …
+    # Solver registration order within [0,3,0,0]: xylem_Nm → xylem_AA → phloem_AA.
+
+    @graph_system(node_unknowns=["xylem_Nm"], edge_unknowns=[],
+                  method="implicit_euler", schedule_as="axial")
+    class _solve_xylem_Nm:
+        """Backward-Euler solve for xylem nitrate (Nm) transport."""
+        
+        @node_balance(field="xylem_Nm")
+        def _balance(self, xylem_Nm, xylem_volume, living_struct_mass,
+                      xylem_Nm_kd, xylem_Nm_r0, xylem_Nm_bo, xylem_Nm_cs,
+                      axial_export_water_up_xylem, length, radius):
+            children = self._graph_view.tail
+            parents  = self._graph_view.head
+            V = np.where(xylem_volume > 0, xylem_volume, 1e-30)
+            C = xylem_Nm * living_struct_mass / V
+            # xylem axial diffusivity = 0: pure upwind advection
+            F    = axial_export_water_up_xylem[children]
+            Fpos = np.maximum(F, 0.0)
+            Fneg = np.minimum(F, 0.0)
+            F_cp = (-Fneg) * C[parents] - Fpos * C[children]
+            dCm = np.zeros(len(xylem_Nm), dtype=np.float64)
+            np.add.at(dCm, children, F_cp)
+            np.add.at(dCm, parents, -F_cp)
+            dCm += xylem_Nm_r0 + xylem_Nm_kd * xylem_Nm_cs - xylem_Nm_kd * C - xylem_Nm_bo * C
+            return -dCm / np.where(living_struct_mass > 0, living_struct_mass, 1e-30)
+
+        @graph_output(name="diffusion_Nm_xylem")
+        def _diffusion_out(self, xylem_Nm, xylem_volume, living_struct_mass,
+                            xylem_Nm_kd, xylem_Nm_cs):
+            V = np.where(xylem_volume > 0, xylem_volume, 1e-30)
+            C = xylem_Nm * living_struct_mass / V
+            # stored flux = R_diff_actual / diffusive_flux_conversion = R_diff / (-1) = -R_diff
+            return xylem_Nm_kd * (C - xylem_Nm_cs)
+
+        @graph_output(name="Nm_root_to_shoot_xylem")
+        def _flux_to_shoot(self, xylem_Nm, xylem_volume, living_struct_mass,
+                            xylem_Nm_kd, xylem_Nm_r0, xylem_Nm_cs, xylem_Nm_Nold,
+                            _gs_root_idx):
+            V = np.where(xylem_volume > 0, xylem_volume, 1e-30)
+            C = xylem_Nm * living_struct_mass / V
+            R_total_actual = xylem_Nm_r0 + xylem_Nm_kd * (xylem_Nm_cs - C)
+            N_new = xylem_Nm * living_struct_mass
+            dt = self.time_step
+            flux = (xylem_Nm_Nold.sum() + dt * R_total_actual.sum() - N_new.sum()) / dt
+            result = np.zeros(len(xylem_Nm), dtype=np.float64)
+            result[_gs_root_idx > 0.5] = flux
+            return result
+
+    @graph_system(node_unknowns=["xylem_AA"], edge_unknowns=[],
+                  method="implicit_euler", schedule_as="axial")
+    class _solve_xylem_AA:
+        """Backward-Euler solve for xylem amino-acid (AA) transport."""
+
+        @node_balance(field="xylem_AA")
+        def _balance(self, xylem_AA, xylem_volume, living_struct_mass,
+                      xylem_AA_kd, xylem_AA_r0, xylem_AA_bo, xylem_AA_cs,
+                      axial_export_water_up_xylem, length, radius):
+            children = self._graph_view.tail
+            parents  = self._graph_view.head
+            V = np.where(xylem_volume > 0, xylem_volume, 1e-30)
+            C = xylem_AA * living_struct_mass / V
+            F    = axial_export_water_up_xylem[children]
+            Fpos = np.maximum(F, 0.0)
+            Fneg = np.minimum(F, 0.0)
+            F_cp = (-Fneg) * C[parents] - Fpos * C[children]
+            dCm = np.zeros(len(xylem_AA), dtype=np.float64)
+            np.add.at(dCm, children, F_cp)
+            np.add.at(dCm, parents, -F_cp)
+            dCm += xylem_AA_r0 + xylem_AA_kd * xylem_AA_cs - xylem_AA_kd * C - xylem_AA_bo * C
+            return -dCm / np.where(living_struct_mass > 0, living_struct_mass, 1e-30)
+
+        @graph_output(name="diffusion_AA_xylem")
+        def _diffusion_out(self, xylem_AA, xylem_volume, living_struct_mass,
+                            xylem_AA_kd, xylem_AA_cs):
+            V = np.where(xylem_volume > 0, xylem_volume, 1e-30)
+            C = xylem_AA * living_struct_mass / V
+            return xylem_AA_kd * (C - xylem_AA_cs)
+
+        @graph_output(name="AA_root_to_shoot_xylem")
+        def _flux_to_shoot(self, xylem_AA, xylem_volume, living_struct_mass,
+                            xylem_AA_kd, xylem_AA_r0, xylem_AA_cs, xylem_AA_Nold,
+                            _gs_root_idx):
+            V = np.where(xylem_volume > 0, xylem_volume, 1e-30)
+            C = xylem_AA * living_struct_mass / V
+            R_total_actual = xylem_AA_r0 + xylem_AA_kd * (xylem_AA_cs - C)
+            N_new = xylem_AA * living_struct_mass
+            dt = self.time_step
+            flux = (xylem_AA_Nold.sum() + dt * R_total_actual.sum() - N_new.sum()) / dt
+            result = np.zeros(len(xylem_AA), dtype=np.float64)
+            result[_gs_root_idx > 0.5] = flux
+            return result
+
+    @graph_system(node_unknowns=["phloem_AA"], edge_unknowns=[],
+                  method="implicit_euler", schedule_as="axial")
+    class _solve_phloem_AA:
+        """Backward-Euler solve for phloem amino-acid (AA) transport."""
+
+        @node_balance(field="phloem_AA")
+        def _balance(self, phloem_AA, phloem_volume, living_struct_mass,
+                      phloem_AA_kd, phloem_AA_r0, phloem_AA_cs,
+                      phloem_AA_ck, phloem_AA_cr,
+                      axial_export_water_up_phloem, length, radius):
+            children = self._graph_view.tail
+            parents  = self._graph_view.head
+            V = np.where(phloem_volume > 0, phloem_volume, 1e-30)
+            C = phloem_AA * living_struct_mass / V
+            phloem_axial_diffusivity = 1e-9 * 100  # m²/s Romero Gomez 2011
+            dx = 0.5 * (length[children] + length[parents])
+            area = np.pi * (0.3 * (radius[children] + radius[parents]) / 2.0) ** 2
+            D = np.where(dx > 0.0,
+                         phloem_axial_diffusivity * area / np.where(dx > 0.0, dx, 0.001),
+                         0.0)
+            F    = axial_export_water_up_phloem[children]
+            Fpos = np.maximum(F, 0.0)
+            Fneg = np.minimum(F, 0.0)
+            F_cp = D * (C[parents] - C[children]) + (-Fneg) * C[parents] - Fpos * C[children]
+            dCm = np.zeros(len(phloem_AA), dtype=np.float64)
+            np.add.at(dCm, children, F_cp)
+            np.add.at(dCm, parents, -F_cp)
+            dCm += (phloem_AA_r0 + phloem_AA_kd * phloem_AA_cs
+                    - phloem_AA_kd * C - phloem_AA_ck * C + phloem_AA_cr)
+            return -dCm / np.where(living_struct_mass > 0, living_struct_mass, 1e-30)
+
+        @graph_output(name="diffusion_AA_phloem")
+        def _diffusion_out(self, phloem_AA, phloem_volume, living_struct_mass,
+                            phloem_AA_kd, phloem_AA_cs):
+            V = np.where(phloem_volume > 0, phloem_volume, 1e-30)
+            C = phloem_AA * living_struct_mass / V
+            return phloem_AA_kd * (C - phloem_AA_cs)
+
+        @graph_output(name="AA_root_to_shoot_phloem")
+        def _collar_flux(self, phloem_AA, phloem_volume, living_struct_mass,
+                          phloem_AA_ck, phloem_AA_cr):
+            V = np.where(phloem_volume > 0, phloem_volume, 1e-30)
+            C = phloem_AA * living_struct_mass / V
+            # collar_k * C_root - collar_src (non-zero only at root)
+            return phloem_AA_ck * C - phloem_AA_cr
 
     # METABOLIC PROCESSES
     @rate

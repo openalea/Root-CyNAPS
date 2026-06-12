@@ -4,7 +4,7 @@ from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
 from openalea.mtg.traversal import post_order2, pre_order2
 
-from openalea.metafspm.component import Model, declare
+from openalea.metafspm.component import FunctionalComponent, declare
 from openalea.metafspm.component_factory import *
 
 from scipy.sparse import csc_matrix, linalg
@@ -13,7 +13,7 @@ from scipy.sparse import csc_matrix, linalg
 debug = True
 
 @dataclass
-class RootWaterModel(Model):
+class RootWaterModel(FunctionalComponent):
 
 
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---

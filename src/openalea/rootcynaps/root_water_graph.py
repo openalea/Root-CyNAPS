@@ -4,7 +4,7 @@ from openalea.mtg.traversal import pre_order2
 from dataclasses import dataclass
 from openalea.mtg.traversal import post_order2, pre_order2
 
-from openalea.metafspm.component import Model, declare
+from openalea.metafspm.component import FunctionalComponent, declare
 from openalea.metafspm.component_factory import *
 from openalea.metafspm.mpg import MPG
 from openalea.metafspm.graph_system import GraphView
@@ -16,7 +16,7 @@ from scipy.sparse import csc_matrix, diags, linalg
 debug = True
 
 @dataclass
-class RootWaterModel(Model):
+class RootWaterModel(FunctionalComponent):
 
 
     # --- INPUTS STATE VARIABLES FROM OTHER COMPONENTS : default values are provided if not superimposed by model coupling ---
@@ -396,7 +396,7 @@ class RootWaterModel(Model):
 
         # ── Phloem residual (all nodes; Neumann BC adds flux at collar row) ──
 
-        @node_balance(field="phloem_pressure")
+        @node_balance(field="phloem_pressure"):
         def _phloem_balance_residual(self, xylem_pressure, phloem_pressure, K_phloem,
                                   kr_symplasmic_water_phloem, osmotic_phloem_term):
             incidence = self._graph_view.incidence
