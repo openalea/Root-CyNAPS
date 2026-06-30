@@ -701,6 +701,14 @@ class RootWaterModel(Model):
         parents  = parent_idx[children]                                          # (m_edges,)
 
         # Pull arrays fast (aligned with local vids)
+        # NOTE: living_struct_mass/soil_temperature are "eager" properties (explicitly initialized
+        # for every vertex at creation in ADDING_A_CHILD), unlike vertex_index which is "lazy"
+        # (only registered once a vertex enters focus_elements). Indexing an eager array with
+        # focus_glob_idx (derived from the lazy vertex_index) silently reads the wrong vertex's
+        # value once any not-yet-focus vertex exists -- recompute their own index map instead.
+        eager_idx = props['living_struct_mass'].indices_of(focus_vids)
+        living_struct_mass = props['living_struct_mass'].values_array()[eager_idx]
+        soil_temperature = props['soil_temperature'].values_array()[eager_idx]
         K_xylem = props['K_xylem'].values_array()[focus_glob_idx]
         K_phloem = props['K_phloem'].values_array()[focus_glob_idx]
         kr_symplasmic_water_xylem = props['kr_symplasmic_water_xylem'].values_array()[focus_glob_idx]
@@ -709,17 +717,16 @@ class RootWaterModel(Model):
         xylem_pressure_in = props['xylem_pressure_in'].values_array()[focus_glob_idx]
         phloem_pressure_in = props['phloem_pressure_in'].values_array()[focus_glob_idx]
         soil_water_pressure = props['soil_water_pressure'].values_array()[focus_glob_idx]
-        soil_temperature = props['soil_temperature'].values_array()[focus_glob_idx]
         Cv_solutes_soil = props['Cv_solutes_soil'].values_array()[focus_glob_idx]
-        xylem_volume = props['xylem_volume'].values_array()
-        Cv_solutes_xylem = np.where(xylem_volume > 0., props['C_solutes_xylem'].values_array() * props['living_struct_mass'].values_array()
-                / np.where(xylem_volume > 0., xylem_volume, 1.), 0.)[focus_glob_idx]
-        phloem_volume = props['phloem_volume'].values_array()
-        Cv_solutes_phloem = np.where(phloem_volume > 0., props['C_solutes_phloem'].values_array() * props['living_struct_mass'].values_array()
-                / np.where(phloem_volume > 0, phloem_volume, 1.), 0.)[focus_glob_idx]
+        xylem_volume = props['xylem_volume'].values_array()[focus_glob_idx]
+        Cv_solutes_xylem = np.where(xylem_volume > 0., props['C_solutes_xylem'].values_array()[focus_glob_idx] * living_struct_mass
+                / np.where(xylem_volume > 0., xylem_volume, 1.), 0.)
+        phloem_volume = props['phloem_volume'].values_array()[focus_glob_idx]
+        Cv_solutes_phloem = np.where(phloem_volume > 0., props['C_solutes_phloem'].values_array()[focus_glob_idx] * living_struct_mass
+                / np.where(phloem_volume > 0, phloem_volume, 1.), 0.)
 
         # Pattern (build once per topology / time step when growing)
-        i = np.arange(n, dtype=np.int64)
+        i = np.arange(n, dtype=np.int32)
 
         rows = []
         cols = []

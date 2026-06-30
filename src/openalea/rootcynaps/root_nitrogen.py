@@ -1195,11 +1195,19 @@ class RootNitrogenModel(Model):
 
         # geometry arrays common to all solutes
 
-        length = props['length'].values_array()[focus_glob_idx]
-        radius = props['radius'].values_array()[focus_glob_idx]
-        living_struct_mass = props['living_struct_mass'].values_array()[focus_glob_idx]
+        # NOTE: length/radius/living_struct_mass/soil_temperature/label are "eager" properties
+        # (explicitly initialized for every vertex at creation in ADDING_A_CHILD), unlike
+        # vertex_index which is "lazy" (only registered once a vertex enters focus_elements via
+        # post_growth_updating's one-step step_new_apices window). Indexing an eager array with
+        # focus_glob_idx (derived from the lazy vertex_index) silently reads the wrong vertex's
+        # value once any not-yet-focus vertex exists. They're all set together in the same
+        # add_child(...) call, so they share one consistent index map, computed once here.
+        eager_idx = props['living_struct_mass'].indices_of(focus_vids)
+        length = props['length'].values_array()[eager_idx]
+        radius = props['radius'].values_array()[eager_idx]
+        living_struct_mass = props['living_struct_mass'].values_array()[eager_idx]
         symplasmic_volume = props['symplasmic_volume'].values_array()[focus_glob_idx]
-        soil_temperature = props['soil_temperature'].values_array()[focus_glob_idx]
+        soil_temperature = props['soil_temperature'].values_array()[eager_idx]
         soil_temperature_diffusion_modif = self.temperature_modification(soil_temperature=soil_temperature,
                                                                      T_ref=self.passive_processes_T_ref,
                                                                      A=self.passive_processes_A,
@@ -1212,7 +1220,7 @@ class RootNitrogenModel(Model):
             amino_acids_consumption_by_growth = ((hexose_consumption_by_growth * 6 * 12 / 0.44) * self.struct_mass_N_content / self.r_Nm_AA)
         deficit_hexose_root = props['deficit_hexose_root'].values_array()[focus_glob_idx]
         deficit_AA = props['deficit_AA'].values_array()[focus_glob_idx]
-        label = props['label'].values_array()[focus_glob_idx]
+        label = props['label'].values_array()[eager_idx]
 
         if self.mass_wise_phloem_wiring:
             # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
@@ -1259,10 +1267,19 @@ class RootNitrogenModel(Model):
         # Solve solutes sequentially
         for name, cfg in self.solute_configs.items():
             # Per-node fields (aligned to vids)
-            water_flux = props[cfg["water_flux_prop"]].values_array()[focus_glob_idx]         
-            conductive_element_volume = props[cfg["conductive_element_volume_prop"]].values_array()[focus_glob_idx]        
-            solute_massic_concentration = props[cfg["solute_massic_concentration_prop"]].values_array()[focus_glob_idx]   
-            solute_massic_concentration_symplasm = props[cfg["solute_massic_concentration_symplasm"]].values_array()[focus_glob_idx]   
+            water_flux = props[cfg["water_flux_prop"]].values_array()[focus_glob_idx]
+            conductive_element_volume = props[cfg["conductive_element_volume_prop"]].values_array()[focus_glob_idx]
+            # NOTE: solute_massic_concentration_prop (xylem_AA/phloem_AA/C_sucrose_root) and
+            # solute_massic_concentration_symplasm (AA/C_hexose_root) are "eager" properties
+            # (explicitly initialized at vertex creation in ADDING_A_CHILD), unlike vertex_index
+            # which is "lazy" (only registered once a vertex enters focus_elements). An eager
+            # array can hold extra entries for not-yet-focus vertices that vertex_index doesn't
+            # know about, so focus_glob_idx (derived from vertex_index) does not generally line up
+            # with these arrays' own positions. Recompute indices in each property's own space.
+            conc_idx = props[cfg["solute_massic_concentration_prop"]].indices_of(focus_vids)
+            sym_idx = props[cfg["solute_massic_concentration_symplasm"]].indices_of(focus_vids)
+            solute_massic_concentration = props[cfg["solute_massic_concentration_prop"]].values_array()[conc_idx]
+            solute_massic_concentration_symplasm = props[cfg["solute_massic_concentration_symplasm"]].values_array()[sym_idx]
             solute_amount = solute_massic_concentration * living_struct_mass     
             solute_cv = solute_amount / conductive_element_volume    
             # Bellow conversion used to ensure in the case of sucrose that symplastic hexose are seen as equivalent sucrose                
@@ -1508,7 +1525,7 @@ class RootNitrogenModel(Model):
             Cm_sol = n_sol / living_struct_mass
             Cv_sol = n_sol / conductive_element_volume
 
-            R_diffusion_actual = k_diffusion * ((solute_cv_symplasm  / back_diffusion_asymetry) - Cv_sol)
+            R_diffusion_actual = k_diffusion * ((solute_cv_symplasm / back_diffusion_asymetry) - Cv_sol)
             R_total_actual = R_others + boundary_inflow + R_diffusion_actual
             if name == "C_sucrose_root":
                 R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
@@ -1520,13 +1537,25 @@ class RootNitrogenModel(Model):
                 R_total_actual[root] -= R_to_shoot_actual
                 props["AA_root_to_shoot_phloem"][1] = R_to_shoot_actual
 
-            props[cfg["diffusive_flux_name"]].assign_at(focus_glob_idx, R_diffusion_actual / cfg["diffusive_flux_conversion"])
+            # NOTE: do not reuse focus_glob_idx (computed from vertex_index) here: vertex_index is
+            # a "lazy" property (only ever registered for vertices once they enter focus_elements,
+            # via post_growth_updating's one-step step_new_apices window), while diffusive_flux_name
+            # properties may be "eager" (explicitly initialized to 0. for every new vertex at
+            # creation in ADDING_A_CHILD, e.g. hexose_diffusion_from_phloem-like fluxes). An eager
+            # array can have extra entries (for not-yet-focus vertices) that a lazy vertex_index
+            # doesn't know about, shifting positions out of sync. Recompute the indices in this
+            # property's own array space to stay correct regardless of its eager/lazy status.
+            props[cfg["diffusive_flux_name"]].assign_at(props[cfg["diffusive_flux_name"]].indices_of(focus_vids), R_diffusion_actual / cfg["diffusive_flux_conversion"])
 
             if debug_advection: print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
 
             if boundary_from_reached_segments:
-                # Record applied flux (mol/s) to the shoot, conservative by construction
-                props[cfg["solute_flux_to_shoot"]][1] = (solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum())/dt
+                # Record applied flux (mol/s) to the shoot, conservative by construction.
+                # Phloem solutes use a collar-diffusion scheme (lines above) and their
+                # shoot flux is already written; the mass-residual formula yields zero for
+                # them (collar term cancels), so we must not overwrite.
+                if name not in ("C_sucrose_root", "phloem_AA"):
+                    props[cfg["solute_flux_to_shoot"]][1] = (solute_amount.sum() + (dt * R_total_actual).sum() - n_sol.sum())/dt
             else:
                 # Check the balance is right
                 M_target = solute_amount.sum() + (dt * R_total_actual.sum())
@@ -1534,13 +1563,10 @@ class RootNitrogenModel(Model):
                 if p_error > 1.:
                     print(name, "% balance error", p_error)
 
-            # c_min, c_max = cfg["solute_volumic_concentration_bounds"]
-            # n_min = c_min * conductive_element_volume
-            # n_max = c_max * conductive_element_volume
-
             Cm_sol = n_sol / living_struct_mass
 
-            props[cfg["solute_massic_concentration_prop"]].assign_at(focus_glob_idx, Cm_sol)
+            # Reuse conc_idx (this property's own positions), not focus_glob_idx -- see note above.
+            props[cfg["solute_massic_concentration_prop"]].assign_at(conc_idx, Cm_sol)
         
         if debug_advection: print(- props["sucrose_root_to_shoot_phloem"][1] * 1e6 * 3600 * 12 / np.sum(living_struct_mass), 
                                   - props["AA_root_to_shoot_phloem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
