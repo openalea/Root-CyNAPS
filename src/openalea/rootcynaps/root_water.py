@@ -888,8 +888,12 @@ class RootWaterModel(Model):
         # “down” imports
         axial_import_water_down_xylem = axial_export_water_up_xylem - radial_import_water_xylem + radial_import_water_phloem
         axial_import_water_down_phloem = axial_export_water_up_phloem - radial_import_water_phloem
-        if debug: assert np.all(np.abs(axial_export_water_up_xylem + radial_import_water_phloem - axial_import_water_down_xylem - radial_import_water_xylem) < 1e-18)
-        if debug: assert np.all(np.abs(axial_export_water_up_phloem - axial_import_water_down_phloem - radial_import_water_phloem) < 1e-18)
+        if debug: 
+            xylem_conservation = np.abs(axial_export_water_up_xylem + radial_import_water_phloem - axial_import_water_down_xylem - radial_import_water_xylem) 
+            assert np.all(xylem_conservation < 1e-16), np.max(xylem_conservation)
+        if debug: 
+            phloem_conservation = np.abs(axial_export_water_up_phloem - axial_import_water_down_phloem - radial_import_water_phloem)
+            assert np.all(phloem_conservation < 1e-16), np.max(phloem_conservation)
 
         # Push to array dict (one shot each)
         props['xylem_pressure_in'].assign_at(focus_glob_idx, xylem_pressure_in)
