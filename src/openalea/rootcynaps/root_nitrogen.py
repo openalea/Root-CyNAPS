@@ -1102,9 +1102,14 @@ class RootNitrogenModel(Model):
             cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
 
         Cv_AA_phloem_collar = props["Cv_AA_phloem_collar"][1]
-        if (Cv_AA_phloem_collar is None) or (np.isnan(Cv_AA_phloem_collar)):
+        # A finite shoot pool (amount + volume) is required to add the shoot as an extra node in
+        # the implicit collar solve below. When only a fixed concentration is imposed externally
+        # (Cv_AA_phloem_collar set), there is no pool to couple against, so that case keeps the
+        # previous frozen-Dirichlet boundary treatment.
+        aa_shoot_pool_known = (Cv_AA_phloem_collar is None) or (np.isnan(Cv_AA_phloem_collar))
+        if aa_shoot_pool_known:
             shoot_amino_acids = props["AA_phloem_shoot"][1]
-            cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume
+            cv_shoot_amino_acids = shoot_amino_acids / shoot_phloem_volume # TODO: VOLUME IS DANGEROUSLY DEFINED CONDITIONALLY ABOVE
         else:
             cv_shoot_amino_acids = props["Cv_AA_phloem_collar"][1]
         if debug_advection: print("shoot concentrations", cv_shoot_sucrose, cv_shoot_amino_acids)
@@ -1225,9 +1230,9 @@ class RootNitrogenModel(Model):
         if self.mass_wise_phloem_wiring:
             # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
             parametrization_mass = 0.0350087941254409
-            transition_mass = 0.003 * 10 * 2 # for smoothness, increase if bouncing flows appear on too small root system
+            transition_mass = 0.003 # for smoothness
             target_mass = parametrization_mass + transition_mass
-            initial_sigma = 8e-9 # lowered to accomodate switching to flows normalized by mass provided to shoot
+            initial_sigma = 8e-9
             max_sigma = 1
 
             # Linear
@@ -1249,6 +1254,7 @@ class RootNitrogenModel(Model):
             # print("diffusivity", collar_axial_diffusivity, living_struct_mass.sum())
         else:
             # NOTE: Initialization trick to progressively increase collar conductance and avoid unrealistic flows at start
+            # NOTE: It excludes the relationship to root system structural mass increase, since this is meant for static root system simulations
             transition_time = 24 * 3600 # for smoothness
             initial_sigma = 8e-9 # 8e-9 * 3
             max_sigma = 1
@@ -1258,8 +1264,6 @@ class RootNitrogenModel(Model):
                 collar_axial_diffusivity = min(max_sigma, initial_sigma * np.exp(np.log(max_sigma / initial_sigma) * (self.cumulated_time) / (transition_time) ) )
             else:
                 collar_axial_diffusivity = max_sigma
-
-            # print("diffusivity with time", collar_axial_diffusivity, self.cumulated_time)
 
 
         back_diffusion_asymetry = 1
@@ -1425,54 +1429,33 @@ class RootNitrogenModel(Model):
                     boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
                 else:
                     boundary_outflow[root] = water_flux[root]
-                # if denom >= 0.0:
-                #     # If the root system exports to shoot, the advected solution is not homogeneous and therefore the segments crossed by the advection front 
-                #     # do not contribute equally during the whole time step depending on their position, so we introduce a scaling by crossing time, 
-                #     # but the boundary is still in mol.s-1
-                #     if boundary_from_reached_segments:
-                #         boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
-
-                #     # If the flux is oriented downwards, we consider the shoot solution concentration to be homogeneous and therefore the allocation just depends on reached segment's volume
-                #     # And this is in line with the current use of a flux input for phloem water transport, not a boundary pressure
-                #     else:
-                #         if boundary_from_shoot >= 0.:
-                #             boundary_inflow = (boundary_from_shoot * adv_vol) / denom
-                #         else:
-                #             w = adv_vol / denom
-                #             denomC = (w * solute_cv).sum()
-                #             boundary_outflow = (-boundary_from_shoot) * (w / denomC)
-                # else:
-                #     if boundary_from_shoot >= 0.:
-                #         boundary_inflow[root] = boundary_from_shoot
-                #     else:
-                #         boundary_outflow[root] = - boundary_from_shoot / solute_cv[root]
-
-                # if not boundary_from_reached_segments:
-                #     # assert np.abs(boundary_inflow.sum() - boundary_from_shoot) < boundary_from_shoot * 1e-9, f"{name} input not consistent: {boundary_inflow.sum()}, {boundary_from_shoot}"
-
-                #     # Record applied flux (mol/s) to the shoot
-                #     props[cfg["solute_flux_to_shoot"]][1] = - boundary_inflow.sum()
-
-            # Considering vessels have a low buffer capacity, if the outflux at collar exceeds maximal diffusion speed, we are sure to deplete
-
-            # assert - boundary.sum() < (solute_massic_concentration_symplasm * living_struct_mass).sum() + solute_amount.sum(), f"{name} not enough solute in system to wistand outflux"
-            # assert - boundary.sum() < (k_diffusion * solute_cv_symplasm).sum(), f"{name} high risks of depletion"
+                
 
             # R_total = R + boundary, but R is split into LHS and RHS
             R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm / back_diffusion_asymetry
 
+            # Shoot-side phloem pool coupling: when the shoot pool is finite/known, it is added as
+            # one extra node (index n) to this same backward-Euler solve instead of being injected
+            # as a frozen Dirichlet boundary. This makes the exchange unconditionally stable and
+            # exactly conservative, since both sides' mass comes out of a single linear solve.
+            has_shoot_pool = name == "C_sucrose_root" or (name == "phloem_AA" and aa_shoot_pool_known)
+
             if name == "phloem_AA":
                 k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
-                k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
-                k_collar_phloem_diag[root] = k_collar_phloem
-                R_total[root] += k_collar_phloem * cv_shoot_amino_acids
-
+                shoot_pool0 = shoot_amino_acids if has_shoot_pool else None
+                shoot_pool_volume = shoot_phloem_volume
             elif name == "C_sucrose_root":
                 k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root] # m3.s-1
+                shoot_pool0 = shoot_sucrose
+                shoot_pool_volume = shoot_phloem_volume
+
+            if name in ("C_sucrose_root", "phloem_AA") and not has_shoot_pool:
+                # Fallback: externally-imposed concentration, no pool to couple -- unchanged
+                # frozen-Dirichlet boundary term as before.
                 k_collar_phloem_diag = np.zeros(n, dtype=np.float64)
                 k_collar_phloem_diag[root] = k_collar_phloem
-                R_total[root] += k_collar_phloem * cv_shoot_sucrose
-                    
+                R_total[root] += k_collar_phloem * (cv_shoot_amino_acids if name == "phloem_AA" else cv_shoot_sucrose)
+
             # ---------------------------
             # 5) Vectorized assembly of A (diffusion + advection), then column-scale by inv(V)
             # ---------------------------
@@ -1490,7 +1473,7 @@ class RootNitrogenModel(Model):
             diag = np.zeros(n, dtype=np.float64)
             diag += -k_diffusion
             diag += -boundary_outflow
-            if name in ("C_sucrose_root", "phloem_AA"):
+            if name in ("C_sucrose_root", "phloem_AA") and not has_shoot_pool:
                 diag += -k_collar_phloem_diag
             # diffusion: -D at child and parent diags
             np.add.at(diag, children, -D)
@@ -1514,13 +1497,40 @@ class RootNitrogenModel(Model):
                 print(conductive_element_volume)
             invV_cols = (1.0 / conductive_element_volume)[col]
             data_scaled = data * invV_cols # Performed here to avoid a later sparse matricial operation that goes dense
-            
 
-            # LHS = I - dt * (A @ diag(1/V)), RHS = ns0 + dt * R_total
-            LHS = identity(n, format='csc') + csc_matrix(((-dt) * data_scaled, (row, col)), shape=(n, n))
-            solve_BE = linalg.splu(LHS).solve
             RHS = solute_amount + dt * R_total
-            n_sol = solve_BE(RHS)
+
+            if has_shoot_pool:
+                # Append the shoot pool as node `shoot_i = n`: a plain diffusive edge of
+                # conductance k_collar_phloem to the collar (root) node, no advection term. Its
+                # RHS carries only its current pool amount (no dt * R_shoot_other): the shoot's own
+                # source/sink terms (photosynthesis, growth use, ...) are applied afterwards by the
+                # shoot model itself, starting from the value this solve writes back.
+                shoot_i = n
+                n_ext = n + 1
+                # Standard two-node diffusion edge: -D on each node's own diagonal, +D on the
+                # cross terms. The root-root entry replaces the k_collar_phloem_diag term that is
+                # skipped above when has_shoot_pool is True -- omitting it left root gaining flux
+                # from the shoot side without ever losing the matching flux to it, breaking the
+                # balance check below.
+                new_row = np.array([root, shoot_i, shoot_i, root], dtype=np.int32)
+                new_col = np.array([shoot_i, root, shoot_i, root], dtype=np.int32)
+                new_invV = np.array([1.0 / shoot_pool_volume, 1.0 / conductive_element_volume[root], 1.0 / shoot_pool_volume, 1.0 / conductive_element_volume[root]])
+                new_data_scaled = np.array([k_collar_phloem, k_collar_phloem, -k_collar_phloem, -k_collar_phloem]) * new_invV
+
+                row_ext = np.concatenate([row, new_row])
+                col_ext = np.concatenate([col, new_col])
+                data_scaled_ext = np.concatenate([data_scaled, new_data_scaled])
+
+                LHS = identity(n_ext, format='csc') + csc_matrix(((-dt) * data_scaled_ext, (row_ext, col_ext)), shape=(n_ext, n_ext))
+                RHS_ext = np.concatenate([RHS, [shoot_pool0]])
+                n_sol_ext = linalg.splu(LHS).solve(RHS_ext)
+                n_sol = n_sol_ext[:n]
+                shoot_pool_new = n_sol_ext[shoot_i]
+                cv_shoot_new = shoot_pool_new / shoot_pool_volume
+            else:
+                LHS = identity(n, format='csc') + csc_matrix(((-dt) * data_scaled, (row, col)), shape=(n, n))
+                n_sol = linalg.splu(LHS).solve(RHS)
 
             Cm_sol = n_sol / living_struct_mass
             Cv_sol = n_sol / conductive_element_volume
@@ -1528,14 +1538,23 @@ class RootNitrogenModel(Model):
             R_diffusion_actual = k_diffusion * ((solute_cv_symplasm / back_diffusion_asymetry) - Cv_sol)
             R_total_actual = R_others + boundary_inflow + R_diffusion_actual
             if name == "C_sucrose_root":
-                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_sucrose)
-                # print("post", collar_axial_diffusivity, k_collar_phloem, Cv_sol[root], cv_shoot_sucrose)
+                cv_shoot_post = cv_shoot_new if has_shoot_pool else cv_shoot_sucrose
+                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_post)
+                # print("post", collar_axial_diffusivity, k_collar_phloem, Cv_sol[root], cv_shoot_post)
                 R_total_actual[root] -= R_to_shoot_actual
                 props["sucrose_root_to_shoot_phloem"][1] = R_to_shoot_actual
+                if has_shoot_pool:
+                    # Downstream write-back: the shoot model reads this pool as its start-of-hour
+                    # state and must apply only its own source/sink terms on top of it -- the
+                    # shoot-root exchange for this hour has already been resolved here.
+                    props["sucrose_phloem_shoot"][1] = shoot_pool_new
             elif name == "phloem_AA":
-                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_amino_acids)
+                cv_shoot_post = cv_shoot_new if has_shoot_pool else cv_shoot_amino_acids
+                R_to_shoot_actual = k_collar_phloem * (Cv_sol[root] - cv_shoot_post)
                 R_total_actual[root] -= R_to_shoot_actual
                 props["AA_root_to_shoot_phloem"][1] = R_to_shoot_actual
+                if has_shoot_pool:
+                    props["AA_phloem_shoot"][1] = shoot_pool_new
 
             # NOTE: do not reuse focus_glob_idx (computed from vertex_index) here: vertex_index is
             # a "lazy" property (only ever registered for vertices once they enter focus_elements,
