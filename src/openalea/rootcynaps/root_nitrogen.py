@@ -1227,9 +1227,9 @@ class RootNitrogenModel(Model):
             parametrization_mass = 0.0350087941254409
             transition_mass = 0.003 * 10 * 2 # for smoothness, increase if bouncing flows appear on too small root system
             target_mass = parametrization_mass + transition_mass
-            initial_sigma = 8e-9 * 1e-2 # lowered to accomodate switching to flows normalized by mass provided to shoot
-            # max_sigma = 1e-6 * 10000
+            initial_sigma = 8e-9 # lowered to accomodate switching to flows normalized by mass provided to shoot
             max_sigma = 1
+
             # Linear
             # slope = (max_sigma - initial_sigma) / (0.001)
             # origin = initial_sigma - slope * parametrization_mass
