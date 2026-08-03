@@ -701,14 +701,8 @@ class RootWaterModel(Model):
         parents  = parent_idx[children]                                          # (m_edges,)
 
         # Pull arrays fast (aligned with local vids)
-        # NOTE: living_struct_mass/soil_temperature are "eager" properties (explicitly initialized
-        # for every vertex at creation in ADDING_A_CHILD), unlike vertex_index which is "lazy"
-        # (only registered once a vertex enters focus_elements). Indexing an eager array with
-        # focus_glob_idx (derived from the lazy vertex_index) silently reads the wrong vertex's
-        # value once any not-yet-focus vertex exists -- recompute their own index map instead.
-        eager_idx = props['living_struct_mass'].indices_of(focus_vids)
-        living_struct_mass = props['living_struct_mass'].values_array()[eager_idx]
-        soil_temperature = props['soil_temperature'].values_array()[eager_idx]
+        living_struct_mass = props['living_struct_mass'].values_array()[focus_glob_idx]
+        soil_temperature = props['soil_temperature'].values_array()[focus_glob_idx]
         K_xylem = props['K_xylem'].values_array()[focus_glob_idx]
         K_phloem = props['K_phloem'].values_array()[focus_glob_idx]
         kr_symplasmic_water_xylem = props['kr_symplasmic_water_xylem'].values_array()[focus_glob_idx]
