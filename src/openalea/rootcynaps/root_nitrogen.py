@@ -789,6 +789,8 @@ class RootNitrogenModel(Model):
         # Log normal dependancy is used to account for observation of inducted HATS (iHATS) in addition to consititutive HATS (cHATS) already present
         # With a shift for HATS in the low concentration domain from high affinity-low vmax to low affinity-high vmax
 
+        # Mode (argmax) of the lognormal PDF f(x) = A/(x*sigma*sqrt(2*pi)) * exp(-(ln(x)-mu)^2/(2*sigma^2)),
+        # obtained by solving d/dx[ln f(x)] = 0, giving x = exp(mu - sigma^2)
         max_vmax_Nm = np.exp(self.vmax_HATS_Nm_centering - (self.vmax_HATS_Nm_spread**2))
         max_vmax = self.root_nitrate_lognorm_regulation(max_vmax_Nm, self.vmax_HATS_Nm_amplitude,
                                                                       self.vmax_HATS_Nm_centering,
@@ -1228,7 +1230,7 @@ class RootNitrogenModel(Model):
         #     transition_mass = 0.003 # for smoothness
         #     target_mass = parametrization_mass + transition_mass
         #     initial_sigma = 1e-7
-        #     max_sigma = 1.
+        #     max_sigma = 1. # To volumic concentration conversion
 
         #     # Exponential
         #     if living_struct_mass.sum() < parametrization_mass + transition_mass:
@@ -1250,7 +1252,7 @@ class RootNitrogenModel(Model):
         #         current_sigma = max_sigma
         
         # Reported from CN-Wheat
-        current_sigma = 1e-7
+        current_sigma = 5e-8 # NOTE Conversion to volumic concentrations is already done below
         Q10 = 1.3
         T_ref = 20.
         T_soil_collar = soil_temperature[root]
@@ -1288,19 +1290,13 @@ class RootNitrogenModel(Model):
             if name == "C_sucrose_root":
                 reference_rate_of_hexose_consumption_by_growth = self.reference_rate_of_hexose_consumption_by_growth
                 hexose_consumption_by_growth[root] = hexose_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
-                # reference_rate_of_hexose_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_hexose_consumption_by_growth/1, reference_rate_of_hexose_consumption_by_growth)
                 k_diffusion *= (1 + (hexose_consumption_by_growth + deficit_hexose_root) / (reference_rate_of_hexose_consumption_by_growth))
                 back_diffusion_asymetry = 10
             elif name == "phloem_AA":
                 reference_rate_of_AA_consumption_by_growth = self.reference_rate_of_AA_consumption_by_growth
                 amino_acids_consumption_by_growth[root] = amino_acids_consumption_by_growth[root] / 10 # not MTG asignment just regulation shutdown
-                # reference_rate_of_AA_consumption_by_growth = np.where(label==self.label_Apex, reference_rate_of_AA_consumption_by_growth/1, reference_rate_of_AA_consumption_by_growth)
                 k_diffusion *= (1 + (amino_acids_consumption_by_growth + deficit_AA) / (reference_rate_of_AA_consumption_by_growth))
                 back_diffusion_asymetry = 10
-            # if name == "C_sucrose_root":
-            #     k_diffusion *= (1 + hexose_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_hexose_consumption_by_growth))
-            # elif name == "phloem_AA":
-            #     k_diffusion *= (1 + amino_acids_consumption_by_growth / (living_struct_mass * self.massic_reference_rate_of_AA_consumption_by_growth))
 
 
             boundary_from_reached_segments = False
@@ -1426,7 +1422,7 @@ class RootNitrogenModel(Model):
             has_shoot_pool = name == "C_sucrose_root" or (name == "phloem_AA" and aa_shoot_pool_known)
 
             if name == "phloem_AA":
-                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root]
+                k_collar_phloem = collar_axial_diffusivity * (np.pi * (0.3 * radius[root])**2) / length[root] / 5 # to yield 1e-8
                 shoot_pool0 = shoot_amino_acids if has_shoot_pool else None
                 shoot_Neumann_BC = shoot_phloem_contributors_amino_acids
                 shoot_pool_volume = shoot_phloem_volume
@@ -1539,14 +1535,7 @@ class RootNitrogenModel(Model):
                 props["AA_root_to_shoot_phloem"][1] = R_to_shoot_actual
                 # NOTE: We DO NOT write the corresponding solution shoot phloem amount solution to the shoot model, only the Neuman BC will be passed
 
-            # NOTE: do not reuse focus_glob_idx (computed from vertex_index) here: vertex_index is
-            # a "lazy" property (only ever registered for vertices once they enter focus_elements,
-            # via post_growth_updating's one-step step_new_apices window), while diffusive_flux_name
-            # properties may be "eager" (explicitly initialized to 0. for every new vertex at
-            # creation in ADDING_A_CHILD, e.g. hexose_diffusion_from_phloem-like fluxes). An eager
-            # array can have extra entries (for not-yet-focus vertices) that a lazy vertex_index
-            # doesn't know about, shifting positions out of sync. Recompute the indices in this
-            # property's own array space to stay correct regardless of its eager/lazy status.
+            # We write the solution
             props[cfg["diffusive_flux_name"]].assign_at(focus_glob_idx, R_diffusion_actual / cfg["diffusive_flux_conversion"])
 
             if debug_advection: print(name, "Cv", Cv_sol.min(), Cv_sol.mean(), Cv_sol.max(), Cv_sol[root])
