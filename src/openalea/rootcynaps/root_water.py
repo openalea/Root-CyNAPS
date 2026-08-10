@@ -754,8 +754,8 @@ class RootWaterModel(Model):
             xylem_using_flow_not_pressure = False
         else:
             shoot_buffering_factor = 0.
-            # xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * props['water_root_shoot_xylem'][1], 1e-13) # NOTE : Minimal levels at night for pressure stability for now
-            xylem_estimated_flux_to_shoot = props['water_root_shoot_xylem'][1] # NOTE : Minimal levels at night for pressure stability for now
+            # xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * water_root_shoot_xylem, 1e-13) # NOTE : Minimal levels at night for pressure stability for now
+            xylem_estimated_flux_to_shoot = water_root_shoot_xylem
             xylem_using_flow_not_pressure = True
             # Manual override
             p_xylem_collar = props['xylem_pressure_out'][root_vid] - (xylem_estimated_flux_to_shoot / props['K_xylem'][root_vid])
@@ -856,9 +856,13 @@ class RootWaterModel(Model):
         # out pressures (parent’s in), with root boundary
         xylem_pressure_out = xylem_pressure_in[parent_idx].copy()
         phloem_pressure_out = phloem_pressure_in[parent_idx].copy()
-        if not xylem_using_flow_not_pressure:
+        if xylem_using_flow_not_pressure:
+            xylem_pressure_out[root] = xylem_pressure_in[root] - (xylem_estimated_flux_to_shoot / K_xylem[root])
+        else:
             xylem_pressure_out[root] = p_xylem_collar
-        if not phloem_using_flow_not_pressure:
+        if phloem_using_flow_not_pressure:
+            phloem_pressure_out[root] = phloem_pressure_in[root] - (phloem_estimated_flux_to_shoot / K_phloem[root])
+        else:
             phloem_pressure_out[root] = p_phloem_collar
 
         # axial exports
