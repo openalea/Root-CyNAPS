@@ -792,15 +792,14 @@ class RootNitrogenModel(Model):
         # Mode (argmax) of the lognormal PDF f(x) = A/(x*sigma*sqrt(2*pi)) * exp(-(ln(x)-mu)^2/(2*sigma^2)),
         # obtained by solving d/dx[ln f(x)] = 0, giving x = exp(mu - sigma^2)
         max_vmax_Nm = np.exp(self.vmax_HATS_Nm_centering - (self.vmax_HATS_Nm_spread**2))
-        max_vmax = self.root_nitrate_lognorm_regulation(max_vmax_Nm, self.vmax_HATS_Nm_amplitude,
+        safegarded_Nm_vmax = np.where(Nm < max_vmax_Nm, max_vmax_Nm, Nm)
+
+        vmax_HATS_Nm_root = self.root_nitrate_lognorm_regulation(safegarded_Nm_vmax, self.vmax_HATS_Nm_amplitude,
                                                                       self.vmax_HATS_Nm_centering,
                                                                       self.vmax_HATS_Nm_spread)
         
-        vmax_HATS_Nm_root = np.where(Nm < max_vmax_Nm, max_vmax, self.root_nitrate_lognorm_regulation(Nm, self.vmax_HATS_Nm_amplitude,
-                                                                      self.vmax_HATS_Nm_centering,
-                                                                      self.vmax_HATS_Nm_spread))
-        
-        Km_HATS_Nm_root = self.root_nitrate_lognorm_regulation(Nm, self.Km_HATS_Nm_amplitude,
+        safegarded_Nm_km = np.where(Nm < 1e-10, 1e-10, Nm)
+        Km_HATS_Nm_root = self.root_nitrate_lognorm_regulation(safegarded_Nm_km, self.Km_HATS_Nm_amplitude,
                                                                       self.Km_HATS_Nm_centering,
                                                                       self.Km_HATS_Nm_spread)
         
@@ -825,13 +824,16 @@ class RootNitrogenModel(Model):
 
     @rate
     def _vmax_HATS_Nm_root(self,  Nm):
-        return np.maximum(5e-9, self.root_nitrate_lognorm_regulation(Nm, self.vmax_HATS_Nm_amplitude,
+        max_vmax_Nm = np.exp(self.vmax_HATS_Nm_centering - (self.vmax_HATS_Nm_spread**2))
+        safegarded_Nm_vmax = np.where(Nm < max_vmax_Nm, max_vmax_Nm, Nm)
+        return np.maximum(5e-9, self.root_nitrate_lognorm_regulation(safegarded_Nm_vmax, self.vmax_HATS_Nm_amplitude,
                                                                       self.vmax_HATS_Nm_centering,
                                                                       self.vmax_HATS_Nm_spread))
     
     @rate
     def _Km_HATS_Nm_root(self,  Nm):
-        return self.root_nitrate_lognorm_regulation(Nm, self.Km_HATS_Nm_amplitude,
+        safegarded_Nm_km = np.where(Nm < 1e-10, 1e-10, Nm)
+        Km_HATS_Nm_root = self.root_nitrate_lognorm_regulation(safegarded_Nm_km, self.Km_HATS_Nm_amplitude,
                                                                       self.Km_HATS_Nm_centering,
                                                                       self.Km_HATS_Nm_spread)
     

@@ -310,10 +310,10 @@ class RootWaterModel(Model):
         Compute the water potential and fluxes of each segment
 
         For each vertex of the root, compute :
-            - the water potential (:math:`\psi_{\\text{out}}`) at the base;
-            - the water potential (:math:`\psi_{\\text{in}}`) at the end;
-            - the water flux (`J`) at the base;
-            - the lateral water flux (`j`) entering the segment.
+            - the water potential (psi_out) at the base;
+            - the water potential (psi_in) at the end;
+            - the water flux (J) at the base;
+            - the lateral water flux (j) entering the segment
 
         The vertex base is the side toward the basal direction, the vertex end is the one toward the root tip.
 
@@ -325,7 +325,7 @@ class RootWaterModel(Model):
                 - Finally, the water flux and potential are computed in pre order (parent then children).
 
         .. note::
-            Here :math:`\psi` are the hydrostatic water potential i.e. the hydrostatic pressure.
+            Here psi are the hydrostatic water potential i.e. the hydrostatic pressure.
             There are no osmotic components.
         """
 
