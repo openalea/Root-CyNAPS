@@ -21,7 +21,10 @@ class RootAnatomy(Model):
     length: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root segment length", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
-    distance_from_tip: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root segment distance from tip", 
+    initial_length: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root segment length",
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
+    distance_from_tip: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root segment distance from tip",
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="input", by="model_growth", state_variable_type="", edit_by="user")
     root_hair_length: float = declare(default=1.e-3, unit="m", unit_comment="", description="Example root hair length", 
@@ -70,7 +73,10 @@ class RootAnatomy(Model):
     phloem_volume: float = declare(default=0, unit="m3", unit_comment="", description="xylem volume for water transport between elements", 
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
-    total_phloem_volume: float = declare(default=0, unit="m3", unit_comment="", description="total phloem volume throughout the root system", 
+    growth_volume: float = declare(default=0, unit="m3 per time step", unit_comment="", description="segment volume increase resulting from growth during time step",
+                            min_value="", max_value="", value_comment="", references="", DOI="",
+                            variable_type="state_variable", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
+    total_phloem_volume: float = declare(default=0, unit="m3", unit_comment="", description="total phloem volume throughout the root system",
                             min_value="", max_value="", value_comment="", references="", DOI="",
                             variable_type="plant_scale_state", by="model_anatomy", state_variable_type="NonInertialExtensive", edit_by="user")
     xylem_vessel_radii: float = declare(default=0., unit="m", unit_comment="", description="list of individual xylem radius, also providing their numbering", 
@@ -389,12 +395,12 @@ class RootAnatomy(Model):
             # We assume that the relative conductance of cell walls is either homogeneously reduced over the length of the
             # meristem zone, or is maximal elsewhere, i.e. equal to 1.
             # If the current element encompasses a part of the meristem zone:
-            if (distance_from_tip - length) < meristem_zone_length:
+            if (distance_from_tip - length) < meristem_zone_length and length > 0.:
                 # Then we calculate the fraction of the length of the current element where the meristem is present:
-                fraction_of_meristem_zone = 1 - (distance_from_tip - length) / meristem_zone_length
-                # And the relative conductance of the cell walls in the whole element is a linear combination of the meristem
+                fraction_of_meristem_zone = np.minimum(1., (meristem_zone_length - (distance_from_tip - length)) / length) 
+                # And the relative conductance of the cell walls in the whole    is a linear combination of the meristem
                 # zone and the non-meristem zone:
-                n.relative_conductance_walls = 1 + (self.relative_conductance_at_meristem - 1) * fraction_of_meristem_zone
+                n.relative_conductance_walls = (1 - fraction_of_meristem_zone) + self.relative_conductance_at_meristem * fraction_of_meristem_zone
             else:
                 # Otherwise, the relative conductance of the cell walls is considered to be 1 by definition.
                 n.relative_conductance_walls = 1.
@@ -648,7 +654,19 @@ class RootAnatomy(Model):
         """
 
         return sum([layer.cell_volume(radius, length) for layer in self.cell_layers if layer.tissue_name == "phloem"]) * 100 # times 3 to account for the buffering capacity of companion cells
-    
+
+    @actual
+    @state
+    def _growth_volume(self, radius, length, initial_length):
+        if length > initial_length:
+            length_increase = length - initial_length
+            symplasm_increase = self._symplasmic_volume(radius, length_increase)
+            xylem_increase = self._xylem_volume(radius, length_increase)
+            phloem_increase = self._phloem_volume(radius, length_increase)
+            return symplasm_increase + xylem_increase + phloem_increase
+
+        else:
+            return 0.
 
     @actual
     @state

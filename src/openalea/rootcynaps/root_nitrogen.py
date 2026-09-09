@@ -1105,6 +1105,7 @@ class RootNitrogenModel(Model):
             shoot_phloem_contributors_sucrose = props["sucrose_phloem_contributors_flow"][1]
             # print("pre", shoot_sucrose, shoot_phloem_volume)
             cv_shoot_sucrose = shoot_sucrose / shoot_phloem_volume
+            # print("perceived Cv", cv_shoot_sucrose)
 
         Cv_AA_phloem_collar = props["Cv_AA_phloem_collar"][1]
         # A finite shoot pool (amount + volume) is required to add the shoot as an extra node in
@@ -1319,100 +1320,11 @@ class RootNitrogenModel(Model):
                     # B = - water_flux_root * solute_amount[root] / conductive_element_volume[root]
 
             # CRITICAL SECTION FOR COLLAR FLOW ATTRIBUTION TO ELEMENTS REACHED BY THE SAP MOVEMENT FRONT DURING THE TIME STEP
-            # Distribute B over impacted nodes exactly like your BFS logicd
+            # Distribute B over impacted nodes
             boundary_inflow = np.zeros(n, dtype=np.float64)
             boundary_outflow = np.zeros(n, dtype=np.float64)
             
             boundary_outflow[root] = water_flux[root]
-
-            # boundary_only_on_root = False
-
-            # if boundary_only_on_root and boundary_from_reached_segments:
-            #     boundary_outflow[root] = water_flux[root]
-
-            # if name not in ("C_sucrose_root", "phloem_AA") and not boundary_only_on_root:
-            #     # Nodes whose flux aligns with the collar’s sign are eligible to be reached by the advective front.
-            #     sgn_root = np.sign(water_flux[root]) if water_flux[root] != 0.0 else 1.0
-            #     Q_down = np.where(sgn_root * water_flux > 0.0, np.abs(water_flux), 0.0)  # (n,) >= 0
-
-            #     # Initial water volume budget at the collar for this step
-            #     vol_budget0 = np.abs(water_flux[root]) * dt
-            #     parent_crossing_time = dt
-
-            #     # Only flux with the same sign as collar contributes to splitting, reversed flux is opposite to the advection front.
-            #     Q_child_edge = Q_down[adj]                                # (m,)
-            #     m_edges = Q_child_edge.size
-            #     prefix = np.empty(m_edges + 1, dtype=np.float64)             # size m+1
-            #     prefix[0] = 0.0
-            #     np.cumsum(Q_child_edge, out=prefix[1:])                      # prefix[k] = sum(Q_child_edge[:k])
-            #     # Sum per parent i is prefix[offsets[i+1]] - prefix[offsets[i]]
-            #     sum_child_Q = prefix[offsets[1:]] - prefix[offsets[:-1]]     # (n,)
-
-            #     # in_budget[i]  = how much volume arrives *at the entrance* of node i
-            #     # adv_vol[i]    = how much volume actually *passes through* node i (<= V_eff[i])
-            #     # out_budget[i] = leftover volume after filling node i that goes to its children
-            #     in_budget = np.zeros(n, dtype=np.float64)
-            #     in_budget[root] = vol_budget0
-            #     adv_vol = np.zeros(n, dtype=np.float64)
-            #     time_remaining_after_parent = np.zeros(n, dtype=np.float64)
-            #     time_remaining_after_parent[root] = dt
-            #     crossing_time = np.zeros(n, dtype=np.float64)
-
-            #     # We iterate while some nodes still have incoming budget to push further.
-            #     # Each iteration touches all edges vectorially (masked to active parents).
-            #     # Depth is bounded by the tree height or until the budget is exhausted.
-            #     ct = 0
-            #     while True:
-            #         active_parents = np.flatnonzero(in_budget > 0.0)
-            #         if active_parents.size == 0:
-            #             break
-
-            #         # 1) Consume budget inside active parents
-            #         adv_here = np.minimum(in_budget[active_parents], conductive_element_volume[active_parents])  # (k,)
-            #         adv_vol[active_parents] += adv_here
-            #         crossing_time[active_parents] = np.maximum(time_remaining_after_parent[active_parents] - (0.5 * adv_vol[active_parents] / np.abs(water_flux[active_parents])), 0.)
-            #         out_here = in_budget[active_parents] - adv_here                          # (k,) >= 0
-
-            #         # 2) Prepare per-parent arrays expanded to all parents (for edge mapping)
-            #         out_full = np.zeros(n, dtype=np.float64)
-            #         out_full[active_parents] = out_here
-            #         parent_is_active = np.zeros(n, dtype=bool)
-            #         parent_is_active[active_parents] = True
-
-            #         # 3) Compute child incoming budgets on *edges* (vectorized)
-            #         # For edges whose parent is active and has downstream children, split
-            #         # the parent's leftover volume proportionally to Q_child_edge.
-            #         out_edge   = out_full[edge_parent]       # (m,)
-            #         sumQ_edge  = sum_child_Q[edge_parent]    # (m,)
-            #         # Edge is eligible if its parent is active, its child has Q>0, and the parent's sumQ>0.
-            #         edge_ok = parent_is_active[edge_parent] & (Q_child_edge > 0.0) & (sumQ_edge > 0.0) & (out_edge > 0.0)
-
-            #         child_in_edge = np.zeros_like(out_edge)
-            #         # child_in_edge = out_parent * (Q_child / sum_Q_children_of_parent)
-            #         child_in_edge[edge_ok] = out_edge[edge_ok] * (Q_child_edge[edge_ok] / sumQ_edge[edge_ok])
-
-            #         # 4) Accumulate edge contributions to each child node’s *incoming* budget for next level
-            #         next_in_budget = np.zeros(n, dtype=np.float64)
-            #         np.add.at(next_in_budget, adj, child_in_edge)  # sum contributions per child
-
-            #         # 5) Advance to next level
-            #         in_budget = next_in_budget
-            #         # Updating time remaining after the parent for the next loop
-            #         time_remaining_after_parent[in_budget > 0.0] = np.maximum(time_remaining_after_parent[edge_parent[edge_ok]] - (adv_vol[edge_parent[edge_ok]] / np.abs(water_flux[edge_parent[edge_ok]])), 0.)
-
-            #         ct += 1
-            
-            
-            #     # ---- Convert advected volumes to boundary molar flux weights ----
-            #     denom = adv_vol.sum()
-            #     # denom = conductive_element_volume.sum()
-            #     # adv_vol = conductive_element_volume
-            #     if denom > 0:
-            #         # boundary_outflow = (water_flux[root] * adv_vol) / denom
-            #         boundary_outflow = np.maximum(0.0, water_flux) * np.clip(crossing_time / dt, 0.0, 1.0)
-            #     else:
-            #         boundary_outflow[root] = water_flux[root]
-                
 
             # R_total = R + boundary, but R is split into LHS and RHS
             R_total = R_others + boundary_inflow + k_diffusion * solute_cv_symplasm / back_diffusion_asymetry
@@ -1457,7 +1369,8 @@ class RootNitrogenModel(Model):
             # Diagonal contributions gathered per node
             diag = np.zeros(n, dtype=np.float64)
             diag += -k_diffusion
-            diag += -boundary_outflow
+            # diag += -boundary_outflow
+            diag += -boundary_outflow if not has_shoot_pool else -boundary_outflow * 0  # in this case the shoot-root flow is computed differently from advection
             if name in ("C_sucrose_root", "phloem_AA") and not has_shoot_pool:
                 diag += -k_collar_phloem_diag
             # diffusion: -D at child and parent diags
@@ -1508,6 +1421,7 @@ class RootNitrogenModel(Model):
                 data_scaled_ext = np.concatenate([data_scaled, new_data_scaled])
 
                 LHS = identity(n_ext, format='csc') + csc_matrix(((-dt) * data_scaled_ext, (row_ext, col_ext)), shape=(n_ext, n_ext))
+                # print("Shoot", name, shoot_pool0, dt * shoot_Neumann_BC)
                 RHS_ext = np.concatenate([RHS, [shoot_pool0 + dt * shoot_Neumann_BC]])
                 n_sol_ext = linalg.splu(LHS).solve(RHS_ext)
                 n_sol = n_sol_ext[:n]

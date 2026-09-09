@@ -1,9 +1,9 @@
 #!/bin/bash
 
-### Les commentaires qui commencent par �#$� sont interpr�t�s par SGE comme des options en ligne ###
-### ce script est un exemple, il est n�cessaire de le modifier pour l'adapter � vos besoins ###
+### Les commentaires qui commencent par #$ sont interprétés par SGE comme des options en ligne ###
+### ce script est un exemple, il est nécessaire de le modifier pour l'adapter à vos besoins ###
 
-# Shell � utiliser pour l'ex�cution du job
+# Shell à utiliser pour l'exécution du job
 #$ -S /bin/bash
 
 # Nom du job
@@ -20,14 +20,14 @@
 # Sortie standard (already handled by python)
 #$ -o /home/tigerault/work/Wheat-BRIDGES_framework/Root-CyNAPS/simulations/scene/outputs/output.out
 
-# Sortie d�erreur (already handled by python)
+# Sortie d'erreur (already handled by python)
 #$ -e /home/tigerault/work/Wheat-BRIDGES_framework/Root-CyNAPS/simulations/scene/outputs/errors.err
 
 # Mail
 #$ -m ea
 #$ -M tristan.gerault@inrae.fr
 
-# Lance la commande depuis le r�pertoire o� est lanc� le script
+# Lance la commande depuis le répertoire où est lancé le script
 #$ -cwd
 
 # Utiliser n CPUs
