@@ -116,9 +116,6 @@ class RootWaterModel(Model):
     xylem_pressure_out: float = declare(default=-0.06e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
                                           min_value="", max_value="", value_comment="", references="", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
-    xylem_water_potential: float = declare(default=-0.06e6, unit="Pa", unit_comment="", description="total water potential in xylem",
-                                       min_value="", max_value="", value_comment="", references="", DOI="",
-                                       variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     phloem_pressure_in: float = declare(default=1e6, unit="Pa", unit_comment="", description="apoplastic pressure in stele at rest, we want the -0.5e6 target to be emerging from water balance",
                                           min_value="", max_value="", value_comment="", references="Dinant et al. 2010", DOI="",
                                           variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
@@ -174,8 +171,8 @@ class RootWaterModel(Model):
     collar_flux_provided: bool = declare(default=False, unit="adim", unit_comment="", description="Option if collar flux is provided by input data",
                                    min_value="", max_value="", value_comment="", references="", DOI="",
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
-    reflection_xylem: float = declare(default=0.85, unit="adim", unit_comment="", description="Reflection coefficient for soil-xylem radial water flux",
-                                   min_value="", max_value="", value_comment="", references="Miller, 1985a; Bauget et al., 2023", DOI="",
+    reflection_xylem: float = declare(default=0.85 * 0.1, unit="adim", unit_comment="", description="Reflection coefficient for soil-xylem radial water flux",
+                                   min_value="", max_value="", value_comment="Lowered to prevent water influx and pressure blowup", references="Miller, 1985a; Bauget et al., 2023", DOI="",
                                    variable_type="parameter", by="model_water", state_variable_type="", edit_by="user")
     reflection_phloem: float = declare(default=0.85, unit="adim", unit_comment="", description="Reflection coefficient for phloem-xylem radial water flux",
                                    min_value="", max_value="", value_comment="taken same as xylem", references="Miller, 1985a; Bauget et al., 2023", DOI="",
@@ -768,12 +765,8 @@ class RootWaterModel(Model):
             p_xylem_collar = props['xylem_pressure_collar'][root_vid]
             xylem_using_flow_not_pressure = False
         else:
-            shoot_buffering_factor = 0.
-            # xylem_estimated_flux_to_shoot = max((1-shoot_buffering_factor) * water_root_shoot_xylem, 1e-13) # NOTE : Minimal levels at night for pressure stability for now
             xylem_estimated_flux_to_shoot = water_root_shoot_xylem
             xylem_using_flow_not_pressure = True
-            # Manual override
-            p_xylem_collar = props['xylem_pressure_out'][root_vid] - (xylem_estimated_flux_to_shoot / props['K_xylem'][root_vid])
 
         # For phloem there is no model currently able to provide the water flux, so we use solute flow X shoot concentration instead for now
         sucrose_root_to_shoot_phloem = props['sucrose_root_to_shoot_phloem'][1]
@@ -853,7 +846,7 @@ class RootWaterModel(Model):
 
         G_xylem = ( axial_term_xylem
                     - sum_children_term_xylem
-                    - kr_water_xylem * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
+                    - (kr_water_xylem * (soil_water_pressure - xylem_pressure_in) - kr_symplasmic_water_xylem * osmotic_term_xylem)
                     - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem)
                     + growth_water_demand)
 
@@ -876,6 +869,7 @@ class RootWaterModel(Model):
         # out pressures (parent’s in), with root boundary
         xylem_pressure_out = xylem_pressure_in[parent_idx].copy()
         phloem_pressure_out = phloem_pressure_in[parent_idx].copy()
+
         if xylem_using_flow_not_pressure:
             xylem_pressure_out[root] = xylem_pressure_in[root] - (xylem_estimated_flux_to_shoot / K_xylem[root])
         else:
@@ -896,10 +890,9 @@ class RootWaterModel(Model):
         # radial terms
         osmotic_term_xylem = self.reflection_xylem * RT * (Cv_solutes_soil - Cv_solutes_xylem)
         osmotic_term_phloem = self.reflection_phloem * RT * (Cv_solutes_phloem - Cv_solutes_xylem)
-        xylem_water_potential = xylem_pressure_in - RT * Cv_solutes_xylem
 
-        radial_import_water_xylem = (kr_symplasmic_water_xylem + kr_apoplastic_water_xylem) * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
-        radial_import_water_xylem_apoplastic = kr_apoplastic_water_xylem * (soil_water_pressure - xylem_pressure_in - osmotic_term_xylem)
+        radial_import_water_xylem = ((kr_symplasmic_water_xylem + kr_apoplastic_water_xylem) * (soil_water_pressure - xylem_pressure_in)) - (kr_symplasmic_water_xylem * osmotic_term_xylem)
+        radial_import_water_xylem_apoplastic = kr_apoplastic_water_xylem * (soil_water_pressure - xylem_pressure_in)
         # For phleom, minus the orientation defined for G
         # NOTE: Very important to keep this convention for vessel flux advection
         radial_import_water_phloem = - kr_symplasmic_water_phloem * (phloem_pressure_in - xylem_pressure_in - osmotic_term_phloem)
@@ -907,22 +900,28 @@ class RootWaterModel(Model):
         # “down” imports
         axial_import_water_down_xylem = axial_export_water_up_xylem - radial_import_water_xylem + radial_import_water_phloem
         axial_import_water_down_phloem = axial_export_water_up_phloem - radial_import_water_phloem
-        if debug: 
-            xylem_conservation = np.abs(axial_export_water_up_xylem + radial_import_water_phloem - axial_import_water_down_xylem - radial_import_water_xylem) 
+        if debug:
+            xylem_conservation = np.abs(axial_export_water_up_xylem + radial_import_water_phloem - axial_import_water_down_xylem - radial_import_water_xylem)
+            if not np.all(xylem_conservation < 1e-18):
+                worst = int(np.argmax(xylem_conservation))
+                print("DEBUG xylem_conservation worst node: local_idx=", worst, "vid=", focus_vids[worst],
+                      "is_root=", worst == root, "has_parent=", parent_idx[worst] >= 0)
+                print("  K_xylem=", K_xylem[worst], " sum_K_children=", sum_K_children_xylem[worst],
+                      " kr_water=", kr_water_xylem[worst], " kr_symp_phloem=", kr_symplasmic_water_phloem[worst])
+                print("  xylem_pressure_in=", xylem_pressure_in[worst], " xylem_pressure_out=", xylem_pressure_out[worst],
+                      " Cv_solutes_xylem=", Cv_solutes_xylem[worst], " osmotic_term_xylem=", osmotic_term_xylem[worst])
+                print("  axial_export_up=", axial_export_water_up_xylem[worst], " axial_import_down=", axial_import_water_down_xylem[worst],
+                      " radial_import_xylem=", radial_import_water_xylem[worst], " radial_import_phloem=", radial_import_water_phloem[worst])
             assert np.all(xylem_conservation < 1e-18), np.max(xylem_conservation)
         if debug: 
             phloem_conservation = np.abs(axial_export_water_up_phloem - axial_import_water_down_phloem - radial_import_water_phloem)
             assert np.all(phloem_conservation < 1e-18), np.max(phloem_conservation)
-
-        # print("solved Psis", xylem_pressure_in[root], xylem_pressure_out[root])
-        # print("dt delta", 3600 * ((radial_import_water_xylem - radial_import_water_phloem - growth_water_demand).sum() - axial_export_water_up_xylem[root]), xylem_pressure_in[root], p_xylem_collar)
 
         # Push to array dict (one shot each)
         props['xylem_pressure_in'].assign_at(focus_glob_idx, xylem_pressure_in)
         props['phloem_pressure_in'].assign_at(focus_glob_idx, phloem_pressure_in)
         props['xylem_pressure_out'].assign_at(focus_glob_idx, xylem_pressure_out)
         props['phloem_pressure_out'].assign_at(focus_glob_idx, phloem_pressure_out)
-        props['xylem_water_potential'].assign_at(focus_glob_idx, xylem_water_potential)
         props['axial_export_water_up_xylem'].assign_at(focus_glob_idx, axial_export_water_up_xylem)
         props['axial_export_water_up_phloem'].assign_at(focus_glob_idx, axial_export_water_up_phloem)
         props['radial_import_water_xylem'].assign_at(focus_glob_idx, radial_import_water_xylem)

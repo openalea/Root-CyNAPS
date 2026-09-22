@@ -209,6 +209,10 @@ class RootNitrogenModel(Model):
     C_solutes_phloem: float =                 declare(default=1e-3, unit="mol.g-1", unit_comment="of total solutes", description="Total solute concentration in phloem",
                                         min_value=1e-6, max_value=1e-3, value_comment="", references="", DOI="",
                                         variable_type="state_variable", by="model_nitrogen", state_variable_type="massic_concentration", edit_by="user")
+    # Post computation for the shoot-root water coupling
+    xylem_water_potential_out: float = declare(default=-0.06e6, unit="Pa", unit_comment="", description="total water potential in xylem, variable only effectively used at collar",
+                                               min_value="", max_value="", value_comment="", references="", DOI="",
+                                               variable_type="state_variable", by="model_water", state_variable_type="NonInertialIntensive", edit_by="user")
     
     # Transport processes
     import_Nm: float =                      declare(default=0., unit="mol.s-1", unit_comment="of nitrates", description="", 
@@ -1124,7 +1128,7 @@ class RootNitrogenModel(Model):
         vertex_index = props["vertex_index"]                    # has .indices_of(ids) and .size
         dt = float(self.time_step)
         root_vid = 1
-        xylem_axial_diffusivity = 1e-8 * 0 # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
+        xylem_axial_diffusivity = 1e-8 * 0. # m^2/s Peuke et al. 2001 NOTE but canceled to let advection drive
         phloem_axial_diffusivity = 1e-9 * 100  # m^2/s Romero Gomez 2011
 
         # ---------------------------
@@ -1431,7 +1435,6 @@ class RootNitrogenModel(Model):
                 LHS = identity(n, format='csc') + csc_matrix(((-dt) * data_scaled, (row, col)), shape=(n, n))
                 n_sol = linalg.splu(LHS).solve(RHS)
 
-            Cm_sol = n_sol / living_struct_mass
             Cv_sol = n_sol / conductive_element_volume
 
             R_diffusion_actual = k_diffusion * ((solute_cv_symplasm / back_diffusion_asymetry) - Cv_sol)
@@ -1479,7 +1482,18 @@ class RootNitrogenModel(Model):
                                   props["AA_root_to_shoot_xylem"][1] * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
                                   props["AA_synthesis"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass) - props["AA_catabolism"].values_array().sum() * 1e6 * 3600 * 1.4 / np.sum(living_struct_mass), 
                                   props["Nm_root_to_shoot_xylem"][1] * 1e6 * 3600)
-            
+
+        # NOTE: Specific update of resulting total xylem_water_potential for downstream models after the computation of
+        # both hydrostatic and osmotic water potentials
+        # old_potential = props["xylem_water_potential_out"][root_vid]
+        # Cv_solutes_xylem = props['C_solutes_xylem'][root_vid] * props['living_struct_mass'][root_vid] / props['xylem_volume'][root_vid]
+        # new_potential = props["xylem_pressure_out"][root_vid] - (
+        #         8.31415 * (273.15 + props["soil_temperature"][root_vid]) * Cv_solutes_xylem)
+
+        # # step blending
+        # alpha_relaxation_potential = 1.
+        # props["xylem_water_potential_out"][root_vid] = alpha_relaxation_potential * new_potential + (1. - alpha_relaxation_potential) * old_potential
+
         self.cumulated_time += self.time_step
             
 
