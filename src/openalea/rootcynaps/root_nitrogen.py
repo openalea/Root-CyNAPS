@@ -1485,14 +1485,14 @@ class RootNitrogenModel(Model):
 
         # NOTE: Specific update of resulting total xylem_water_potential for downstream models after the computation of
         # both hydrostatic and osmotic water potentials
-        # old_potential = props["xylem_water_potential_out"][root_vid]
-        # Cv_solutes_xylem = props['C_solutes_xylem'][root_vid] * props['living_struct_mass'][root_vid] / props['xylem_volume'][root_vid]
-        # new_potential = props["xylem_pressure_out"][root_vid] - (
-        #         8.31415 * (273.15 + props["soil_temperature"][root_vid]) * Cv_solutes_xylem)
+        old_potential = props["xylem_water_potential_out"][root_vid]
+        Cv_solutes_xylem = props['C_solutes_xylem'][root_vid] * props['living_struct_mass'][root_vid] / props['xylem_volume'][root_vid]
+        new_potential = props["xylem_pressure_out"][root_vid] - (
+                8.31415 * (273.15 + props["soil_temperature"][root_vid]) * Cv_solutes_xylem)
 
-        # # step blending
-        # alpha_relaxation_potential = 1.
-        # props["xylem_water_potential_out"][root_vid] = alpha_relaxation_potential * new_potential + (1. - alpha_relaxation_potential) * old_potential
+        # step blending
+        alpha_relaxation_potential = 1.
+        props["xylem_water_potential_out"][root_vid] = alpha_relaxation_potential * new_potential + (1. - alpha_relaxation_potential) * old_potential
 
         self.cumulated_time += self.time_step
             
